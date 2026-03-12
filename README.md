@@ -137,7 +137,13 @@ final class PingHandler implements RequestHandlerInterface
 }
 ```
 
-### 3.1 Handler Modes (`psr15` vs `callable`)
+### 3.1 Route Parameters and Syntax
+
+Route path syntax is not normalized by this package. Parameters, placeholders, optional segments, and inline requirements depend on the configured Mezzio router implementation.
+
+In practice, route paths used in attributes should follow the same syntax rules as in Mezzio itself for your selected router (`mezzio/mezzio-fastroute`, `sirix/mezzio-radixrouter`, etc.).
+
+### 3.2 Handler Modes (`psr15` vs `callable`)
 
 The package supports two handler modes:
 
