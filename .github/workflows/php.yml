@@ -18,7 +18,7 @@ jobs:
             - name: Setup PHP
               uses: shivammathur/setup-php@v2
               with:
-                  php-version: "8.5"
+                  php-version: "8.4"
                   coverage: none
 
             - name: Validate composer.json
@@ -44,7 +44,7 @@ jobs:
               if: always()
               uses: actions/upload-artifact@v4
               with:
-                  name: benchmark-report-php8.5
+                  name: benchmark-report-php8.4
                   path: |
                       benchmarks/report.md
                       benchmarks/report.json
