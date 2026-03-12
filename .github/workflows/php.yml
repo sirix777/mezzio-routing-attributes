@@ -1,0 +1,64 @@
+name: PHP Composer
+
+on:
+    push:
+        branches: ["main"]
+    pull_request:
+        branches: ["main"]
+
+permissions:
+    contents: read
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - php-version: "8.2"
+                      mezzio_router: "^3.15"
+                      mezzio_router_label: "3.15"
+                    - php-version: "8.2"
+                      mezzio_router: "^4.1"
+                      mezzio_router_label: "4.1"
+                    - php-version: "8.5"
+                      mezzio_router: "^4.1"
+                      mezzio_router_label: "4.1"
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Setup PHP
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: ${{ matrix.php-version }}
+                  coverage: none
+
+            - name: Validate composer.json and composer.lock
+              run: composer validate --strict
+
+            - name: Install dependencies for matrix
+              run: composer update --with "mezzio/mezzio-router:${{ matrix.mezzio_router }}" --prefer-dist --no-progress --no-interaction
+
+            - name: Run cs-check
+              run: composer cs-check
+
+            - name: Run phpstan
+              run: composer phpstan
+
+            - name: Run phpunit
+              run: composer test
+
+            - name: Run benchmark report (non-blocking)
+              continue-on-error: true
+              run: composer benchmark > benchmarks/report.md
+
+            - name: Upload benchmark artifacts
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: benchmark-report-php${{ matrix.php-version }}-router${{ matrix.mezzio_router_label }}
+                  path: |
+                      benchmarks/report.md
+                      benchmarks/report.json
