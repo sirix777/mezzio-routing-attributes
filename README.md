@@ -97,16 +97,37 @@ return [
 
 ### 3. Add attributes
 
+Route attributes can be placed either on the handler method or on the handler class. Both variants are supported.
+
+Method-level attribute:
+
 ```php
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 use Sirix\Mezzio\Routing\Attributes\Attribute\Get;
-use Sirix\Mezzio\Routing\Attributes\Attribute\Route;
 
 final class PingHandler implements RequestHandlerInterface
 {
     #[Get('/ping', name: 'ping')]
+    public function handle(ServerRequestInterface $request): ResponseInterface
+    {
+        throw new \RuntimeException('Not implemented in README example.');
+    }
+}
+```
+
+Class-level attribute:
+
+```php
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
+use Psr\Http\Server\RequestHandlerInterface;
+use Sirix\Mezzio\Routing\Attributes\Attribute\Get;
+
+#[Get('/ping', name: 'ping')]
+final class PingHandler implements RequestHandlerInterface
+{
     public function handle(ServerRequestInterface $request): ResponseInterface
     {
         throw new \RuntimeException('Not implemented in README example.');
