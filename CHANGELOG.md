@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Until `1.0.0` is released, backward compatibility is not guaranteed. Public APIs and configuration may change between releases, including minor and patch releases.
 
+## [0.1.1] - 2026-03-12
+
+### Changed
+
+- CLI route listing now displays classic Mezzio routes more accurately when `mezzio:routes:list` is overridden by this package: lazy-loaded routes are shown by their underlying service name instead of `Mezzio\Middleware\LazyLoadingMiddleware`
+- Optional console/tooling integration no longer requires direct compile-time references to `mezzio/mezzio-tooling` classes, allowing the package to be installed and analysed without that dependency
+- CI now runs the full QA matrix across supported `mezzio/mezzio-router` versions again, including `^4.1`
+- Documentation now explicitly covers hybrid routing setups where attribute-defined routes and classic routes from `config/routes.php` are used together in the same application
+- Documentation now clarifies automatic `ConfigProvider` registration, support for both class-level and method-level route attributes, and that route parameter syntax depends on the configured Mezzio router implementation
+
 ## [0.1.0] - 2026-03-12
 
 ### Added

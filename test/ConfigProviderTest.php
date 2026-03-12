@@ -19,6 +19,8 @@ use Sirix\Mezzio\Routing\Attributes\RouteCollectorDelegator;
 
 class ConfigProviderTest extends TestCase
 {
+    private const TOOLING_LIST_ROUTES_COMMAND = 'Mezzio\Tooling\Routes\ListRoutesCommand';
+
     public function testProviderReturnsExpectedConfiguration(): void
     {
         $provider = new ConfigProvider();
@@ -53,7 +55,7 @@ class ConfigProviderTest extends TestCase
             ListRoutesCommand::class,
             $config['laminas-cli']['commands']['mezzio:routes:list']
         );
-        self::assertArrayNotHasKey(\Mezzio\Tooling\Routes\ListRoutesCommand::class, $dependencies['delegators']);
+        self::assertArrayNotHasKey(self::TOOLING_LIST_ROUTES_COMMAND, $dependencies['delegators']);
     }
 
     public function testRegistersToolingDelegatorWhenToolingAvailable(): void
@@ -66,7 +68,7 @@ class ConfigProviderTest extends TestCase
         self::assertArrayNotHasKey('mezzio:routes:list', $config['laminas-cli']['commands']);
         self::assertSame(
             [ListRoutesCommandDelegator::class],
-            $dependencies['delegators'][\Mezzio\Tooling\Routes\ListRoutesCommand::class]
+            $dependencies['delegators'][self::TOOLING_LIST_ROUTES_COMMAND]
         );
     }
 }

@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace SirixTest\Mezzio\Routing\Attributes\Command;
 
+use Mezzio\Middleware\LazyLoadingMiddleware;
 use Mezzio\Router\Route;
 use Mezzio\Router\RouteCollector;
+use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -17,8 +19,12 @@ use Sirix\Mezzio\Routing\Attributes\Command\RouteListFormatter;
 use Sirix\Mezzio\Routing\Attributes\Command\RouteListSorter;
 use Sirix\Mezzio\Routing\Attributes\Command\RouteTableProvider;
 
+use function class_exists;
+
 final class RouteListServicesTest extends TestCase
 {
+    private const LAZY_LOADING_MIDDLEWARE_CLASS = LazyLoadingMiddleware::class;
+
     public function testRouteTableProviderLoadsConfigBeforeReadingRoutes(): void
     {
         $loaderCalled = false;
@@ -95,5 +101,22 @@ final class RouteListServicesTest extends TestCase
         $rows = $formatter->formatRows([$route]);
 
         self::assertSame('mw.one -> handler::handle', $rows[0]['middleware']);
+    }
+
+    #[RunInSeparateProcess]
+    public function testRouteListFormatterUsesUnderlyingServiceNameForLazyLoadedRoute(): void
+    {
+        if (! class_exists(self::LAZY_LOADING_MIDDLEWARE_CLASS)) {
+            require_once __DIR__ . '/../TestAsset/Mezzio/Middleware/LazyLoadingMiddleware.php';
+        }
+
+        $formatter = new RouteListFormatter();
+        $className = self::LAZY_LOADING_MIDDLEWARE_CLASS;
+        $middleware = new $className('App\Handler\ClassicRouteHandler');
+        $route = new Route('/classic-demo', $middleware, ['GET'], 'classic.demo');
+
+        $rows = $formatter->formatRows([$route]);
+
+        self::assertSame('App\Handler\ClassicRouteHandler', $rows[0]['middleware']);
     }
 }

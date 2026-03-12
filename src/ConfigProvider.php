@@ -15,6 +15,8 @@ use Sirix\Mezzio\Routing\Attributes\Extractor\AttributeRouteExtractorInterface;
 
 final readonly class ConfigProvider
 {
+    private const TOOLING_LIST_ROUTES_COMMAND = 'Mezzio\Tooling\Routes\ListRoutesCommand';
+
     public function __construct(private ?ConsoleRegistrationPolicy $consoleRegistrationPolicy = null) {}
 
     /**
@@ -60,7 +62,7 @@ final readonly class ConfigProvider
         if ($consolePolicy->canRegisterConsoleConfig()) {
             $dependencies['factories'][ListRoutesCommand::class] = ListRoutesCommandFactory::class;
             if ($consolePolicy->shouldRegisterToolingDelegator()) {
-                $dependencies['delegators'][\Mezzio\Tooling\Routes\ListRoutesCommand::class] = [
+                $dependencies['delegators'][self::TOOLING_LIST_ROUTES_COMMAND] = [
                     ListRoutesCommandDelegator::class,
                 ];
             }

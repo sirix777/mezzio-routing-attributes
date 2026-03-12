@@ -21,6 +21,7 @@ This package provides:
 - Class-level route prefixes inherited by method-level routes
 - Class-level middleware inherited by method-level routes
 - Automatic route registration via a `RouteCollector` delegator
+- Hybrid operation with classic Mezzio routes defined outside attributes
 - A `ConfigProvider` and default config structure
 
 ## Installation
@@ -217,6 +218,20 @@ public function getDependencies(): array
 }
 ```
 
+### 3.3 Hybrid Route Definitions
+
+This package does not replace Mezzio's regular route configuration model.
+
+- Attribute-defined routes and classic routes from `config/routes.php` can be used together in the same application.
+- Both variants are registered into the same Mezzio routing table.
+- You may even reuse the same handler class in both styles, as long as route names and `path + method` combinations do not conflict.
+
+Typical hybrid setup:
+
+- keep existing routes in `config/routes.php`
+- introduce attribute routes gradually for new handlers or modules
+- optionally enable `override_mezzio_routes_list_command=true` if you want the package CLI formatter to enhance `mezzio:routes:list`
+
 ### 4. Optional: Class-level prefix
 
 ```php
@@ -302,6 +317,11 @@ return [
 
 For the override to work, both config providers must be registered and
 `override_mezzio_routes_list_command` must be set to `true`.
+
+When override is enabled, the command still prints the full routing table, not
+only attribute-defined routes. Attribute-defined routes use the package's
+enhanced middleware display, while classic routes continue to appear in the
+same list with their resolved handler service names.
 
 ## Configuration Impact
 

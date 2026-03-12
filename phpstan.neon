@@ -3,3 +3,5 @@ parameters:
 	paths:
 		- src
 		- test
+	scanFiles:
+		- test/TestAsset/Mezzio/Middleware/LazyLoadingMiddleware.php
