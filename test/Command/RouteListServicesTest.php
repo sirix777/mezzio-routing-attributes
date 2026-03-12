@@ -28,6 +28,7 @@ final class RouteListServicesTest extends TestCase
     public function testRouteTableProviderLoadsConfigBeforeReadingRoutes(): void
     {
         $loaderCalled = false;
+
         $collector = $this->createMock(RouteCollector::class);
         $collector
             ->expects(self::once())
