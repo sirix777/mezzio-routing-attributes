@@ -6,7 +6,7 @@ namespace SirixTest\Mezzio\Routing\Attributes\Command;
 
 use Mezzio\Middleware\LazyLoadingMiddleware;
 use Mezzio\Router\Route;
-use Mezzio\Router\RouteCollector;
+use Mezzio\Router\RouteCollectorInterface;
 use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
@@ -29,7 +29,7 @@ final class RouteListServicesTest extends TestCase
     {
         $loaderCalled = false;
 
-        $collector = $this->createMock(RouteCollector::class);
+        $collector = $this->createMock(RouteCollectorInterface::class);
         $collector
             ->expects(self::once())
             ->method('getRoutes')

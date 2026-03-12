@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Sirix\Mezzio\Routing\Attributes\Command;
 
 use Mezzio\Router\Route;
-use Mezzio\Router\RouteCollector;
+use Mezzio\Router\RouteCollectorInterface;
 
 final readonly class RouteTableProvider
 {
@@ -15,7 +15,7 @@ final readonly class RouteTableProvider
     /**
      * @param null|callable():void $loadConfig
      */
-    public function __construct(private RouteCollector $routeCollector, mixed $loadConfig = null)
+    public function __construct(private RouteCollectorInterface $routeCollector, mixed $loadConfig = null)
     {
         $this->loadConfig = $loadConfig;
     }
