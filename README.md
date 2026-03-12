@@ -33,6 +33,8 @@ composer require sirix/mezzio-routing-attributes
 
 ### 1. Register ConfigProvider
 
+This is the manual registration variant. In a typical Mezzio application, the package `ConfigProvider` is discovered and registered automatically.
+
 ```php
 $aggregator = new ConfigAggregator([
     // ...
