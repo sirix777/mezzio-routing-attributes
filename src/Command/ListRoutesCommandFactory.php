@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Sirix\Mezzio\Routing\Attributes\Command;
 
-use Mezzio\Application;
-use Mezzio\MiddlewareFactory;
 use Mezzio\Router\RouteCollector;
 use Mezzio\Tooling\Routes\ConfigLoaderInterface;
 use Psr\Container\ContainerInterface;
@@ -17,10 +15,10 @@ use function interface_exists;
 final class ListRoutesCommandFactory
 {
     /** @noRector StringClassNameToClassConstantRector */
-    private const APPLICATION_SERVICE = Application::class;
+    private const APPLICATION_SERVICE = 'Mezzio\Application';
 
     /** @noRector StringClassNameToClassConstantRector */
-    private const MIDDLEWARE_FACTORY_SERVICE = MiddlewareFactory::class;
+    private const MIDDLEWARE_FACTORY_SERVICE = 'Mezzio\MiddlewareFactory';
     private const DEFAULT_ROUTES_FILE = 'config/routes.php';
 
     public function __invoke(ContainerInterface $container): ListRoutesCommand

@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace SirixTest\Mezzio\Routing\Attributes\Command;
 
-use Mezzio\Application;
-use Mezzio\MiddlewareFactory;
 use Mezzio\Router\Route;
 use Mezzio\Router\RouteCollector;
 use Mezzio\Router\RouteCollectorInterface;
@@ -120,8 +118,8 @@ final class ListRoutesCommandFactoryTest extends TestCase
             {
                 return match ($id) {
                     RouteCollector::class => $this->collector,
-                    Application::class => $this->application,
-                    MiddlewareFactory::class => new stdClass(),
+                    'Mezzio\Application' => $this->application,
+                    'Mezzio\MiddlewareFactory' => new stdClass(),
                     'config' => [
                         'routing_attributes' => [
                             'classes' => [],
@@ -135,8 +133,8 @@ final class ListRoutesCommandFactoryTest extends TestCase
             {
                 return match ($id) {
                     RouteCollector::class,
-                    Application::class,
-                    MiddlewareFactory::class,
+                    'Mezzio\Application',
+                    'Mezzio\MiddlewareFactory',
                     'config' => true,
                     default => false,
                 };

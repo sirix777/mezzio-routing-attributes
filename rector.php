@@ -28,9 +28,11 @@ return static function(RectorConfig $rectorConfig): void {
         StringClassNameToClassConstantRector::class => [
             __DIR__ . '/src/Command/ConsoleRegistrationPolicy.php',
             __DIR__ . '/src/ConfigProvider.php',
+            __DIR__ . '/src/Command/ListRoutesCommandFactory.php',
             __DIR__ . '/test/ConfigProviderConsoleRegistrationTest.php',
             __DIR__ . '/test/ConfigProviderTest.php',
             __DIR__ . '/test/Command/ListRoutesCommandDelegatorTest.php',
+            __DIR__ . '/test/Command/ListRoutesCommandFactoryTest.php',
         ],
     ]);
 };
