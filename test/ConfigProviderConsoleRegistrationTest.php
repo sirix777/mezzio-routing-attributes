@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace SirixTest\Mezzio\Routing\Attributes;
 
-use Mezzio\Tooling\Routes\ConfigLoaderInterface;
 use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use PHPUnit\Framework\TestCase;
 use Sirix\Mezzio\Routing\Attributes\Command\ListRoutesCommand;
@@ -19,8 +18,11 @@ use function sprintf;
 
 final class ConfigProviderConsoleRegistrationTest extends TestCase
 {
-    private const TOOLING_CONFIG_LOADER_INTERFACE = ConfigLoaderInterface::class;
-    private const TOOLING_LIST_ROUTES_COMMAND = \Mezzio\Tooling\Routes\ListRoutesCommand::class;
+    /** @noRector StringClassNameToClassConstantRector */
+    private const TOOLING_CONFIG_LOADER_INTERFACE = 'Mezzio\Tooling\Routes\ConfigLoaderInterface';
+
+    /** @noRector StringClassNameToClassConstantRector */
+    private const TOOLING_LIST_ROUTES_COMMAND = 'Mezzio\Tooling\Routes\ListRoutesCommand';
 
     #[RunInSeparateProcess]
     public function testDoesNotRegisterConsoleCommandWhenToolingClassesMissing(): void

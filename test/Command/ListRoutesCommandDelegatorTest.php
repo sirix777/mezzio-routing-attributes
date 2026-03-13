@@ -12,6 +12,9 @@ use stdClass;
 
 final class ListRoutesCommandDelegatorTest extends TestCase
 {
+    /** @noRector StringClassNameToClassConstantRector */
+    private const TOOLING_LIST_ROUTES_COMMAND = 'Mezzio\Tooling\Routes\ListRoutesCommand';
+
     public function testReturnsOriginalCommandWhenOverrideDisabled(): void
     {
         $original = new stdClass();
@@ -25,7 +28,7 @@ final class ListRoutesCommandDelegatorTest extends TestCase
 
         $result = (new ListRoutesCommandDelegator())(
             $container,
-            'Mezzio\Tooling\Routes\ListRoutesCommand',
+            self::TOOLING_LIST_ROUTES_COMMAND,
             static fn (): object => $original
         );
 
@@ -47,7 +50,7 @@ final class ListRoutesCommandDelegatorTest extends TestCase
 
         $result = (new ListRoutesCommandDelegator())(
             $container,
-            'Mezzio\Tooling\Routes\ListRoutesCommand',
+            self::TOOLING_LIST_ROUTES_COMMAND,
             static fn (): object => $original
         );
 

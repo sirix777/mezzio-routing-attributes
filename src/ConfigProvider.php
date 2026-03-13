@@ -15,7 +15,8 @@ use Sirix\Mezzio\Routing\Attributes\Extractor\AttributeRouteExtractorInterface;
 
 final readonly class ConfigProvider
 {
-    private const TOOLING_LIST_ROUTES_COMMAND = \Mezzio\Tooling\Routes\ListRoutesCommand::class;
+    /** @noRector StringClassNameToClassConstantRector */
+    private const TOOLING_LIST_ROUTES_COMMAND = 'Mezzio\Tooling\Routes\ListRoutesCommand';
 
     public function __construct(private ?ConsoleRegistrationPolicy $consoleRegistrationPolicy = null) {}
 
