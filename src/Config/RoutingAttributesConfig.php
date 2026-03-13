@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Sirix\Mezzio\Routing\Attributes\Config;
 
 use Sirix\Mezzio\Routing\Attributes\AttributeRouteProvider;
+use Sirix\Mezzio\Routing\Attributes\Command\RouteMiddlewareDisplayResolver;
 use Sirix\Mezzio\Routing\Attributes\Discovery\DiscoveryClassMapCache;
 use Sirix\Mezzio\Routing\Attributes\Exception\InvalidConfigurationException;
 use Sirix\Mezzio\Routing\Attributes\RouteDefinitionCache;
@@ -21,6 +22,7 @@ final readonly class RoutingAttributesConfig
      * @param list<non-empty-string>                                                                               $classes
      * @param AttributeRouteProvider::DUPLICATE_STRATEGY_IGNORE|AttributeRouteProvider::DUPLICATE_STRATEGY_THROW   $duplicateStrategy
      * @param 'callable'|'psr15'                                                                                   $handlersMode
+     * @param 'resolved'|'upstream'                                                                                $classicRoutesMiddlewareDisplay
      * @param RouteDefinitionCache::WRITE_FAIL_STRATEGY_IGNORE|RouteDefinitionCache::WRITE_FAIL_STRATEGY_THROW     $cacheWriteFailStrategy
      * @param list<non-empty-string>                                                                               $discoveryPaths
      * @param 'psr4'|'token'                                                                                       $discoveryStrategy
@@ -31,6 +33,7 @@ final readonly class RoutingAttributesConfig
         public array $classes,
         public string $duplicateStrategy,
         public string $handlersMode,
+        public string $classicRoutesMiddlewareDisplay,
         public bool $cacheEnabled,
         public ?string $cacheFile,
         public bool $cacheStrict,
@@ -60,6 +63,7 @@ final readonly class RoutingAttributesConfig
         $normalizedClasses = self::parseClasses($routingAttributesConfig);
         $duplicateStrategy = self::parseDuplicateStrategy($routingAttributesConfig);
         $handlersMode = self::parseHandlersMode($routingAttributesConfig);
+        $classicRoutesMiddlewareDisplay = self::parseClassicRoutesMiddlewareDisplay($routingAttributesConfig);
         $discovery = self::parseDiscovery($routingAttributesConfig);
         $cache = self::parseCache($routingAttributesConfig);
 
@@ -67,6 +71,7 @@ final readonly class RoutingAttributesConfig
             $normalizedClasses,
             $duplicateStrategy,
             $handlersMode,
+            $classicRoutesMiddlewareDisplay,
             $cache['enabled'],
             $cache['file'],
             $cache['strict'],
@@ -81,6 +86,37 @@ final readonly class RoutingAttributesConfig
             $discovery['classMapCacheValidate'],
             $discovery['classMapCacheWriteFailStrategy']
         );
+    }
+
+    /**
+     * @param array<string, mixed> $routingAttributesConfig
+     *
+     * @return 'resolved'|'upstream'
+     */
+    private static function parseClassicRoutesMiddlewareDisplay(array $routingAttributesConfig): string
+    {
+        $routeListConfig = $routingAttributesConfig['route_list'] ?? [];
+        if (! is_array($routeListConfig)) {
+            throw InvalidConfigurationException::invalidRouteListType($routeListConfig);
+        }
+
+        $classicRoutesMiddlewareDisplay = $routeListConfig['classic_routes_middleware_display']
+            ?? RouteMiddlewareDisplayResolver::CLASSIC_ROUTES_MIDDLEWARE_DISPLAY_UPSTREAM;
+
+        if (
+            ! in_array(
+                $classicRoutesMiddlewareDisplay,
+                [
+                    RouteMiddlewareDisplayResolver::CLASSIC_ROUTES_MIDDLEWARE_DISPLAY_UPSTREAM,
+                    RouteMiddlewareDisplayResolver::CLASSIC_ROUTES_MIDDLEWARE_DISPLAY_RESOLVED,
+                ],
+                true
+            )
+        ) {
+            throw InvalidConfigurationException::invalidClassicRoutesMiddlewareDisplay($classicRoutesMiddlewareDisplay);
+        }
+
+        return $classicRoutesMiddlewareDisplay;
     }
 
     /**
@@ -228,8 +264,6 @@ final readonly class RoutingAttributesConfig
                     throw InvalidConfigurationException::invalidDiscoveryPsr4MappingNamespace($namespace);
                 }
 
-                // @var non-empty-string $basePath
-                // @var non-empty-string $namespace
                 $normalizedDiscoveryPsr4Mappings[$basePath] = $namespace;
             }
 

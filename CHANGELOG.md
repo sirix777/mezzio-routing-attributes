@@ -7,13 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Until `1.0.0` is released, backward compatibility is not guaranteed. Public APIs and configuration may change between releases, including minor and patch releases.
 
-## [Unreleased]
+## [0.1.2] - 2026-03-13
 
 ### Changed
 
 - CI now runs the QA matrix across all supported PHP versions (`8.2`, `8.3`, `8.4`, `8.5`) for both supported `mezzio/mezzio-router` branches (`^3.15` and `^4.1`)
 - GitHub Actions workflow is now prepared for the Node.js 24 transition by forcing JavaScript actions onto Node 24 and updating official actions where newer major versions are available
-- CLI route listing now matches upstream `mezzio:routes:list` behavior for classic routes defined outside attributes: non-attribute routes display their actual middleware class name, and `--has-middleware` filters by the underlying middleware class instead of the attribute pipeline display string
+- CLI route listing now defaults to upstream `mezzio:routes:list` behavior for classic routes defined outside attributes, and can optionally unwrap classic lazy-loaded routes to their resolved service name via `routing_attributes.route_list.classic_routes_middleware_display=resolved`
+- CLI middleware filtering now matches the displayed middleware information more closely: attribute-defined routes are filterable by the rendered attribute pipeline, while classic routes continue to use the configured upstream/resolved classic-route display mode
+- When `mezzio/mezzio-tooling` is not installed, CLI route listing now falls back to loading `config/routes.php` directly, so classic Mezzio routes still appear alongside attribute-defined routes
 
 ## [0.1.1] - 2026-03-12
 

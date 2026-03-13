@@ -16,8 +16,10 @@ use function str_replace;
 use function stripos;
 use function strtoupper;
 
-final class RouteListFilter
+final readonly class RouteListFilter
 {
+    public function __construct(private RouteMiddlewareDisplayResolver $middlewareDisplayResolver = new RouteMiddlewareDisplayResolver()) {}
+
     /**
      * @param list<Route> $routes
      *
@@ -50,7 +52,7 @@ final class RouteListFilter
                 }
 
                 if (is_string($middleware) && '' !== $middleware) {
-                    $middlewareClass = $route->getMiddleware()::class;
+                    $middlewareClass = $this->middlewareDisplayResolver->resolveForFilter($route);
 
                     return $middlewareClass === $middleware
                         || false !== stripos($middlewareClass, $middleware)

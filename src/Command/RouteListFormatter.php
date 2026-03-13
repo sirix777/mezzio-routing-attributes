@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace Sirix\Mezzio\Routing\Attributes\Command;
 
 use Mezzio\Router\Route;
-use Sirix\Mezzio\Routing\Attributes\AttributeRouteProvider;
 
 use function implode;
-use function is_string;
 
-final class RouteListFormatter
+final readonly class RouteListFormatter
 {
+    public function __construct(private RouteMiddlewareDisplayResolver $middlewareDisplayResolver = new RouteMiddlewareDisplayResolver()) {}
+
     /**
      * @param list<Route> $routes
      *
@@ -35,12 +35,6 @@ final class RouteListFormatter
 
     private function getMiddlewareDisplay(Route $route): string
     {
-        $display = $route->getOptions()[AttributeRouteProvider::ROUTE_OPTION_MIDDLEWARE_DISPLAY] ?? null;
-
-        if (is_string($display) && '' !== $display) {
-            return $display;
-        }
-
-        return $route->getMiddleware()::class;
+        return $this->middlewareDisplayResolver->resolveForDisplay($route);
     }
 }

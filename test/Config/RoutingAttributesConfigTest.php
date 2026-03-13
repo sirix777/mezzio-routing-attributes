@@ -38,6 +38,7 @@ final class RoutingAttributesConfigTest extends TestCase
         self::assertSame(['App\Handler\PingHandler'], $config->classes);
         self::assertSame('ignore', $config->duplicateStrategy);
         self::assertSame('psr15', $config->handlersMode);
+        self::assertSame('upstream', $config->classicRoutesMiddlewareDisplay);
         self::assertTrue($config->cacheEnabled);
         self::assertSame('/tmp/routes.php', $config->cacheFile);
         self::assertTrue($config->cacheStrict);
@@ -64,6 +65,7 @@ final class RoutingAttributesConfigTest extends TestCase
         self::assertSame([], $config->classes);
         self::assertSame('throw', $config->duplicateStrategy);
         self::assertSame('psr15', $config->handlersMode);
+        self::assertSame('upstream', $config->classicRoutesMiddlewareDisplay);
         self::assertFalse($config->cacheEnabled);
         self::assertNull($config->cacheFile);
         self::assertFalse($config->cacheStrict);
@@ -141,6 +143,44 @@ final class RoutingAttributesConfigTest extends TestCase
                 'classes' => [],
                 'handlers' => [
                     'mode' => 'invalid',
+                ],
+            ],
+        ]);
+    }
+
+    public function testParsesResolvedClassicRoutesMiddlewareDisplayMode(): void
+    {
+        $config = RoutingAttributesConfig::fromRootConfig([
+            'routing_attributes' => [
+                'classes' => [],
+                'route_list' => [
+                    'classic_routes_middleware_display' => 'resolved',
+                ],
+            ],
+        ]);
+
+        self::assertSame('resolved', $config->classicRoutesMiddlewareDisplay);
+    }
+
+    public function testThrowsWhenRouteListTypeIsInvalid(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+        RoutingAttributesConfig::fromRootConfig([
+            'routing_attributes' => [
+                'classes' => [],
+                'route_list' => 'invalid',
+            ],
+        ]);
+    }
+
+    public function testThrowsWhenClassicRoutesMiddlewareDisplayModeIsInvalid(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+        RoutingAttributesConfig::fromRootConfig([
+            'routing_attributes' => [
+                'classes' => [],
+                'route_list' => [
+                    'classic_routes_middleware_display' => 'invalid',
                 ],
             ],
         ]);

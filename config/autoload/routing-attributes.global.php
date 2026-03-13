@@ -14,6 +14,11 @@ return [
         ],
         // If true, overrides mezzio:routes:list with attribute-aware implementation (when tooling is installed).
         'override_mezzio_routes_list_command' => false,
+        'route_list' => [
+            // "upstream" (default) shows classic routes exactly like mezzio-tooling.
+            // "resolved" unwraps classic lazy-loaded routes to their underlying service name when possible.
+            'classic_routes_middleware_display' => 'upstream',
+        ],
         // Optional class discovery by scanning directories for routable classes.
         'discovery' => [
             'enabled' => false,

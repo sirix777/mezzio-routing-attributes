@@ -15,6 +15,7 @@ use Sirix\Mezzio\Routing\Attributes\AttributeRouteProvider;
 use Sirix\Mezzio\Routing\Attributes\Command\RouteListFilter;
 use Sirix\Mezzio\Routing\Attributes\Command\RouteListFormatter;
 use Sirix\Mezzio\Routing\Attributes\Command\RouteListSorter;
+use Sirix\Mezzio\Routing\Attributes\Command\RouteMiddlewareDisplayResolver;
 use Sirix\Mezzio\Routing\Attributes\Command\RouteTableProvider;
 
 final class RouteListServicesTest extends TestCase
@@ -59,7 +60,7 @@ final class RouteListServicesTest extends TestCase
         self::assertSame('users.create', $filtered[0]->getName());
     }
 
-    public function testRouteListFilterUsesUnderlyingMiddlewareClassForAttributeRoute(): void
+    public function testRouteListFilterUsesAttributeMiddlewareDisplayForAttributeRoute(): void
     {
         $filter = new RouteListFilter();
         $middleware = new class implements MiddlewareInterface {
@@ -70,13 +71,40 @@ final class RouteListServicesTest extends TestCase
         };
         $route = new Route('/attribute', $middleware, ['GET'], 'attribute.route');
         $route->setOptions([
-            AttributeRouteProvider::ROUTE_OPTION_MIDDLEWARE_DISPLAY => 'mw.one -> handler::handle',
+            AttributeRouteProvider::ROUTE_OPTION_MIDDLEWARE_DISPLAY => 'App\Middleware\PackageVersionHeaderMiddleware -> handler::handle',
         ]);
 
-        $filtered = $filter->filter([$route], false, false, $middleware::class, false);
+        $filtered = $filter->filter([$route], false, false, 'PackageVersionHeaderMiddleware', false);
 
         self::assertCount(1, $filtered);
         self::assertSame('attribute.route', $filtered[0]->getName());
+    }
+
+    public function testRouteListFilterUsesResolvedServiceNameForClassicLazyLoadedRouteWhenConfigured(): void
+    {
+        $filter = new RouteListFilter(
+            new RouteMiddlewareDisplayResolver(
+                RouteMiddlewareDisplayResolver::CLASSIC_ROUTES_MIDDLEWARE_DISPLAY_RESOLVED
+            )
+        );
+        $route = new Route(
+            '/classic-demo',
+            new class implements MiddlewareInterface {
+                public string $middlewareName = 'App\Handler\ClassicRouteHandler';
+
+                public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
+                {
+                    return $handler->handle($request);
+                }
+            },
+            ['GET'],
+            'classic.demo'
+        );
+
+        $filtered = $filter->filter([$route], false, false, 'App\Handler\ClassicRouteHandler', false);
+
+        self::assertCount(1, $filtered);
+        self::assertSame('classic.demo', $filtered[0]->getName());
     }
 
     public function testRouteListSorterSortsByPath(): void
@@ -132,5 +160,31 @@ final class RouteListServicesTest extends TestCase
         $rows = $formatter->formatRows([$route]);
 
         self::assertSame($middleware::class, $rows[0]['middleware']);
+    }
+
+    public function testRouteListFormatterUsesResolvedServiceNameForClassicLazyLoadedRouteWhenConfigured(): void
+    {
+        $formatter = new RouteListFormatter(
+            new RouteMiddlewareDisplayResolver(
+                RouteMiddlewareDisplayResolver::CLASSIC_ROUTES_MIDDLEWARE_DISPLAY_RESOLVED
+            )
+        );
+        $route = new Route(
+            '/classic-demo',
+            new class implements MiddlewareInterface {
+                public string $middlewareName = 'App\Handler\ClassicRouteHandler';
+
+                public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
+                {
+                    return $handler->handle($request);
+                }
+            },
+            ['GET'],
+            'classic.demo'
+        );
+
+        $rows = $formatter->formatRows([$route]);
+
+        self::assertSame('App\Handler\ClassicRouteHandler', $rows[0]['middleware']);
     }
 }

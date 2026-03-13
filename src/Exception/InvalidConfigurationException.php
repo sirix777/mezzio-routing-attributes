@@ -69,6 +69,22 @@ class InvalidConfigurationException extends InvalidArgumentException
         ));
     }
 
+    public static function invalidRouteListType(mixed $routeList): self
+    {
+        return new self(sprintf(
+            'Configuration key "routing_attributes.route_list" must be an array; received %s.',
+            get_debug_type($routeList)
+        ));
+    }
+
+    public static function invalidClassicRoutesMiddlewareDisplay(mixed $display): self
+    {
+        return new self(sprintf(
+            'Configuration key "routing_attributes.route_list.classic_routes_middleware_display" must be one of "upstream" or "resolved"; received %s.',
+            get_debug_type($display)
+        ));
+    }
+
     public static function invalidCacheType(mixed $cacheConfig): self
     {
         return new self(sprintf(

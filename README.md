@@ -60,6 +60,11 @@ return [
         ],
         // If true, overrides mezzio:routes:list (when mezzio/mezzio-tooling is installed).
         'override_mezzio_routes_list_command' => false,
+        'route_list' => [
+            // "upstream" (default) keeps classic routes identical to mezzio-tooling output.
+            // "resolved" unwraps classic lazy-loaded routes to their underlying service name when possible.
+            'classic_routes_middleware_display' => 'upstream',
+        ],
         // Optional directory scanning (auto-discovery).
         'discovery' => [
             'enabled' => false,
@@ -319,9 +324,10 @@ For the override to work, both config providers must be registered and
 `override_mezzio_routes_list_command` must be set to `true`.
 
 When override is enabled, the command still prints the full routing table, not
-only attribute-defined routes. Attribute-defined routes use the package's
-enhanced middleware display, while classic routes continue to appear in the
-same list with their resolved handler service names.
+only attribute-defined routes. Attribute-defined routes always use the
+package's enhanced middleware display. Classic routes default to upstream
+`mezzio-tooling` output, but can optionally display the resolved underlying
+service name via `routing_attributes.route_list.classic_routes_middleware_display`.
 
 ## Configuration Impact
 
@@ -343,6 +349,7 @@ same list with their resolved handler service names.
 | `routing_attributes.cache.strict` | Throws on stale/invalid cache metadata | Affects failure mode only | `false` unless strict fail-fast is required |
 | `routing_attributes.cache.write_fail_strategy` (`ignore\|throw`) | What happens if route cache cannot be written | Affects failure mode only | `ignore` for resilient runtime, `throw` for strict environments |
 | `routing_attributes.override_mezzio_routes_list_command` | Replaces `mezzio:routes:list` with attribute-aware command | CLI-only, no HTTP runtime effect | Enable only if you want override behavior |
+| `routing_attributes.route_list.classic_routes_middleware_display` (`upstream\|resolved`) | Controls how classic lazy-loaded routes are shown in CLI route listings | CLI-only, no HTTP runtime effect | Keep `upstream`; use `resolved` if you want service names instead of `LazyLoadingMiddleware` |
 
 ## Recommended Production Settings
 
@@ -358,6 +365,9 @@ return [
             'mode' => 'psr15',
         ],
         'override_mezzio_routes_list_command' => false,
+        'route_list' => [
+            'classic_routes_middleware_display' => 'upstream',
+        ],
         'discovery' => [
             // Enable only if you need automatic class discovery.
             'enabled' => false,
