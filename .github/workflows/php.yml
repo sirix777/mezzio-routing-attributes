@@ -9,27 +9,23 @@ on:
 permissions:
     contents: read
 
+env:
+    FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
     qa:
         runs-on: ubuntu-latest
         strategy:
             fail-fast: false
             matrix:
-                include:
-                    - php-version: "8.2"
-                      mezzio_router: "^3.15"
-                      mezzio_router_label: "3.15"
-                    - php-version: "8.2"
-                      mezzio_router: "^4.1"
-                      mezzio_router_label: "4.1"
-                    - php-version: "8.5"
-                      mezzio_router: "^3.15"
-                      mezzio_router_label: "3.15"
-                    - php-version: "8.5"
-                      mezzio_router: "^4.1"
-                      mezzio_router_label: "4.1"
+                php-version: ["8.2", "8.3", "8.4", "8.5"]
+                mezzio-router:
+                    - version: "^3.15"
+                      label: "3.15"
+                    - version: "^4.1"
+                      label: "4.1"
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v5
 
             - name: Setup PHP
               uses: shivammathur/setup-php@v2
@@ -41,7 +37,7 @@ jobs:
               run: composer validate --strict --no-check-lock
 
             - name: Install dependencies
-              run: composer update --with "mezzio/mezzio-router:${{ matrix.mezzio_router }}" --prefer-dist --no-progress --no-interaction
+              run: composer update --with "mezzio/mezzio-router:${{ matrix.mezzio-router.version }}" --prefer-dist --no-progress --no-interaction
 
             - name: Run cs-check
               run: composer cs-check
@@ -58,9 +54,9 @@ jobs:
 
             - name: Upload benchmark artifacts
               if: always()
-              uses: actions/upload-artifact@v4
+              uses: actions/upload-artifact@v6
               with:
-                  name: benchmark-report-php${{ matrix.php-version }}-router${{ matrix.mezzio_router_label }}
+                  name: benchmark-report-php${{ matrix.php-version }}-router${{ matrix.mezzio-router.label }}
                   path: |
                       benchmarks/report.md
                       benchmarks/report.json

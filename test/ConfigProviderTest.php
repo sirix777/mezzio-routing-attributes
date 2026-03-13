@@ -19,7 +19,7 @@ use Sirix\Mezzio\Routing\Attributes\RouteCollectorDelegator;
 
 class ConfigProviderTest extends TestCase
 {
-    private const TOOLING_LIST_ROUTES_COMMAND = 'Mezzio\Tooling\Routes\ListRoutesCommand';
+    private const TOOLING_LIST_ROUTES_COMMAND = \Mezzio\Tooling\Routes\ListRoutesCommand::class;
 
     public function testProviderReturnsExpectedConfiguration(): void
     {

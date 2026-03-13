@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Until `1.0.0` is released, backward compatibility is not guaranteed. Public APIs and configuration may change between releases, including minor and patch releases.
 
+## [Unreleased]
+
+### Changed
+
+- CI now runs the QA matrix across all supported PHP versions (`8.2`, `8.3`, `8.4`, `8.5`) for both supported `mezzio/mezzio-router` branches (`^3.15` and `^4.1`)
+- GitHub Actions workflow is now prepared for the Node.js 24 transition by forcing JavaScript actions onto Node 24 and updating official actions where newer major versions are available
+- CLI route listing now matches upstream `mezzio:routes:list` behavior for classic routes defined outside attributes: non-attribute routes display their actual middleware class name, and `--has-middleware` filters by the underlying middleware class instead of the attribute pipeline display string
+
 ## [0.1.1] - 2026-03-12
 
 ### Changed

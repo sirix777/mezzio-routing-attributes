@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Sirix\Mezzio\Routing\Attributes\Command;
 
 use Mezzio\Router\Route;
-use Sirix\Mezzio\Routing\Attributes\AttributeRouteProvider;
 
 use function array_filter;
 use function array_values;
@@ -51,13 +50,13 @@ final class RouteListFilter
                 }
 
                 if (is_string($middleware) && '' !== $middleware) {
-                    $display = $this->getMiddlewareDisplay($route);
+                    $middlewareClass = $route->getMiddleware()::class;
 
-                    return $display === $middleware
-                        || false !== stripos($display, $middleware)
+                    return $middlewareClass === $middleware
+                        || false !== stripos($middlewareClass, $middleware)
                         || (bool) preg_match(
                             sprintf('/%s/', $this->escapeNamespaceSeparatorForRegex($middleware)),
-                            $display
+                            $middlewareClass
                         );
                 }
 
@@ -85,14 +84,5 @@ final class RouteListFilter
     private function escapeNamespaceSeparatorForRegex(string $toMatch): string
     {
         return str_replace('\\', '\\\\', $toMatch);
-    }
-
-    private function getMiddlewareDisplay(Route $route): string
-    {
-        $display = $route->getOptions()[AttributeRouteProvider::ROUTE_OPTION_MIDDLEWARE_DISPLAY] ?? null;
-
-        return is_string($display) && '' !== $display
-            ? $display
-            : $route->getMiddleware()::class;
     }
 }
