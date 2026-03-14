@@ -12,6 +12,7 @@ use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\PingHandler;
 
 use function basename;
 use function copy;
+use function file_put_contents;
 use function glob;
 use function is_dir;
 use function is_file;
@@ -76,6 +77,38 @@ final class DiscoveryClassMapCacheTest extends TestCase
         self::assertNotNull($loaded);
         self::assertSame([PingHandler::class], $loaded['classes']);
         self::assertSame('fingerprint', $loaded['fingerprint']);
+    }
+
+    public function testReturnsNullForLegacyPayloadWithoutFormatVersion(): void
+    {
+        /** @var non-empty-string $path */
+        $path = $this->tempDir;
+        $cacheFile = $this->tempDir . '/classmap-cache-legacy.php';
+        $inventory = new DiscoveryFileInventory([$path]);
+        $files = $inventory->collect();
+
+        file_put_contents(
+            $cacheFile,
+            <<<'PHP'
+                <?php
+
+                declare(strict_types=1);
+
+                return [
+                    'paths' => ['/tmp/legacy'],
+                    'files' => [],
+                    'classes' => ['Legacy\\Handler'],
+                    'fingerprint' => 'legacy-fingerprint',
+                    'inventory_fingerprint' => 'legacy-inventory',
+                    'options_signature' => 'default',
+                ];
+                PHP
+        );
+
+        $cache = new DiscoveryClassMapCache([$path], $cacheFile, false, $inventory);
+
+        self::assertNull($cache->load());
+        self::assertNotEmpty($files);
     }
 
     public function testInvalidatesWhenInventoryFingerprintChanges(): void

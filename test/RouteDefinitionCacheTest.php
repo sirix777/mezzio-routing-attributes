@@ -10,6 +10,7 @@ use Sirix\Mezzio\Routing\Attributes\RouteDefinition;
 use Sirix\Mezzio\Routing\Attributes\RouteDefinitionCache;
 
 use function file_exists;
+use function file_get_contents;
 use function file_put_contents;
 use function is_dir;
 use function is_file;
@@ -63,6 +64,48 @@ final class RouteDefinitionCacheTest extends TestCase
         self::assertSame(['GET'], $loaded[0]->methods);
         self::assertSame('service.cached', $loaded[0]->handlerService);
         self::assertSame(['mw.one'], $loaded[0]->middlewareServices);
+        self::assertStringContainsString("0 => '/cached'", (string) file_get_contents($cacheFile));
+        self::assertStringContainsString("2 => 'service.cached'", (string) file_get_contents($cacheFile));
+    }
+
+    public function testReturnsNullWhenLegacyCacheFormatVersionIsLoaded(): void
+    {
+        $cacheFile = $this->createCacheFilePath();
+        $this->cacheFiles[] = $cacheFile;
+        file_put_contents(
+            $cacheFile,
+            <<<'PHP'
+                <?php
+
+                declare(strict_types=1);
+
+                return [
+                    'meta' => [
+                        'format_version' => 1,
+                        'duplicate_strategy' => 'throw',
+                        'classes_fingerprint' => 'legacy',
+                    ],
+                    'routes' => [
+                        [
+                            'path' => '/legacy',
+                            'methods' => ['GET'],
+                            'handlerService' => 'service.legacy',
+                            'handlerMethod' => 'handle',
+                            'middlewareServices' => [],
+                            'name' => 'legacy.route',
+                        ],
+                    ],
+                ];
+                PHP
+        );
+
+        $cache = new RouteDefinitionCache($cacheFile, [
+            'format_version' => RouteDefinitionCache::CACHE_FORMAT_VERSION,
+            'duplicate_strategy' => 'throw',
+            'classes_fingerprint' => 'legacy',
+        ]);
+
+        self::assertNull($cache->load());
     }
 
     public function testReturnsNullWhenCacheMetaIsStaleInNonStrictMode(): void
@@ -132,20 +175,20 @@ final class RouteDefinitionCacheTest extends TestCase
                     'meta' => [],
                     'routes' => [
                         [
-                            'path' => '/ok',
-                            'methods' => ['GET'],
-                            'handlerService' => 'service.ok',
-                            'handlerMethod' => 'handle',
-                            'middlewareServices' => [],
-                            'name' => 'ok.route',
+                            0 => '/ok',
+                            1 => ['GET'],
+                            2 => 'service.ok',
+                            3 => 'handle',
+                            4 => [],
+                            5 => 'ok.route',
                         ],
                         [
-                            'path' => '',
-                            'methods' => ['GET'],
-                            'handlerService' => 'service.broken',
-                            'handlerMethod' => 'handle',
-                            'middlewareServices' => [],
-                            'name' => 'broken.route',
+                            0 => '',
+                            1 => ['GET'],
+                            2 => 'service.broken',
+                            3 => 'handle',
+                            4 => [],
+                            5 => 'broken.route',
                         ],
                     ],
                 ];
@@ -157,7 +200,7 @@ final class RouteDefinitionCacheTest extends TestCase
         self::assertNull($cache->load());
     }
 
-    public function testThrowsWhenAnyCachedRouteEntryIsMalformedInStrictMode(): void
+    public function testReturnsNullWhenCachedRouteDefinitionCannotBeHydratedInNonStrictMode(): void
     {
         $cacheFile = $this->createCacheFilePath();
         $this->cacheFiles[] = $cacheFile;
@@ -172,20 +215,43 @@ final class RouteDefinitionCacheTest extends TestCase
                     'meta' => [],
                     'routes' => [
                         [
-                            'path' => '/ok',
-                            'methods' => ['GET'],
-                            'handlerService' => 'service.ok',
-                            'handlerMethod' => 'handle',
-                            'middlewareServices' => [],
-                            'name' => 'ok.route',
+                            0 => '/ok',
+                            1 => ['GET', ''],
+                            2 => 'service.ok',
+                            3 => 'handle',
+                            4 => [],
+                            5 => 'ok.route',
                         ],
+                    ],
+                ];
+                PHP
+        );
+
+        $cache = new RouteDefinitionCache($cacheFile, null, false);
+
+        self::assertNull($cache->load());
+    }
+
+    public function testThrowsWhenCachedRouteEntryIsMalformedInStrictMode(): void
+    {
+        $cacheFile = $this->createCacheFilePath();
+        $this->cacheFiles[] = $cacheFile;
+        file_put_contents(
+            $cacheFile,
+            <<<'PHP'
+                <?php
+
+                declare(strict_types=1);
+
+                return [
+                    'meta' => [],
+                    'routes' => [
                         [
-                            'path' => '/broken',
-                            'methods' => ['GET', ''],
-                            'handlerService' => 'service.broken',
-                            'handlerMethod' => 'handle',
-                            'middlewareServices' => [],
-                            'name' => 'broken.route',
+                            0 => '/ok',
+                            1 => ['GET'],
+                            2 => 'service.ok',
+                            3 => 'handle',
+                            4 => [],
                         ],
                     ],
                 ];
@@ -195,8 +261,8 @@ final class RouteDefinitionCacheTest extends TestCase
         $cache = new RouteDefinitionCache($cacheFile, null, true);
 
         $this->expectException(InvalidConfigurationException::class);
-        $this->expectExceptionMessage('Route entry "1" is invalid');
-        $this->expectExceptionMessage('methods');
+        $this->expectExceptionMessage('Route entry "0" is invalid');
+        $this->expectExceptionMessage('0..5');
         $cache->load();
     }
 

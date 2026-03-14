@@ -12,6 +12,7 @@ use function file_put_contents;
 use function is_array;
 use function is_dir;
 use function is_file;
+use function is_int;
 use function is_string;
 use function mkdir;
 use function restore_error_handler;
@@ -21,7 +22,7 @@ use function var_export;
 
 final readonly class RouteDefinitionCache
 {
-    public const CACHE_FORMAT_VERSION = 1;
+    public const CACHE_FORMAT_VERSION = 2;
     public const WRITE_FAIL_STRATEGY_IGNORE = 'ignore';
     public const WRITE_FAIL_STRATEGY_THROW = 'throw';
 
@@ -45,6 +46,7 @@ final readonly class RouteDefinitionCache
         }
 
         $cached = require $this->cacheFile;
+
         if (! is_array($cached)) {
             $this->invalidPayload('Top-level value must be an array.');
 
@@ -113,12 +115,12 @@ final readonly class RouteDefinitionCache
      * @param list<RouteDefinition> $routes
      *
      * @return list<array{
-     *     path: non-empty-string,
-     *     methods: null|list<non-empty-string>,
-     *     handlerService: non-empty-string,
-     *     handlerMethod: non-empty-string,
-     *     middlewareServices: list<non-empty-string>,
-     *     name: null|non-empty-string
+     *     0: non-empty-string,
+     *     1: null|list<non-empty-string>,
+     *     2: non-empty-string,
+     *     3: non-empty-string,
+     *     4: list<non-empty-string>,
+     *     5: null|non-empty-string
      * }>
      */
     private function serializeRoutesForCache(array $routes): array
@@ -126,12 +128,12 @@ final readonly class RouteDefinitionCache
         $result = [];
         foreach ($routes as $route) {
             $result[] = [
-                'path' => $route->path,
-                'methods' => $route->methods,
-                'handlerService' => $route->handlerService,
-                'handlerMethod' => $route->handlerMethod,
-                'middlewareServices' => $route->middlewareServices,
-                'name' => $route->name,
+                $route->path,
+                $route->methods,
+                $route->handlerService,
+                $route->handlerMethod,
+                $route->middlewareServices,
+                $route->name,
             ];
         }
 
@@ -146,94 +148,84 @@ final readonly class RouteDefinitionCache
     private function hydrateCachedRoutes(array $cachedRoutes): ?array
     {
         $routes = [];
+        $expectedIndex = 0;
         foreach ($cachedRoutes as $index => $cachedRoute) {
+            if ($index !== $expectedIndex) {
+                $this->invalidCachedRoute($index, 'entry index must be a zero-based contiguous integer');
+
+                return null;
+            }
+            ++$expectedIndex;
+
             if (! is_array($cachedRoute)) {
-                $this->invalidCachedRoute($index, 'entry must be an array');
+                $this->invalidCachedRoute($index, 'entry must be an indexed array');
 
                 return null;
             }
 
-            if (! isset($cachedRoute['path'], $cachedRoute['handlerService'], $cachedRoute['handlerMethod'])) {
-                $this->invalidCachedRoute($index, 'required keys "path", "handlerService", "handlerMethod" are missing');
+            if (
+                ! array_key_exists(0, $cachedRoute)
+                || ! array_key_exists(1, $cachedRoute)
+                || ! array_key_exists(2, $cachedRoute)
+                || ! array_key_exists(3, $cachedRoute)
+                || ! array_key_exists(4, $cachedRoute)
+                || ! array_key_exists(5, $cachedRoute)
+            ) {
+                $this->invalidCachedRoute($index, 'entry must contain indexes 0..5');
 
                 return null;
             }
 
-            if (! is_array($cachedRoute['middlewareServices'] ?? null)) {
-                $this->invalidCachedRoute($index, 'field "middlewareServices" must be an array');
+            if (! is_string($cachedRoute[0]) || '' === $cachedRoute[0]) {
+                $this->invalidCachedRoute($index, 'field 0 (path) must be a non-empty string');
 
                 return null;
             }
 
-            if (! is_string($cachedRoute['path'])) {
-                $this->invalidCachedRoute($index, 'field "path" must be a non-empty string');
+            if (! is_string($cachedRoute[2]) || '' === $cachedRoute[2]) {
+                $this->invalidCachedRoute($index, 'field 2 (handlerService) must be a non-empty string');
 
                 return null;
             }
 
-            if ('' === $cachedRoute['path']) {
-                $this->invalidCachedRoute($index, 'field "path" must be a non-empty string');
+            if (! is_string($cachedRoute[3]) || '' === $cachedRoute[3]) {
+                $this->invalidCachedRoute($index, 'field 3 (handlerMethod) must be a non-empty string');
 
                 return null;
             }
 
-            if (! is_string($cachedRoute['handlerService'])) {
-                $this->invalidCachedRoute($index, 'field "handlerService" must be a non-empty string');
+            if (null !== $cachedRoute[1] && ! $this->isValidCachedStringList($cachedRoute[1])) {
+                $this->invalidCachedRoute($index, 'field 1 (methods) must be null or a list of non-empty strings');
 
                 return null;
             }
 
-            if ('' === $cachedRoute['handlerService']) {
-                $this->invalidCachedRoute($index, 'field "handlerService" must be a non-empty string');
+            if (! $this->isValidCachedStringList($cachedRoute[4])) {
+                $this->invalidCachedRoute($index, 'field 4 (middlewareServices) must be a list of non-empty strings');
 
                 return null;
             }
 
-            if (! is_string($cachedRoute['handlerMethod'])) {
-                $this->invalidCachedRoute($index, 'field "handlerMethod" must be a non-empty string');
+            if (null !== $cachedRoute[5] && (! is_string($cachedRoute[5]) || '' === $cachedRoute[5])) {
+                $this->invalidCachedRoute($index, 'field 5 (name) must be null or a non-empty string');
 
                 return null;
             }
 
-            if ('' === $cachedRoute['handlerMethod']) {
-                $this->invalidCachedRoute($index, 'field "handlerMethod" must be a non-empty string');
+            /** @var null|list<non-empty-string> $methods */
+            $methods = $cachedRoute[1];
 
-                return null;
-            }
+            /** @var list<non-empty-string> $middlewareServices */
+            $middlewareServices = $cachedRoute[4];
 
-            $methods = $cachedRoute['methods'] ?? null;
-            if (null !== $methods && ! is_array($methods)) {
-                $this->invalidCachedRoute($index, 'field "methods" must be null or an array of non-empty strings');
-
-                return null;
-            }
-
-            $methods = $this->normalizeCachedStringList($methods);
-            if (null !== ($cachedRoute['methods'] ?? null) && null === $methods) {
-                $this->invalidCachedRoute($index, 'field "methods" must contain only non-empty strings');
-
-                return null;
-            }
-
-            $middlewareServices = $this->normalizeCachedStringList($cachedRoute['middlewareServices']);
-            if (null === $middlewareServices) {
-                $this->invalidCachedRoute($index, 'field "middlewareServices" must contain only non-empty strings');
-
-                return null;
-            }
-
-            $name = $cachedRoute['name'] ?? null;
-            if (null !== $name && (! is_string($name) || '' === $name)) {
-                $this->invalidCachedRoute($index, 'field "name" must be null or a non-empty string');
-
-                return null;
-            }
+            /** @var null|non-empty-string $name */
+            $name = $cachedRoute[5];
 
             $routes[] = new RouteDefinition(
-                $cachedRoute['path'],
+                $cachedRoute[0],
                 $methods,
-                $cachedRoute['handlerService'],
-                $cachedRoute['handlerMethod'],
+                $cachedRoute[2],
+                $cachedRoute[3],
                 $middlewareServices,
                 $name
             );
@@ -242,23 +234,25 @@ final readonly class RouteDefinitionCache
         return $routes;
     }
 
-    /** @return null|list<non-empty-string> */
-    private function normalizeCachedStringList(mixed $items): ?array
+    private function isValidCachedStringList(mixed $value): bool
     {
-        if (! is_array($items)) {
-            return null;
+        if (! is_array($value)) {
+            return false;
         }
 
-        $normalized = [];
-        foreach ($items as $item) {
-            if (! is_string($item) || '' === $item) {
-                return null;
+        $expectedIndex = 0;
+        foreach ($value as $index => $item) {
+            if (! is_int($index) || $index !== $expectedIndex) {
+                return false;
             }
+            ++$expectedIndex;
 
-            $normalized[] = $item;
+            if (! is_string($item) || '' === $item) {
+                return false;
+            }
         }
 
-        return $normalized;
+        return true;
     }
 
     /**

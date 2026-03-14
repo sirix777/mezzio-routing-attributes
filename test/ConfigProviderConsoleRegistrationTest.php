@@ -14,7 +14,6 @@ use Symfony\Component\Console\Command\Command;
 
 use function class_exists;
 use function interface_exists;
-use function sprintf;
 
 final class ConfigProviderConsoleRegistrationTest extends TestCase
 {
@@ -61,13 +60,9 @@ final class ConfigProviderConsoleRegistrationTest extends TestCase
     #[RunInSeparateProcess]
     public function testRegistersConsoleCommandWhenToolingClassesAreAvailable(): void
     {
-        $this->defineRuntimeClass('Symfony\Component\Console\Command', 'Command', 'abstract class Command {}');
-        $this->defineRuntimeInterface(
-            'Mezzio\Tooling\Routes',
-            'ConfigLoaderInterface',
-            'interface ConfigLoaderInterface { public function load(): void; }'
-        );
-        $this->defineRuntimeClass('Mezzio\Tooling\Routes', 'ListRoutesCommand', 'class ListRoutesCommand {}');
+        require_once __DIR__ . '/Fixture/Mezzio/Tooling/Routes/ConfigLoaderInterface.php';
+
+        require_once __DIR__ . '/Fixture/Mezzio/Tooling/Routes/ListRoutesCommand.php';
 
         $provider = new ConfigProvider();
         $config = $provider();
@@ -84,21 +79,5 @@ final class ConfigProviderConsoleRegistrationTest extends TestCase
             [ListRoutesCommandDelegator::class],
             $dependencies['delegators'][self::TOOLING_LIST_ROUTES_COMMAND]
         );
-    }
-
-    private function defineRuntimeClass(string $namespace, string $shortName, string $definition): void
-    {
-        $fqcn = $namespace . '\\' . $shortName;
-        if (! class_exists($fqcn)) {
-            eval(sprintf('namespace %s; %s', $namespace, $definition));
-        }
-    }
-
-    private function defineRuntimeInterface(string $namespace, string $shortName, string $definition): void
-    {
-        $fqcn = $namespace . '\\' . $shortName;
-        if (! interface_exists($fqcn)) {
-            eval(sprintf('namespace %s; %s', $namespace, $definition));
-        }
     }
 }

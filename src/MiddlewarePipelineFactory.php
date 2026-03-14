@@ -12,10 +12,8 @@ use Psr\Http\Server\RequestHandlerInterface;
 use ReflectionMethod;
 use Sirix\Mezzio\Routing\Attributes\Exception\InvalidServiceDefinitionException;
 
-use function array_reverse;
 use function count;
 use function get_debug_type;
-use function implode;
 use function is_object;
 use function method_exists;
 
@@ -29,16 +27,21 @@ final readonly class MiddlewarePipelineFactory
     public function create(RouteDefinition $route): array
     {
         $middlewares = [];
-        $middlewareDisplay = [];
+        $middlewareDisplay = '';
         foreach ($route->middlewareServices as $serviceName) {
             $service = $this->container->get($serviceName);
             $middlewares[] = $this->prepareMiddleware($serviceName, $service, 'process');
-            $middlewareDisplay[] = $serviceName;
+            $middlewareDisplay = '' === $middlewareDisplay
+                ? $serviceName
+                : $middlewareDisplay . ' -> ' . $serviceName;
         }
 
         $handlerService = $this->container->get($route->handlerService);
         $middlewares[] = $this->prepareMiddleware($route->handlerService, $handlerService, $route->handlerMethod);
-        $middlewareDisplay[] = $route->handlerService . '::' . $route->handlerMethod;
+        $handlerDisplay = $route->handlerService . '::' . $route->handlerMethod;
+        $middlewareDisplay = '' === $middlewareDisplay
+            ? $handlerDisplay
+            : $middlewareDisplay . ' -> ' . $handlerDisplay;
 
         $middleware = 1 === count($middlewares)
             ? $middlewares[0]
@@ -46,7 +49,7 @@ final readonly class MiddlewarePipelineFactory
 
         return [
             'middleware' => $middleware,
-            'middlewareDisplay' => implode(' -> ', $middlewareDisplay),
+            'middlewareDisplay' => $middlewareDisplay,
         ];
     }
 
@@ -114,8 +117,8 @@ final readonly class MiddlewarePipelineFactory
             public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
             {
                 $pipelineHandler = $handler;
-                foreach (array_reverse($this->middlewares) as $middleware) {
-                    $pipelineHandler = new MiddlewareHandler($middleware, $pipelineHandler);
+                for ($i = count($this->middlewares) - 1; $i >= 0; --$i) {
+                    $pipelineHandler = new MiddlewareHandler($this->middlewares[$i], $pipelineHandler);
                 }
 
                 return $pipelineHandler->handle($request);

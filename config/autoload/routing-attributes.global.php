@@ -26,9 +26,9 @@ return [
             'paths' => [],
             // Optional require-based cache for discovered class list.
             'class_map_cache' => [
-                'enabled' => true,
+                'enabled' => false,
                 'file' => 'data/cache/mezzio-routing-attributes-classmap.php',
-                // If true, validates source file mtimes and rebuilds cache when files change.
+                // If true, validates source inventory fingerprint and rebuilds cache when files change.
                 'validate' => true,
             ],
         ],

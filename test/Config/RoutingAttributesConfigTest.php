@@ -75,7 +75,7 @@ final class RoutingAttributesConfigTest extends TestCase
         self::assertSame('token', $config->discoveryStrategy);
         self::assertSame([], $config->discoveryPsr4Mappings);
         self::assertTrue($config->discoveryPsr4FallbackToToken);
-        self::assertTrue($config->discoveryClassMapCacheEnabled);
+        self::assertFalse($config->discoveryClassMapCacheEnabled);
         self::assertNull($config->discoveryClassMapCacheFile);
         self::assertTrue($config->discoveryClassMapCacheValidate);
         self::assertSame('ignore', $config->discoveryClassMapCacheWriteFailStrategy);
@@ -227,7 +227,7 @@ final class RoutingAttributesConfigTest extends TestCase
         self::assertSame('token', $config->discoveryStrategy);
         self::assertSame([], $config->discoveryPsr4Mappings);
         self::assertTrue($config->discoveryPsr4FallbackToToken);
-        self::assertTrue($config->discoveryClassMapCacheEnabled);
+        self::assertFalse($config->discoveryClassMapCacheEnabled);
         self::assertNull($config->discoveryClassMapCacheFile);
         self::assertTrue($config->discoveryClassMapCacheValidate);
         self::assertSame('ignore', $config->discoveryClassMapCacheWriteFailStrategy);

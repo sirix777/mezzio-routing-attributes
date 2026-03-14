@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Until `1.0.0` is released, backward compatibility is not guaranteed. Public APIs and configuration may change between releases, including minor and patch releases.
 
+## [0.1.3] - 2026-03-14
+
+### Changed
+
+- Route definition cache payload format was optimized for lower memory overhead on cache-hit paths; cache format version was bumped, so old route cache files are now treated as cache misses and rebuilt
+- Discovery class map cache load/validation path was simplified to reduce duplicate in-memory structures and unnecessary validation passes; cache format version was bumped, so old discovery cache files are now treated as cache misses and rebuilt
+- Discovery file inventory representation and resolver internals were optimized to reduce cold-path allocation churn (including dedup/fingerprint construction improvements)
+- Route registration path was streamlined to avoid avoidable temporary allocations when building middleware display/options and pipelines
+- Benchmark output was hardened for repeatable comparisons: scenario ordering is now stable and scenario intent notes are included in report output
+- Package defaults now keep caches disabled unless explicitly enabled by user configuration:
+  - `routing_attributes.cache.enabled = false` (unchanged)
+  - `routing_attributes.discovery.class_map_cache.enabled = false` (changed from `true`)
+- README performance guidance now explicitly states that cache paths are not free and should be enabled only after measuring real benefit in the target project/environment
+
 ## [0.1.2] - 2026-03-13
 
 ### Changed

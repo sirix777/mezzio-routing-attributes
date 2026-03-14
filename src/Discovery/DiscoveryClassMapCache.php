@@ -7,25 +7,25 @@ namespace Sirix\Mezzio\Routing\Attributes\Discovery;
 use Sirix\Mezzio\Routing\Attributes\Exception\InvalidConfigurationException;
 
 use function array_key_exists;
-use function count;
 use function dirname;
 use function file_put_contents;
-use function filemtime;
-use function hash;
-use function implode;
+use function hash_final;
+use function hash_init;
+use function hash_update;
 use function is_array;
 use function is_dir;
 use function is_file;
 use function is_int;
 use function is_string;
-use function ksort;
 use function mkdir;
 use function restore_error_handler;
 use function set_error_handler;
+use function usort;
 use function var_export;
 
 final readonly class DiscoveryClassMapCache
 {
+    public const CACHE_FORMAT_VERSION = 3;
     public const WRITE_FAIL_STRATEGY_IGNORE = 'ignore';
     public const WRITE_FAIL_STRATEGY_THROW = 'throw';
 
@@ -59,14 +59,17 @@ final readonly class DiscoveryClassMapCache
         }
 
         if (
-            ! array_key_exists('paths', $payload)
-            || ! array_key_exists('files', $payload)
+            ! array_key_exists('format_version', $payload)
+            || ! array_key_exists('paths', $payload)
             || ! array_key_exists('classes', $payload)
             || ! array_key_exists('fingerprint', $payload)
-            || ! array_key_exists('files_count', $payload)
             || ! array_key_exists('inventory_fingerprint', $payload)
             || ! array_key_exists('options_signature', $payload)
         ) {
+            return null;
+        }
+
+        if (! is_int($payload['format_version']) || self::CACHE_FORMAT_VERSION !== $payload['format_version']) {
             return null;
         }
 
@@ -75,12 +78,9 @@ final readonly class DiscoveryClassMapCache
         }
 
         if (
-            ! is_array($payload['files'])
-            || ! is_array($payload['classes'])
+            ! is_array($payload['classes'])
             || ! is_string($payload['fingerprint'])
             || '' === $payload['fingerprint']
-            || ! is_int($payload['files_count'])
-            || $payload['files_count'] < 0
             || ! is_string($payload['inventory_fingerprint'])
             || '' === $payload['inventory_fingerprint']
             || ! is_string($payload['options_signature'])
@@ -93,45 +93,19 @@ final readonly class DiscoveryClassMapCache
             return null;
         }
 
-        $files = [];
-        foreach ($payload['files'] as $file => $mtime) {
-            if (! is_string($file) || '' === $file || ! is_int($mtime)) {
-                return null;
-            }
-
-            $files[$file] = $mtime;
-        }
-
         if ($this->validateCache) {
             $currentFiles = $this->fileInventory()->collect();
-            if (count($currentFiles) !== $payload['files_count']) {
-                return null;
-            }
-
             if ($this->createInventoryFingerprint($currentFiles) !== $payload['inventory_fingerprint']) {
                 return null;
             }
-
-            foreach ($files as $file => $expectedMtime) {
-                if (! is_file($file)) {
-                    return null;
-                }
-
-                $actualMtime = filemtime($file);
-                if (false === $actualMtime || $actualMtime !== $expectedMtime) {
-                    return null;
-                }
-            }
         }
 
-        $classes = [];
-        foreach ($payload['classes'] as $className) {
-            if (! is_string($className) || '' === $className) {
-                return null;
-            }
-
-            $classes[] = $className;
+        if (! $this->isValidClassList($payload['classes'])) {
+            return null;
         }
+
+        /** @var list<non-empty-string> $classes */
+        $classes = $payload['classes'];
 
         return [
             'classes' => $classes,
@@ -140,8 +114,8 @@ final readonly class DiscoveryClassMapCache
     }
 
     /**
-     * @param list<non-empty-string>       $classes
-     * @param array<non-empty-string, int> $files
+     * @param list<non-empty-string>                   $classes
+     * @param list<array{0: non-empty-string, 1: int}> $files
      */
     public function save(array $classes, array $files, string $fingerprint): void
     {
@@ -161,11 +135,10 @@ final readonly class DiscoveryClassMapCache
         }
 
         $payload = [
+            'format_version' => self::CACHE_FORMAT_VERSION,
             'paths' => $this->paths,
-            'files' => $files,
             'classes' => $classes,
             'fingerprint' => $fingerprint,
-            'files_count' => count($files),
             'inventory_fingerprint' => $this->createInventoryFingerprint($files),
             'options_signature' => $this->optionsSignature,
         ];
@@ -178,20 +151,53 @@ final readonly class DiscoveryClassMapCache
     }
 
     /**
-     * @param array<non-empty-string, int> $files
+     * @param list<array{0: non-empty-string, 1: int}> $files
      *
      * @return non-empty-string
      */
     public function createInventoryFingerprint(array $files): string
     {
-        $chunks = [];
-        $normalizedFiles = $files;
-        ksort($normalizedFiles);
-        foreach ($normalizedFiles as $file => $mtime) {
-            $chunks[] = $file . '@' . $mtime;
+        $hashContext = hash_init('sha256');
+        foreach ($this->sortFilesByPath($files) as [$file, $mtime]) {
+            hash_update($hashContext, $file);
+            hash_update($hashContext, '@');
+            hash_update($hashContext, (string) $mtime);
+            hash_update($hashContext, '|');
         }
 
-        return hash('sha256', implode('|', $chunks));
+        return hash_final($hashContext);
+    }
+
+    /**
+     * @param list<array{0: non-empty-string, 1: int}> $files
+     *
+     * @return list<array{0: non-empty-string, 1: int}>
+     */
+    private function sortFilesByPath(array $files): array
+    {
+        usort($files, static fn (array $left, array $right): int => $left[0] <=> $right[0]);
+
+        return $files;
+    }
+
+    /**
+     * @param array<int|string, mixed> $classes
+     */
+    private function isValidClassList(array $classes): bool
+    {
+        $expectedIndex = 0;
+        foreach ($classes as $index => $className) {
+            if (! is_int($index) || $index !== $expectedIndex) {
+                return false;
+            }
+            ++$expectedIndex;
+
+            if (! is_string($className) || '' === $className) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private function fileInventory(): DiscoveryFileInventory

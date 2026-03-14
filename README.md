@@ -82,9 +82,9 @@ return [
                 'fallback_to_token' => true,
             ],
             'class_map_cache' => [
-                'enabled' => true,
+                'enabled' => false,
                 'file' => 'data/cache/mezzio-routing-attributes-classmap.php',
-                // If true, cache is invalidated when discovered source file mtimes change.
+                // If true, cache is invalidated when discovered file inventory fingerprint changes.
                 'validate' => true,
                 // "ignore" (default) or "throw" when class map cache write fails.
                 'write_fail_strategy' => 'ignore',
@@ -331,6 +331,11 @@ service name via `routing_attributes.route_list.classic_routes_middleware_displa
 
 ## Configuration Impact
 
+Important: cache read/write and cache validation are not free in memory and filesystem activity.
+Treat both `routing_attributes.cache` and `routing_attributes.discovery.class_map_cache` as opt-in
+optimizations that must be benchmarked in your own app. In many small/medium projects they are
+unnecessary and can be safely kept disabled.
+
 | Config Key | What It Changes | Runtime Impact | Production Recommendation |
 |---|---|---|---|
 | `routing_attributes.classes` | Explicit class list for attribute extraction | Fastest and deterministic | Use for critical routes where explicitness is preferred |
@@ -341,10 +346,10 @@ service name via `routing_attributes.route_list.classic_routes_middleware_displa
 | `routing_attributes.discovery.strategy` (`token\|psr4`) | Controls how FQCN is resolved from discovered files | `psr4` can be faster on strict PSR-4 layouts; `token` is safest | Keep `token` unless layout is strictly PSR-4 and benchmarked |
 | `routing_attributes.discovery.psr4.mappings` | Path-to-namespace map for `psr4` strategy | Mapping quality directly affects hit ratio | Keep mappings minimal and exact |
 | `routing_attributes.discovery.psr4.fallback_to_token` | Fallback to token parsing when PSR-4 resolution fails | Better compatibility, slightly more work on misses | Keep `true` unless you want strict PSR-4-only discovery |
-| `routing_attributes.discovery.class_map_cache.enabled` | Enables require-based discovery classmap cache | Major startup reduction after warmup | Keep `true` |
+| `routing_attributes.discovery.class_map_cache.enabled` | Enables require-based discovery classmap cache | Extra memory + filesystem overhead on cache paths | Default `false`; enable only after benchmark proves benefit |
 | `routing_attributes.discovery.class_map_cache.validate` | Validates discovery cache against filesystem changes | Adds small filesystem check overhead | `true` in prod unless deploy process handles cache rebuild |
 | `routing_attributes.discovery.class_map_cache.write_fail_strategy` (`ignore\|throw`) | What happens if classmap cache cannot be written | Affects failure mode only | `ignore` for resilient runtime, `throw` for strict environments |
-| `routing_attributes.cache.enabled` | Enables require-based route definition cache | Biggest startup optimization | Keep `true` |
+| `routing_attributes.cache.enabled` | Enables require-based route definition cache | Extra memory + filesystem overhead on cache-hit/load path | Default `false`; enable only after benchmark proves benefit |
 | `routing_attributes.cache.file` | Route cache file location | No direct logic cost | Put in writable persistent cache dir |
 | `routing_attributes.cache.strict` | Throws on stale/invalid cache metadata | Affects failure mode only | `false` unless strict fail-fast is required |
 | `routing_attributes.cache.write_fail_strategy` (`ignore\|throw`) | What happens if route cache cannot be written | Affects failure mode only | `ignore` for resilient runtime, `throw` for strict environments |
@@ -378,14 +383,14 @@ return [
                 'fallback_to_token' => true,
             ],
             'class_map_cache' => [
-                'enabled' => true,
+                'enabled' => false,
                 'file' => 'data/cache/mezzio-routing-attributes-classmap.php',
                 'validate' => true,
                 'write_fail_strategy' => 'ignore',
             ],
         ],
         'cache' => [
-            'enabled' => true,
+            'enabled' => false,
             'file' => 'data/cache/mezzio-routing-attributes.php',
             'strict' => false,
             'write_fail_strategy' => 'ignore',
@@ -396,8 +401,8 @@ return [
 
 Profile summary:
 
-- Primary performance lever is `cache.enabled=true`.
-- If discovery is used, keep `class_map_cache.enabled=true`.
+- Default safe baseline is `cache.enabled=false`.
+- If discovery is used, default safe baseline is `class_map_cache.enabled=false`.
 - `validate=false` is fastest for discovery but does not auto-detect source changes.
 - `write_fail_strategy=ignore` is safer for uptime; `throw` is stricter for controlled environments.
 
@@ -417,9 +422,9 @@ Main tuning levers:
 Practical tuning profiles:
 
 - Conservative production:
-  - `cache.enabled=true`
+  - `cache.enabled=false`
   - discovery only when needed
-  - `class_map_cache.enabled=true`
+  - `class_map_cache.enabled=false`
   - `class_map_cache.validate=true`
   - `write_fail_strategy=ignore`
 - Fast immutable deploys (cache warmed during deploy):
@@ -433,9 +438,9 @@ Practical tuning profiles:
 
 Adaptive workflow recommendation:
 
-1. Start from the conservative profile.
+1. Start with caches disabled (`cache.enabled=false`, `class_map_cache.enabled=false`).
 2. Run `composer benchmark` in your environment.
-3. Change one knob at a time.
+3. Enable one cache knob at a time.
 4. Keep the configuration that improves your own latency/startup profile.
 
 ## Discovery Strategies
@@ -484,7 +489,7 @@ Recommendation:
 - In `handlers.mode=callable`, method-level routes may target plain classes, but those classes must still be container services.
 - Cache behavior: if `routing_attributes.cache.enabled=true` and cache file exists, metadata (`format_version`, duplicate strategy, classes fingerprint) is validated first; valid cache is loaded, stale cache is rebuilt (or throws when `cache.strict=true`).
 - Route cache payload hydration is fail-fast: if any cached route entry is malformed, the whole cache payload is treated as invalid (no partial route loading).
-- Discovery cache behavior: if `routing_attributes.discovery.class_map_cache.enabled=true`, class map is loaded via `require`; with `validate=true`, file `mtime` changes trigger rebuild and route cache invalidation. With `validate=false`, cache load is fastest but source changes are not detected automatically.
+- Discovery cache behavior: if `routing_attributes.discovery.class_map_cache.enabled=true`, class map is loaded via `require`; with `validate=true`, inventory fingerprint changes trigger rebuild and route cache invalidation. With `validate=false`, cache load is fastest but source changes are not detected automatically.
 - Discovery cache is also invalidated when discovery strategy options change (`strategy`, `psr4.mappings`, `psr4.fallback_to_token`).
 - Cache write failures can be configured: `write_fail_strategy=ignore|throw` for both route cache and discovery class map cache. In `throw` mode exception messages include captured filesystem error reason.
 
@@ -564,6 +569,10 @@ Scenarios include:
 
 Optional baseline comparison uses `benchmarks/baseline.json` and reports whether
 warm cache-hit median regression stays within the `<= 5%` budget.
+
+For this package area, release readiness is not only time-based: cache-hit peak memory
+(`median_peak_memory_usage_kb` and `max_peak_memory_usage_kb`) is a first-class criterion
+and must not regress on key scenarios (`warm_cache_hit_manual` and discovery cache-hit variants).
 
 ## Latest Benchmark Snapshot
 

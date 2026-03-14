@@ -5,14 +5,15 @@ declare(strict_types=1);
 namespace Sirix\Mezzio\Routing\Attributes\Discovery;
 
 use function array_keys;
-use function array_unique;
-use function array_values;
 use function hash;
-use function implode;
+use function hash_final;
+use function hash_init;
+use function hash_update;
 use function json_encode;
 use function ksort;
 use function sort;
 use function str_replace;
+use function usort;
 
 final readonly class DiscoveryClassMapResolver
 {
@@ -44,16 +45,18 @@ final readonly class DiscoveryClassMapResolver
             return $cached;
         }
 
-        $files = $this->fileInventory()->collect();
-        $classes = [];
-        foreach (array_keys($files) as $file) {
+        $files = $this->sortFilesByPath($this->fileInventory()->collect());
+        $classSet = [];
+        foreach ($files as $fileEntry) {
+            $file = $fileEntry[0];
             $fileClasses = $this->resolveFileClasses($file);
             foreach ($this->routableClassFilter()->filter($fileClasses) as $className) {
-                $classes[] = $className;
+                $classSet[$className] = true;
             }
         }
 
-        $classes = array_values(array_unique($classes));
+        /** @var list<non-empty-string> $classes */
+        $classes = array_keys($classSet);
         sort($classes);
 
         $fingerprint = $this->createFingerprint($files, $classes);
@@ -87,28 +90,41 @@ final readonly class DiscoveryClassMapResolver
     }
 
     /**
-     * @param array<non-empty-string, int> $files
-     * @param list<non-empty-string>       $classes
+     * @param list<array{0: non-empty-string, 1: int}> $files
+     * @param list<non-empty-string>                   $classes
      *
      * @return non-empty-string
      */
     private function createFingerprint(array $files, array $classes): string
     {
-        $chunks = [];
-        $normalizedFiles = $files;
-        ksort($normalizedFiles);
-
-        foreach ($normalizedFiles as $file => $mtime) {
-            $chunks[] = $file . '@' . $mtime;
+        $hashContext = hash_init('sha256');
+        foreach ($files as [$file, $mtime]) {
+            hash_update($hashContext, $file);
+            hash_update($hashContext, '@');
+            hash_update($hashContext, (string) $mtime);
+            hash_update($hashContext, '|');
         }
 
         foreach ($classes as $className) {
-            $chunks[] = $className;
+            hash_update($hashContext, $className);
+            hash_update($hashContext, '|');
         }
 
-        $chunks[] = $this->createOptionsSignature();
+        hash_update($hashContext, $this->createOptionsSignature());
 
-        return hash('sha256', implode('|', $chunks));
+        return hash_final($hashContext);
+    }
+
+    /**
+     * @param list<array{0: non-empty-string, 1: int}> $files
+     *
+     * @return list<array{0: non-empty-string, 1: int}>
+     */
+    private function sortFilesByPath(array $files): array
+    {
+        usort($files, static fn (array $left, array $right): int => $left[0] <=> $right[0]);
+
+        return $files;
     }
 
     private function fileInventory(): DiscoveryFileInventory

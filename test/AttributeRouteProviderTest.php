@@ -507,12 +507,12 @@ final class AttributeRouteProviderTest extends TestCase
 
                 return [
                     [
-                        'path' => '/cached',
-                        'methods' => ['GET'],
-                        'handlerService' => 'cached.service',
-                        'handlerMethod' => 'process',
-                        'middlewareServices' => [],
-                        'name' => 'cached.route',
+                        0 => '/cached',
+                        1 => ['GET'],
+                        2 => 'cached.service',
+                        3 => 'process',
+                        4 => [],
+                        5 => 'cached.route',
                     ],
                 ];
                 PHP

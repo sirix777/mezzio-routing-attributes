@@ -124,13 +124,21 @@ function summarizeSamples(array $samples): array
 }
 
 /**
- * @param callable(): array{elapsed_ms: float, container_get_calls: int, route_calls: int} $iteration
+ * @param callable(): array{
+ *     elapsed_ms: float,
+ *     peak_memory_usage_kb: float,
+ *     container_get_calls: int,
+ *     route_calls: int
+ * } $iteration
  *
  * @return array{
  *     avg_ms: float,
  *     median_ms: float,
  *     min_ms: float,
  *     max_ms: float,
+ *     avg_peak_memory_usage_kb: float,
+ *     median_peak_memory_usage_kb: float,
+ *     max_peak_memory_usage_kb: float,
  *     avg_container_get_calls: float,
  *     avg_route_calls: float
  * }
@@ -138,17 +146,23 @@ function summarizeSamples(array $samples): array
 function runScenario(callable $iteration, int $iterations): array
 {
     $durations = [];
+    $peakMemoryUsages = [];
     $containerCalls = 0;
     $routeCalls = 0;
 
     for ($i = 0; $i < $iterations; $i++) {
         $sample = $iteration();
         $durations[] = $sample['elapsed_ms'];
+        $peakMemoryUsages[] = $sample['peak_memory_usage_kb'];
         $containerCalls += $sample['container_get_calls'];
         $routeCalls += $sample['route_calls'];
     }
 
     $summary = summarizeSamples($durations);
+    $peakMemorySummary = summarizeSamples($peakMemoryUsages);
+    $summary['avg_peak_memory_usage_kb'] = $peakMemorySummary['avg_ms'];
+    $summary['median_peak_memory_usage_kb'] = $peakMemorySummary['median_ms'];
+    $summary['max_peak_memory_usage_kb'] = $peakMemorySummary['max_ms'];
     $summary['avg_container_get_calls'] = round($containerCalls / $iterations, 2);
     $summary['avg_route_calls'] = round($routeCalls / $iterations, 2);
 
@@ -170,12 +184,19 @@ function runProvider(array $config): array
 
     $provider = (new AttributeRouteProviderFactory())($container);
     $collector = new BenchmarkCollector();
+    gc_collect_cycles();
+    $memoryBefore = memory_get_usage();
+    if (function_exists('memory_reset_peak_usage')) {
+        memory_reset_peak_usage();
+    }
     $start = hrtime(true);
     $provider->registerRoutes($collector);
     $elapsed = (hrtime(true) - $start) / 1_000_000;
+    $peakMemoryUsage = max(memory_get_peak_usage() - $memoryBefore, 0) / 1024;
 
     return [
         'elapsed_ms' => $elapsed,
+        'peak_memory_usage_kb' => round($peakMemoryUsage, 4),
         'container_get_calls' => $container->getCalls,
         'route_calls' => $collector->routeCalls,
     ];
@@ -304,6 +325,15 @@ $report = [
     'php_version' => PHP_VERSION,
     'timestamp' => date('c'),
     'iterations' => $iterations,
+    'scenario_notes' => [
+        'warm_cache_hit_manual' => 'Route cache hit with explicit class list. Primary signal for route-cache load-path memory.',
+        'no_cache_manual' => 'Manual class list without route cache. Lower-bound reference for registration overhead.',
+        'cold_cache_rebuild_manual' => 'Route cache cold rebuild from explicit class list. Captures extraction/write cost.',
+        'warm_cache_hit_discovery_validate_true' => 'Discovery + class-map cache hit with validation enabled. Stresses validation memory path.',
+        'warm_cache_hit_discovery_validate_false' => 'Discovery + class-map cache hit with validation disabled. Measures best-case discovery cache hit.',
+        'warm_cache_hit_discovery_psr4_validate_true' => 'PSR-4 discovery + class-map cache hit with validation enabled.',
+        'warm_cache_hit_discovery_psr4_validate_false' => 'PSR-4 discovery + class-map cache hit with validation disabled.',
+    ],
     'scenarios' => [
         'warm_cache_hit_manual' => $warmManual,
         'no_cache_manual' => $noCacheManual,
@@ -351,26 +381,26 @@ if (false === file_put_contents($outFile, $json)) {
 echo "# Route Provider Benchmark\n\n";
 echo sprintf("- PHP: `%s`\n", $report['php_version']);
 echo sprintf("- Iterations per scenario: `%d`\n\n", $iterations);
-echo "| Scenario | median ms | avg ms | min ms | max ms | avg container get() | avg routes |\n";
-echo "|---|---:|---:|---:|---:|---:|---:|\n";
-
-$rows = [];
-foreach ($report['scenarios'] as $name => $metrics) {
-    $rows[] = [
-        'name' => $name,
-        'metrics' => $metrics,
-    ];
+echo "## Scenario Intent\n\n";
+foreach ($report['scenario_notes'] as $name => $note) {
+    echo sprintf("- `%s`: %s\n", $name, $note);
 }
-usort($rows, static fn (array $a, array $b): int => $a['metrics']['median_ms'] <=> $b['metrics']['median_ms']);
-foreach ($rows as $row) {
-    $metrics = $row['metrics'];
+echo "\n";
+echo "| Scenario | median ms | avg ms | min ms | max ms | median peak KB | avg peak KB | max peak KB | avg container get() | avg routes |\n";
+echo "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|\n";
+
+foreach ($report['scenarios'] as $name => $metrics) {
+    $scenarioName = $name;
     echo sprintf(
-        "| `%s` | %s | %s | %s | %s | %s | %s |\n",
-        $row['name'],
+        "| `%s` | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n",
+        $scenarioName,
         number_format((float) $metrics['median_ms'], 4, '.', ''),
         number_format((float) $metrics['avg_ms'], 4, '.', ''),
         number_format((float) $metrics['min_ms'], 4, '.', ''),
         number_format((float) $metrics['max_ms'], 4, '.', ''),
+        number_format((float) $metrics['median_peak_memory_usage_kb'], 4, '.', ''),
+        number_format((float) $metrics['avg_peak_memory_usage_kb'], 4, '.', ''),
+        number_format((float) $metrics['max_peak_memory_usage_kb'], 4, '.', ''),
         number_format((float) $metrics['avg_container_get_calls'], 2, '.', ''),
         number_format((float) $metrics['avg_route_calls'], 2, '.', '')
     );

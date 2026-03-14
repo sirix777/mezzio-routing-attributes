@@ -215,7 +215,7 @@ final readonly class RoutingAttributesConfig
         $discoveryStrategy = 'token';
         $normalizedDiscoveryPsr4Mappings = [];
         $discoveryPsr4FallbackToToken = true;
-        $discoveryClassMapCacheEnabled = true;
+        $discoveryClassMapCacheEnabled = false;
         $discoveryClassMapCacheFile = null;
         $discoveryClassMapCacheValidate = true;
         $discoveryClassMapCacheWriteFailStrategy = DiscoveryClassMapCache::WRITE_FAIL_STRATEGY_IGNORE;
@@ -276,7 +276,7 @@ final readonly class RoutingAttributesConfig
                 throw InvalidConfigurationException::invalidDiscoveryClassMapCacheType($classMapCacheConfig);
             }
 
-            $discoveryClassMapCacheEnabled = $classMapCacheConfig['enabled'] ?? true;
+            $discoveryClassMapCacheEnabled = $classMapCacheConfig['enabled'] ?? false;
             if (! is_bool($discoveryClassMapCacheEnabled)) {
                 throw InvalidConfigurationException::invalidDiscoveryClassMapCacheEnabled($discoveryClassMapCacheEnabled);
             }

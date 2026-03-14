@@ -50,9 +50,13 @@ final class DiscoveryFileInventoryTest extends TestCase
         $path = $this->tempDir;
         $inventory = new DiscoveryFileInventory([$path]);
         $result = $inventory->collect();
+        $paths = [];
+        foreach ($result as [$file]) {
+            $paths[] = $file;
+        }
 
-        self::assertArrayHasKey($this->tempDir . '/A.php', $result);
-        self::assertArrayHasKey($this->tempDir . '/Nested/B.php', $result);
-        self::assertArrayNotHasKey($this->tempDir . '/skip.txt', $result);
+        self::assertContains($this->tempDir . '/A.php', $paths);
+        self::assertContains($this->tempDir . '/Nested/B.php', $paths);
+        self::assertNotContains($this->tempDir . '/skip.txt', $paths);
     }
 }

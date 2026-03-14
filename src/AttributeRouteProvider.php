@@ -33,18 +33,19 @@ final readonly class AttributeRouteProvider
 
     public function registerRoutes(RouteCollectorInterface $collector): void
     {
+        $pipelineFactory = $this->middlewarePipelineFactory();
+
         foreach ($this->resolveRoutes() as $route) {
-            $pipeline = $this->middlewarePipelineFactory()->create($route);
+            $pipeline = $pipelineFactory->create($route);
             $registeredRoute = $collector->route(
                 $route->path,
                 $pipeline['middleware'],
                 $route->methods,
                 $this->normalizeRouteName($route->name)
             );
-            $registeredRoute->setOptions([
-                ...$registeredRoute->getOptions(),
-                self::ROUTE_OPTION_MIDDLEWARE_DISPLAY => $pipeline['middlewareDisplay'],
-            ]);
+            $routeOptions = $registeredRoute->getOptions();
+            $routeOptions[self::ROUTE_OPTION_MIDDLEWARE_DISPLAY] = $pipeline['middlewareDisplay'];
+            $registeredRoute->setOptions($routeOptions);
         }
     }
 
