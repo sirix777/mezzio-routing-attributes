@@ -204,8 +204,9 @@ function runProvider(array $config): array
 
 $iterations = 100;
 $tempPrefix = sys_get_temp_dir() . '/mezzio-routing-attributes-bench-' . uniqid('', true);
-$routeCacheFile = $tempPrefix . '-routes.php';
-$classMapCacheFile = $tempPrefix . '-classmap.php';
+$manualRouteCacheFile = $tempPrefix . '-manual-routes.php';
+$discoveryTokenRouteCacheFile = $tempPrefix . '-discovery-token-routes.php';
+$discoveryPsr4RouteCacheFile = $tempPrefix . '-discovery-psr4-routes.php';
 $discoveryPath = dirname(__DIR__) . '/test/Extractor/Fixture';
 
 $manualConfig = [
@@ -213,9 +214,7 @@ $manualConfig = [
         'classes' => [PingHandler::class],
         'cache' => [
             'enabled' => true,
-            'file' => $routeCacheFile,
-            'strict' => false,
-            'write_fail_strategy' => 'ignore',
+            'file' => $manualRouteCacheFile,
         ],
     ],
 ];
@@ -229,8 +228,8 @@ $manualNoCacheConfig = [
     ],
 ];
 
-if (file_exists($routeCacheFile)) {
-    unlink($routeCacheFile);
+if (file_exists($manualRouteCacheFile)) {
+    unlink($manualRouteCacheFile);
 }
 runProvider($manualConfig);
 
@@ -238,9 +237,12 @@ $warmManual = runScenario(static fn (): array => runProvider($manualConfig), $it
 
 $noCacheManual = runScenario(static fn (): array => runProvider($manualNoCacheConfig), $iterations);
 
-$coldManual = runScenario(static function () use ($manualConfig, $routeCacheFile): array {
-    if (file_exists($routeCacheFile)) {
-        unlink($routeCacheFile);
+if (file_exists($manualRouteCacheFile)) {
+    unlink($manualRouteCacheFile);
+}
+$coldManual = runScenario(static function() use ($manualConfig, $manualRouteCacheFile): array {
+    if (file_exists($manualRouteCacheFile)) {
+        unlink($manualRouteCacheFile);
     }
 
     return runProvider($manualConfig);
@@ -251,75 +253,47 @@ $discoveryBaseConfig = [
         'classes' => [],
         'cache' => [
             'enabled' => true,
-            'file' => $routeCacheFile,
-            'strict' => false,
-            'write_fail_strategy' => 'ignore',
+            'file' => $discoveryTokenRouteCacheFile,
         ],
         'discovery' => [
             'enabled' => true,
             'paths' => [$discoveryPath],
             'strategy' => 'token',
-            'class_map_cache' => [
-                'enabled' => true,
-                'file' => $classMapCacheFile,
-                'write_fail_strategy' => 'ignore',
-            ],
         ],
     ],
 ];
 
-$discoveryValidateTrue = $discoveryBaseConfig;
-$discoveryValidateTrue['routing_attributes']['discovery']['class_map_cache']['validate'] = true;
+if (file_exists($discoveryTokenRouteCacheFile)) {
+    unlink($discoveryTokenRouteCacheFile);
+}
+runProvider($discoveryBaseConfig);
+$warmDiscoveryToken = runScenario(static fn (): array => runProvider($discoveryBaseConfig), $iterations);
 
-if (file_exists($routeCacheFile)) {
-    unlink($routeCacheFile);
-}
-if (file_exists($classMapCacheFile)) {
-    unlink($classMapCacheFile);
-}
-runProvider($discoveryValidateTrue);
-$warmDiscoveryValidateTrue = runScenario(static fn (): array => runProvider($discoveryValidateTrue), $iterations);
-
-$discoveryValidateFalse = $discoveryBaseConfig;
-$discoveryValidateFalse['routing_attributes']['discovery']['class_map_cache']['validate'] = false;
-if (file_exists($routeCacheFile)) {
-    unlink($routeCacheFile);
-}
-if (file_exists($classMapCacheFile)) {
-    unlink($classMapCacheFile);
-}
-runProvider($discoveryValidateFalse);
-$warmDiscoveryValidateFalse = runScenario(static fn (): array => runProvider($discoveryValidateFalse), $iterations);
-
-$discoveryPsr4ValidateTrue = $discoveryBaseConfig;
-$discoveryPsr4ValidateTrue['routing_attributes']['discovery']['strategy'] = 'psr4';
-$discoveryPsr4ValidateTrue['routing_attributes']['discovery']['psr4'] = [
+$discoveryPsr4Config = $discoveryBaseConfig;
+$discoveryPsr4Config['routing_attributes']['cache']['file'] = $discoveryPsr4RouteCacheFile;
+$discoveryPsr4Config['routing_attributes']['discovery']['strategy'] = 'psr4';
+$discoveryPsr4Config['routing_attributes']['discovery']['psr4'] = [
     'mappings' => [
         $discoveryPath => 'SirixTest\\Mezzio\\Routing\\Attributes\\Extractor\\Fixture\\',
     ],
     'fallback_to_token' => true,
 ];
-$discoveryPsr4ValidateTrue['routing_attributes']['discovery']['class_map_cache']['validate'] = true;
 
-if (file_exists($routeCacheFile)) {
-    unlink($routeCacheFile);
+if (file_exists($discoveryPsr4RouteCacheFile)) {
+    unlink($discoveryPsr4RouteCacheFile);
 }
-if (file_exists($classMapCacheFile)) {
-    unlink($classMapCacheFile);
-}
-runProvider($discoveryPsr4ValidateTrue);
-$warmDiscoveryPsr4ValidateTrue = runScenario(static fn (): array => runProvider($discoveryPsr4ValidateTrue), $iterations);
+runProvider($discoveryPsr4Config);
+$warmDiscoveryPsr4 = runScenario(static fn (): array => runProvider($discoveryPsr4Config), $iterations);
 
-$discoveryPsr4ValidateFalse = $discoveryPsr4ValidateTrue;
-$discoveryPsr4ValidateFalse['routing_attributes']['discovery']['class_map_cache']['validate'] = false;
-if (file_exists($routeCacheFile)) {
-    unlink($routeCacheFile);
+if (file_exists($manualRouteCacheFile)) {
+    unlink($manualRouteCacheFile);
 }
-if (file_exists($classMapCacheFile)) {
-    unlink($classMapCacheFile);
+if (file_exists($discoveryTokenRouteCacheFile)) {
+    unlink($discoveryTokenRouteCacheFile);
 }
-runProvider($discoveryPsr4ValidateFalse);
-$warmDiscoveryPsr4ValidateFalse = runScenario(static fn (): array => runProvider($discoveryPsr4ValidateFalse), $iterations);
+if (file_exists($discoveryPsr4RouteCacheFile)) {
+    unlink($discoveryPsr4RouteCacheFile);
+}
 
 $report = [
     'php_version' => PHP_VERSION,
@@ -329,19 +303,15 @@ $report = [
         'warm_cache_hit_manual' => 'Route cache hit with explicit class list. Primary signal for route-cache load-path memory.',
         'no_cache_manual' => 'Manual class list without route cache. Lower-bound reference for registration overhead.',
         'cold_cache_rebuild_manual' => 'Route cache cold rebuild from explicit class list. Captures extraction/write cost.',
-        'warm_cache_hit_discovery_validate_true' => 'Discovery + class-map cache hit with validation enabled. Stresses validation memory path.',
-        'warm_cache_hit_discovery_validate_false' => 'Discovery + class-map cache hit with validation disabled. Measures best-case discovery cache hit.',
-        'warm_cache_hit_discovery_psr4_validate_true' => 'PSR-4 discovery + class-map cache hit with validation enabled.',
-        'warm_cache_hit_discovery_psr4_validate_false' => 'PSR-4 discovery + class-map cache hit with validation disabled.',
+        'warm_cache_hit_discovery_token' => 'Discovery (token strategy) + route cache hit.',
+        'warm_cache_hit_discovery_psr4' => 'Discovery (PSR-4 strategy) + route cache hit.',
     ],
     'scenarios' => [
         'warm_cache_hit_manual' => $warmManual,
         'no_cache_manual' => $noCacheManual,
         'cold_cache_rebuild_manual' => $coldManual,
-        'warm_cache_hit_discovery_validate_true' => $warmDiscoveryValidateTrue,
-        'warm_cache_hit_discovery_validate_false' => $warmDiscoveryValidateFalse,
-        'warm_cache_hit_discovery_psr4_validate_true' => $warmDiscoveryPsr4ValidateTrue,
-        'warm_cache_hit_discovery_psr4_validate_false' => $warmDiscoveryPsr4ValidateFalse,
+        'warm_cache_hit_discovery_token' => $warmDiscoveryToken,
+        'warm_cache_hit_discovery_psr4' => $warmDiscoveryPsr4,
     ],
     'budget' => [
         'cache_hit_regression_max_percent' => 5.0,

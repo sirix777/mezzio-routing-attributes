@@ -11,12 +11,14 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
-use Sirix\Mezzio\Routing\Attributes\AttributeRouteProvider;
+use RuntimeException;
 use Sirix\Mezzio\Routing\Attributes\Command\RouteListFilter;
 use Sirix\Mezzio\Routing\Attributes\Command\RouteListFormatter;
 use Sirix\Mezzio\Routing\Attributes\Command\RouteListSorter;
 use Sirix\Mezzio\Routing\Attributes\Command\RouteMiddlewareDisplayResolver;
 use Sirix\Mezzio\Routing\Attributes\Command\RouteTableProvider;
+use Sirix\Mezzio\Routing\Attributes\MiddlewarePipelineFactory;
+use SirixTest\Mezzio\Routing\Attributes\TestAsset\InMemoryContainer;
 
 final class RouteListServicesTest extends TestCase
 {
@@ -71,7 +73,7 @@ final class RouteListServicesTest extends TestCase
         };
         $route = new Route('/attribute', $middleware, ['GET'], 'attribute.route');
         $route->setOptions([
-            AttributeRouteProvider::ROUTE_OPTION_MIDDLEWARE_DISPLAY => 'App\Middleware\PackageVersionHeaderMiddleware -> handler::handle',
+            'sirix_routing_attributes.middleware_display' => 'App\Middleware\PackageVersionHeaderMiddleware -> handler::handle',
         ]);
 
         $filtered = $filter->filter([$route], false, false, 'PackageVersionHeaderMiddleware', false);
@@ -138,7 +140,7 @@ final class RouteListServicesTest extends TestCase
         };
         $route = new Route('/x', $middleware, ['GET'], 'x');
         $route->setOptions([
-            AttributeRouteProvider::ROUTE_OPTION_MIDDLEWARE_DISPLAY => 'mw.one -> handler::handle',
+            'sirix_routing_attributes.middleware_display' => 'mw.one -> handler::handle',
         ]);
 
         $rows = $formatter->formatRows([$route]);
@@ -186,5 +188,67 @@ final class RouteListServicesTest extends TestCase
         $rows = $formatter->formatRows([$route]);
 
         self::assertSame('App\Handler\ClassicRouteHandler', $rows[0]['middleware']);
+    }
+
+    public function testRouteListFormatterResolvesPrivateClassicLazyMiddlewareName(): void
+    {
+        $formatter = new RouteListFormatter(
+            new RouteMiddlewareDisplayResolver(
+                RouteMiddlewareDisplayResolver::CLASSIC_ROUTES_MIDDLEWARE_DISPLAY_RESOLVED
+            )
+        );
+        $middlewareName = 'App\Handler\PrivateClassicHandler';
+        $route = new Route(
+            '/classic-private',
+            new class($middlewareName) implements MiddlewareInterface {
+                public function __construct(private readonly string $middlewareName) {}
+
+                public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
+                {
+                    if ('__unexpected__' === $this->middlewareName) {
+                        throw new RuntimeException('Unexpected middleware marker.');
+                    }
+
+                    return $handler->handle($request);
+                }
+            },
+            ['GET'],
+            'classic.private'
+        );
+
+        $rows = $formatter->formatRows([$route]);
+
+        self::assertSame('App\Handler\PrivateClassicHandler', $rows[0]['middleware']);
+    }
+
+    public function testRouteListFormatterUsesMiddlewareDisplayOptionForLazyAttributeRoute(): void
+    {
+        $container = new InMemoryContainer([]);
+        $factory = new MiddlewarePipelineFactory($container);
+        $middleware = $factory->createFromCompiled('handler.service', 'process', ['mw.first']);
+        $route = new Route('/lazy', $middleware, ['GET'], 'lazy.route');
+        $route->setOptions([
+            RouteMiddlewareDisplayResolver::ROUTE_OPTION_MIDDLEWARE_DISPLAY => 'mw.first -> handler.service::process',
+        ]);
+
+        $rows = (new RouteListFormatter())->formatRows([$route]);
+
+        self::assertSame('mw.first -> handler.service::process', $rows[0]['middleware']);
+    }
+
+    public function testRouteListFilterUsesMiddlewareDisplayOptionForLazyAttributeRoute(): void
+    {
+        $middleware = (new MiddlewarePipelineFactory(new InMemoryContainer([])))
+            ->createFromCompiled('handler.single', 'process', [])
+        ;
+        $route = new Route('/lazy-single', $middleware, ['GET'], 'lazy.single');
+        $route->setOptions([
+            RouteMiddlewareDisplayResolver::ROUTE_OPTION_MIDDLEWARE_DISPLAY => 'handler.single::process',
+        ]);
+
+        $filtered = (new RouteListFilter())->filter([$route], false, false, 'handler.single', false);
+
+        self::assertCount(1, $filtered);
+        self::assertSame('lazy.single', $filtered[0]->getName());
     }
 }

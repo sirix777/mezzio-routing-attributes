@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Until `1.0.0` is released, backward compatibility is not guaranteed. Public APIs and configuration may change between releases, including minor and patch releases.
 
+## [0.1.4] - 2026-03-14
+
+### Added
+
+- New CLI command `routing-attributes:cache:clear` for explicit compiled route cache invalidation/cleanup (with optional `--file` override)
+
+### Changed
+
+- Cache subsystem was simplified to a single compiled route artifact path (`routing_attributes.cache`) focused on warm-cache performance
+- Startup flow now skips discovery when compiled cache artifact is present and valid, avoiding repeated class scan on cache-hit requests
+- Discovery configuration was reduced to essential options only (`enabled`, `paths`, `strategy`, `psr4.mappings`, `psr4.fallback_to_token`)
+- Default package config (`config/autoload/routing-attributes.global.php`) now enables compiled cache by default for production-oriented profile
+- Compiled cache loading semantics are now explicit for long-running workers: artifact payload is treated as process-lifetime immutable
+- Benchmark tooling was updated for cleaner cache-hit comparisons and threshold reporting (including non-peak usage delta)
+- README was rewritten to reflect the simplified performance-first configuration model and current benchmark results
+
+### Removed
+
+- Removed legacy route definition cache implementation in favor of compiled cache artifact only
+- Removed discovery class-map cache layer and its invalidation/validation mechanics
+- Removed unsupported/legacy config keys:
+  - `routing_attributes.lazy_service_resolution`
+  - `routing_attributes.cache.mode`
+  - `routing_attributes.cache.backend`
+  - `routing_attributes.cache.strict`
+  - `routing_attributes.cache.write_fail_strategy`
+  - `routing_attributes.discovery.class_map_cache`
+
 ## [0.1.3] - 2026-03-14
 
 ### Changed

@@ -19,18 +19,10 @@ final class RoutingAttributesConfigTest extends TestCase
                 'cache' => [
                     'enabled' => true,
                     'file' => '/tmp/routes.php',
-                    'strict' => true,
-                    'write_fail_strategy' => 'throw',
                 ],
                 'discovery' => [
                     'enabled' => true,
                     'paths' => ['/app/src/Handler'],
-                    'class_map_cache' => [
-                        'enabled' => true,
-                        'file' => '/tmp/discovery.php',
-                        'validate' => true,
-                        'write_fail_strategy' => 'throw',
-                    ],
                 ],
             ],
         ]);
@@ -41,17 +33,11 @@ final class RoutingAttributesConfigTest extends TestCase
         self::assertSame('upstream', $config->classicRoutesMiddlewareDisplay);
         self::assertTrue($config->cacheEnabled);
         self::assertSame('/tmp/routes.php', $config->cacheFile);
-        self::assertTrue($config->cacheStrict);
-        self::assertSame('throw', $config->cacheWriteFailStrategy);
         self::assertTrue($config->discoveryEnabled);
         self::assertSame(['/app/src/Handler'], $config->discoveryPaths);
         self::assertSame('token', $config->discoveryStrategy);
         self::assertSame([], $config->discoveryPsr4Mappings);
         self::assertTrue($config->discoveryPsr4FallbackToToken);
-        self::assertTrue($config->discoveryClassMapCacheEnabled);
-        self::assertSame('/tmp/discovery.php', $config->discoveryClassMapCacheFile);
-        self::assertTrue($config->discoveryClassMapCacheValidate);
-        self::assertSame('throw', $config->discoveryClassMapCacheWriteFailStrategy);
     }
 
     public function testUsesDefaultsWhenOptionalKeysMissing(): void
@@ -68,17 +54,11 @@ final class RoutingAttributesConfigTest extends TestCase
         self::assertSame('upstream', $config->classicRoutesMiddlewareDisplay);
         self::assertFalse($config->cacheEnabled);
         self::assertNull($config->cacheFile);
-        self::assertFalse($config->cacheStrict);
-        self::assertSame('ignore', $config->cacheWriteFailStrategy);
         self::assertFalse($config->discoveryEnabled);
         self::assertSame([], $config->discoveryPaths);
         self::assertSame('token', $config->discoveryStrategy);
         self::assertSame([], $config->discoveryPsr4Mappings);
         self::assertTrue($config->discoveryPsr4FallbackToToken);
-        self::assertFalse($config->discoveryClassMapCacheEnabled);
-        self::assertNull($config->discoveryClassMapCacheFile);
-        self::assertTrue($config->discoveryClassMapCacheValidate);
-        self::assertSame('ignore', $config->discoveryClassMapCacheWriteFailStrategy);
     }
 
     public function testThrowsWhenRootConfigIsInvalid(): void
@@ -87,7 +67,18 @@ final class RoutingAttributesConfigTest extends TestCase
         RoutingAttributesConfig::fromRootConfig('invalid');
     }
 
-    public function testThrowsWhenCacheWriteFailStrategyInvalid(): void
+    public function testThrowsWhenRemovedLazyServiceResolutionOptionIsUsed(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+        RoutingAttributesConfig::fromRootConfig([
+            'routing_attributes' => [
+                'classes' => [],
+                'lazy_service_resolution' => true,
+            ],
+        ]);
+    }
+
+    public function testThrowsWhenRemovedCacheWriteFailStrategyOptionIsUsed(): void
     {
         $this->expectException(InvalidConfigurationException::class);
         RoutingAttributesConfig::fromRootConfig([
@@ -96,13 +87,58 @@ final class RoutingAttributesConfigTest extends TestCase
                 'cache' => [
                     'enabled' => true,
                     'file' => '/tmp/routes.php',
-                    'write_fail_strategy' => 'invalid',
+                    'write_fail_strategy' => 'throw',
                 ],
             ],
         ]);
     }
 
-    public function testThrowsWhenDiscoveryWriteFailStrategyInvalid(): void
+    public function testThrowsWhenRemovedCacheStrictOptionIsUsed(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+        RoutingAttributesConfig::fromRootConfig([
+            'routing_attributes' => [
+                'classes' => [],
+                'cache' => [
+                    'enabled' => true,
+                    'file' => '/tmp/routes.php',
+                    'strict' => true,
+                ],
+            ],
+        ]);
+    }
+
+    public function testThrowsWhenRemovedCacheBackendOptionIsUsed(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+        RoutingAttributesConfig::fromRootConfig([
+            'routing_attributes' => [
+                'classes' => [],
+                'cache' => [
+                    'enabled' => true,
+                    'file' => '/tmp/routes.php',
+                    'backend' => 'invalid',
+                ],
+            ],
+        ]);
+    }
+
+    public function testThrowsWhenRemovedCacheModeOptionIsUsed(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+        RoutingAttributesConfig::fromRootConfig([
+            'routing_attributes' => [
+                'classes' => [],
+                'cache' => [
+                    'enabled' => true,
+                    'mode' => 'compiled',
+                    'file' => '/tmp/routes.php',
+                ],
+            ],
+        ]);
+    }
+
+    public function testThrowsWhenRemovedDiscoveryClassMapCacheOptionIsUsed(): void
     {
         $this->expectException(InvalidConfigurationException::class);
         RoutingAttributesConfig::fromRootConfig([
@@ -113,8 +149,6 @@ final class RoutingAttributesConfigTest extends TestCase
                     'paths' => ['/app/src/Handler'],
                     'class_map_cache' => [
                         'enabled' => true,
-                        'file' => '/tmp/discovery.php',
-                        'write_fail_strategy' => 'invalid',
                     ],
                 ],
             ],
@@ -193,6 +227,8 @@ final class RoutingAttributesConfigTest extends TestCase
                 'classes' => [],
                 'cache' => [
                     'enabled' => false,
+                    'mode' => 'invalid-but-ignored',
+                    'backend' => 'invalid-but-ignored',
                     'strict' => 'invalid-but-ignored',
                     'write_fail_strategy' => 'invalid-but-ignored',
                 ],
@@ -200,37 +236,23 @@ final class RoutingAttributesConfigTest extends TestCase
         ]);
 
         self::assertFalse($config->cacheEnabled);
-        self::assertFalse($config->cacheStrict);
-        self::assertSame('ignore', $config->cacheWriteFailStrategy);
+        self::assertNull($config->cacheFile);
     }
 
-    public function testDoesNotValidateInactiveDiscoverySubOptions(): void
+    public function testThrowsWhenRemovedDiscoveryClassMapCacheOptionUsedEvenWhenDiscoveryDisabled(): void
     {
-        $config = RoutingAttributesConfig::fromRootConfig([
+        $this->expectException(InvalidConfigurationException::class);
+        RoutingAttributesConfig::fromRootConfig([
             'routing_attributes' => [
                 'classes' => [],
                 'discovery' => [
                     'enabled' => false,
-                    'paths' => 'invalid-but-ignored',
                     'class_map_cache' => [
-                        'enabled' => true,
-                        'file' => null,
-                        'validate' => 'invalid-but-ignored',
-                        'write_fail_strategy' => 'invalid-but-ignored',
+                        'enabled' => false,
                     ],
                 ],
             ],
         ]);
-
-        self::assertFalse($config->discoveryEnabled);
-        self::assertSame([], $config->discoveryPaths);
-        self::assertSame('token', $config->discoveryStrategy);
-        self::assertSame([], $config->discoveryPsr4Mappings);
-        self::assertTrue($config->discoveryPsr4FallbackToToken);
-        self::assertFalse($config->discoveryClassMapCacheEnabled);
-        self::assertNull($config->discoveryClassMapCacheFile);
-        self::assertTrue($config->discoveryClassMapCacheValidate);
-        self::assertSame('ignore', $config->discoveryClassMapCacheWriteFailStrategy);
     }
 
     public function testParsesPsr4DiscoveryConfiguration(): void
@@ -247,9 +269,6 @@ final class RoutingAttributesConfigTest extends TestCase
                             '/app/src' => 'App\\',
                         ],
                         'fallback_to_token' => false,
-                    ],
-                    'class_map_cache' => [
-                        'enabled' => false,
                     ],
                 ],
             ],

@@ -6,6 +6,7 @@ namespace Sirix\Mezzio\Routing\Attributes;
 
 use Mezzio\Router\RouteCollectorInterface;
 use Psr\Container\ContainerInterface;
+use Sirix\Mezzio\Routing\Attributes\Command\RouteMiddlewareDisplayResolver;
 use Sirix\Mezzio\Routing\Attributes\Extractor\AttributeRouteExtractorInterface;
 
 use function trim;
@@ -14,7 +15,6 @@ final readonly class AttributeRouteProvider
 {
     public const DUPLICATE_STRATEGY_THROW = DuplicateRouteResolver::STRATEGY_THROW;
     public const DUPLICATE_STRATEGY_IGNORE = DuplicateRouteResolver::STRATEGY_IGNORE;
-    public const ROUTE_OPTION_MIDDLEWARE_DISPLAY = 'sirix_routing_attributes.middleware_display';
 
     /**
      * @param list<string>                                                   $classes
@@ -25,17 +25,27 @@ final readonly class AttributeRouteProvider
         private AttributeRouteExtractorInterface $extractor,
         private array $classes,
         private string $duplicateStrategy = self::DUPLICATE_STRATEGY_THROW,
-        private ?string $cacheFile = null,
         private ?DuplicateRouteResolver $duplicateRouteResolver = null,
-        private ?RouteDefinitionCache $routeDefinitionCache = null,
-        private ?MiddlewarePipelineFactory $middlewarePipelineFactory = null
+        private ?MiddlewarePipelineFactory $middlewarePipelineFactory = null,
+        private ?CompiledRouteRegistrarCache $compiledRouteRegistrarCache = null
     ) {}
 
     public function registerRoutes(RouteCollectorInterface $collector): void
     {
         $pipelineFactory = $this->middlewarePipelineFactory();
+        if (
+            $this->compiledRouteRegistrarCache instanceof CompiledRouteRegistrarCache
+            && $this->compiledRouteRegistrarCache->registerRoutes($collector, $pipelineFactory)
+        ) {
+            return;
+        }
 
-        foreach ($this->resolveRoutes() as $route) {
+        $routes = $this->resolveRoutes();
+        if ($this->compiledRouteRegistrarCache instanceof CompiledRouteRegistrarCache) {
+            $this->compiledRouteRegistrarCache->save($routes);
+        }
+
+        foreach ($routes as $route) {
             $pipeline = $pipelineFactory->create($route);
             $registeredRoute = $collector->route(
                 $route->path,
@@ -43,9 +53,9 @@ final readonly class AttributeRouteProvider
                 $route->methods,
                 $this->normalizeRouteName($route->name)
             );
-            $routeOptions = $registeredRoute->getOptions();
-            $routeOptions[self::ROUTE_OPTION_MIDDLEWARE_DISPLAY] = $pipeline['middlewareDisplay'];
-            $registeredRoute->setOptions($routeOptions);
+            $options = $registeredRoute->getOptions();
+            $options[RouteMiddlewareDisplayResolver::ROUTE_OPTION_MIDDLEWARE_DISPLAY] = $pipeline['middlewareDisplay'];
+            $registeredRoute->setOptions($options);
         }
     }
 
@@ -54,27 +64,13 @@ final readonly class AttributeRouteProvider
      */
     private function resolveRoutes(): array
     {
-        $cached = $this->routeDefinitionCache()->load();
-        if (null !== $cached) {
-            return $cached;
-        }
-
-        $routes = $this->duplicateRouteResolver()->resolve($this->extractor->extract($this->classes));
-        $this->routeDefinitionCache()->save($routes);
-
-        return $routes;
+        return $this->duplicateRouteResolver()->resolve($this->extractor->extract($this->classes));
     }
 
     private function duplicateRouteResolver(): DuplicateRouteResolver
     {
         return $this->duplicateRouteResolver
             ?? new DuplicateRouteResolver($this->duplicateStrategy);
-    }
-
-    private function routeDefinitionCache(): RouteDefinitionCache
-    {
-        return $this->routeDefinitionCache
-            ?? new RouteDefinitionCache($this->cacheFile);
     }
 
     private function middlewarePipelineFactory(): MiddlewarePipelineFactory

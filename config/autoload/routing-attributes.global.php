@@ -24,23 +24,21 @@ return [
             'enabled' => false,
             // Directories to scan for classes implementing MiddlewareInterface/RequestHandlerInterface.
             'paths' => [],
-            // Optional require-based cache for discovered class list.
-            'class_map_cache' => [
-                'enabled' => false,
-                'file' => 'data/cache/mezzio-routing-attributes-classmap.php',
-                // If true, validates source inventory fingerprint and rebuilds cache when files change.
-                'validate' => true,
+            // Discovery strategy: "token" (default) or "psr4".
+            'strategy' => 'token',
+            'psr4' => [
+                // Required when strategy is "psr4": base path => base namespace.
+                'mappings' => [],
+                // Fallback to token parser when PSR-4 mapping does not resolve a class.
+                'fallback_to_token' => true,
             ],
         ],
-        // Optional route extraction cache loaded via require (OPcache-friendly).
+        // Optional compiled route registrar cache.
         'cache' => [
-            'enabled' => false,
-            // Path for cached route definitions.
+            // Production-oriented default: keep enabled for warm-cache performance.
+            'enabled' => true,
+            // Path for compiled route definitions.
             'file' => 'data/cache/mezzio-routing-attributes.php',
-            // If true, invalid/stale cache causes exception instead of silent rebuild.
-            'strict' => false,
-            // "ignore" (default) or "throw" when route cache write fails.
-            'write_fail_strategy' => 'ignore',
         ],
     ],
 ];

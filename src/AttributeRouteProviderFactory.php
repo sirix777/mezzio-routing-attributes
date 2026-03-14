@@ -13,51 +13,30 @@ use Sirix\Mezzio\Routing\Attributes\Extractor\AttributeRouteExtractorInterface;
 use function array_merge;
 use function array_unique;
 use function array_values;
-use function hash;
-use function implode;
 
 final class AttributeRouteProviderFactory
 {
+    /** @var null|callable(RoutingAttributesConfig): DiscoveryClassMapResolver */
+    private $discoveryResolverFactory;
+
+    /** @param null|callable(RoutingAttributesConfig): DiscoveryClassMapResolver $discoveryResolverFactory */
+    public function __construct(?callable $discoveryResolverFactory = null)
+    {
+        $this->discoveryResolverFactory = $discoveryResolverFactory;
+    }
+
     public function __invoke(ContainerInterface $container): AttributeRouteProvider
     {
         $rootConfig = $container->has('config') ? $container->get('config') : [];
         $config = RoutingAttributesConfig::fromRootConfig($rootConfig);
+        $compiledRouteRegistrarCache = $config->cacheEnabled
+            ? new CompiledRouteRegistrarCache($config->cacheFile)
+            : null;
 
-        $discoveryFingerprint = null;
         $classes = $config->classes;
-        if ($config->discoveryEnabled) {
-            $classMapCacheFile = $config->discoveryClassMapCacheEnabled
-                ? $config->discoveryClassMapCacheFile
-                : null;
-            $discoveryResult = (new DiscoveryClassMapResolver(
-                $config->discoveryPaths,
-                $classMapCacheFile,
-                $config->discoveryClassMapCacheValidate,
-                $config->discoveryClassMapCacheWriteFailStrategy,
-                $config->discoveryStrategy,
-                $config->discoveryPsr4Mappings,
-                $config->discoveryPsr4FallbackToToken,
-                null,
-                null,
-                null,
-                new RoutableClassFilter('callable' === $config->handlersMode)
-            ))->resolve();
-            $classes = array_values(array_unique(array_merge($classes, $discoveryResult['classes'])));
-            $discoveryFingerprint = $discoveryResult['fingerprint'];
-        }
-
-        $cacheFile = null;
-        $cacheMeta = null;
-        if ($config->cacheEnabled) {
-            $cacheFile = $config->cacheFile;
-            $cacheMeta = [
-                'format_version' => RouteDefinitionCache::CACHE_FORMAT_VERSION,
-                'duplicate_strategy' => $config->duplicateStrategy,
-                'classes_fingerprint' => $this->createClassesFingerprint($classes, $config->duplicateStrategy),
-            ];
-            if (null !== $discoveryFingerprint) {
-                $cacheMeta['discovery_fingerprint'] = $discoveryFingerprint;
-            }
+        if ($config->discoveryEnabled && ! $this->shouldSkipDiscovery($compiledRouteRegistrarCache)) {
+            $discoveredClasses = $this->discoveryResolver($config)->resolve();
+            $classes = array_values(array_unique(array_merge($classes, $discoveredClasses)));
         }
 
         return new AttributeRouteProvider(
@@ -65,24 +44,30 @@ final class AttributeRouteProviderFactory
             $container->get(AttributeRouteExtractorInterface::class),
             $classes,
             $config->duplicateStrategy,
-            $cacheFile,
             new DuplicateRouteResolver($config->duplicateStrategy),
-            new RouteDefinitionCache(
-                $cacheFile,
-                $cacheMeta,
-                $config->cacheStrict,
-                $config->cacheWriteFailStrategy
-            ),
-            new MiddlewarePipelineFactory($container)
+            new MiddlewarePipelineFactory($container),
+            $compiledRouteRegistrarCache
         );
     }
 
-    /** @param list<string> $classes */
-    private function createClassesFingerprint(array $classes, string $duplicateStrategy): string
+    private function shouldSkipDiscovery(?CompiledRouteRegistrarCache $compiledRouteRegistrarCache): bool
     {
-        return hash(
-            'sha256',
-            RouteDefinitionCache::CACHE_FORMAT_VERSION . '|' . $duplicateStrategy . '|' . implode('|', $classes)
+        return $compiledRouteRegistrarCache instanceof CompiledRouteRegistrarCache
+            && $compiledRouteRegistrarCache->hasUsableArtifact();
+    }
+
+    private function discoveryResolver(RoutingAttributesConfig $config): DiscoveryClassMapResolver
+    {
+        if (null !== $this->discoveryResolverFactory) {
+            return ($this->discoveryResolverFactory)($config);
+        }
+
+        return new DiscoveryClassMapResolver(
+            paths: $config->discoveryPaths,
+            strategy: $config->discoveryStrategy,
+            psr4Mappings: $config->discoveryPsr4Mappings,
+            psr4FallbackToToken: $config->discoveryPsr4FallbackToToken,
+            routableClassFilter: new RoutableClassFilter('callable' === $config->handlersMode)
         );
     }
 }

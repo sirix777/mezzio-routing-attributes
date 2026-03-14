@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Sirix\Mezzio\Routing\Attributes;
 
 use Mezzio\Router\RouteCollector;
+use Sirix\Mezzio\Routing\Attributes\Command\ClearRouteCacheCommand;
+use Sirix\Mezzio\Routing\Attributes\Command\ClearRouteCacheCommandFactory;
 use Sirix\Mezzio\Routing\Attributes\Command\ConsoleRegistrationPolicy;
 use Sirix\Mezzio\Routing\Attributes\Command\ListRoutesCommand;
 use Sirix\Mezzio\Routing\Attributes\Command\ListRoutesCommandDelegator;
@@ -62,6 +64,7 @@ final readonly class ConfigProvider
 
         if ($consolePolicy->canRegisterConsoleConfig()) {
             $dependencies['factories'][ListRoutesCommand::class] = ListRoutesCommandFactory::class;
+            $dependencies['factories'][ClearRouteCacheCommand::class] = ClearRouteCacheCommandFactory::class;
             if ($consolePolicy->shouldRegisterToolingDelegator()) {
                 $dependencies['delegators'][self::TOOLING_LIST_ROUTES_COMMAND] = [
                     ListRoutesCommandDelegator::class,
@@ -79,6 +82,7 @@ final readonly class ConfigProvider
     {
         $commands = [
             'routing-attributes:routes:list' => ListRoutesCommand::class,
+            'routing-attributes:cache:clear' => ClearRouteCacheCommand::class,
         ];
 
         if ($registerMezzioAlias) {

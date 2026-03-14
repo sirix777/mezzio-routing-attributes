@@ -8,6 +8,8 @@ use Mezzio\Router\RouteCollector;
 use PHPUnit\Framework\TestCase;
 use Sirix\Mezzio\Routing\Attributes\AttributeRouteProvider;
 use Sirix\Mezzio\Routing\Attributes\AttributeRouteProviderFactory;
+use Sirix\Mezzio\Routing\Attributes\Command\ClearRouteCacheCommand;
+use Sirix\Mezzio\Routing\Attributes\Command\ClearRouteCacheCommandFactory;
 use Sirix\Mezzio\Routing\Attributes\Command\ConsoleRegistrationPolicy;
 use Sirix\Mezzio\Routing\Attributes\Command\ListRoutesCommand;
 use Sirix\Mezzio\Routing\Attributes\Command\ListRoutesCommandDelegator;
@@ -43,6 +45,9 @@ class ConfigProviderTest extends TestCase
         self::assertSame(AttributeRouteExtractorFactory::class, $dependencies['factories'][AttributeRouteExtractor::class]);
         self::assertSame(AttributeRouteExtractor::class, $dependencies['aliases'][AttributeRouteExtractorInterface::class]);
         self::assertSame([RouteCollectorDelegator::class], $dependencies['delegators'][RouteCollector::class]);
+
+        $consoleDependencies = (new ConfigProvider(new ConsoleRegistrationPolicy(true, false)))->getDependencies();
+        self::assertSame(ClearRouteCacheCommandFactory::class, $consoleDependencies['factories'][ClearRouteCacheCommand::class]);
     }
 
     public function testRegistersConsoleAliasWhenLaminasCliAvailableWithoutTooling(): void
@@ -56,6 +61,10 @@ class ConfigProviderTest extends TestCase
             ListRoutesCommand::class,
             $config['laminas-cli']['commands']['mezzio:routes:list']
         );
+        self::assertSame(
+            ClearRouteCacheCommand::class,
+            $config['laminas-cli']['commands']['routing-attributes:cache:clear']
+        );
         self::assertArrayNotHasKey(self::TOOLING_LIST_ROUTES_COMMAND, $dependencies['delegators']);
     }
 
@@ -67,6 +76,10 @@ class ConfigProviderTest extends TestCase
 
         self::assertArrayHasKey('laminas-cli', $config);
         self::assertArrayNotHasKey('mezzio:routes:list', $config['laminas-cli']['commands']);
+        self::assertSame(
+            ClearRouteCacheCommand::class,
+            $config['laminas-cli']['commands']['routing-attributes:cache:clear']
+        );
         self::assertSame(
             [ListRoutesCommandDelegator::class],
             $dependencies['delegators'][self::TOOLING_LIST_ROUTES_COMMAND]

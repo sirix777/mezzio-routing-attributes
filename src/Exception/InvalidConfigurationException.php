@@ -109,19 +109,19 @@ class InvalidConfigurationException extends InvalidArgumentException
         ));
     }
 
-    public static function invalidCacheStrict(mixed $strict): self
+    public static function removedCacheOption(string $option): self
     {
         return new self(sprintf(
-            'Configuration key "routing_attributes.cache.strict" must be a boolean; received %s.',
-            get_debug_type($strict)
+            'Configuration key "routing_attributes.cache.%s" is no longer supported. Use compiled cache defaults.',
+            $option
         ));
     }
 
-    public static function invalidCacheWriteFailStrategy(mixed $strategy): self
+    public static function removedOption(string $option): self
     {
         return new self(sprintf(
-            'Configuration key "routing_attributes.cache.write_fail_strategy" must be one of "ignore" or "throw"; received %s.',
-            get_debug_type($strategy)
+            'Configuration key "%s" is no longer supported in performance-first mode.',
+            $option
         ));
     }
 
@@ -213,83 +213,11 @@ class InvalidConfigurationException extends InvalidArgumentException
         ));
     }
 
-    public static function invalidDiscoveryClassMapCacheType(mixed $cache): self
-    {
-        return new self(sprintf(
-            'Configuration key "routing_attributes.discovery.class_map_cache" must be an array; received %s.',
-            get_debug_type($cache)
-        ));
-    }
-
-    public static function invalidDiscoveryClassMapCacheEnabled(mixed $enabled): self
-    {
-        return new self(sprintf(
-            'Configuration key "routing_attributes.discovery.class_map_cache.enabled" must be a boolean; received %s.',
-            get_debug_type($enabled)
-        ));
-    }
-
-    public static function invalidDiscoveryClassMapCacheFile(mixed $file): self
-    {
-        return new self(sprintf(
-            'Configuration key "routing_attributes.discovery.class_map_cache.file" must be a non-empty string when class map cache is enabled; received %s.',
-            get_debug_type($file)
-        ));
-    }
-
-    public static function invalidDiscoveryClassMapCacheValidate(mixed $validate): self
-    {
-        return new self(sprintf(
-            'Configuration key "routing_attributes.discovery.class_map_cache.validate" must be a boolean; received %s.',
-            get_debug_type($validate)
-        ));
-    }
-
-    public static function invalidDiscoveryClassMapCacheWriteFailStrategy(mixed $strategy): self
-    {
-        return new self(sprintf(
-            'Configuration key "routing_attributes.discovery.class_map_cache.write_fail_strategy" must be one of "ignore" or "throw"; received %s.',
-            get_debug_type($strategy)
-        ));
-    }
-
     public static function invalidCachePayload(string $reason): self
     {
         return new self(sprintf(
-            'Route definition cache payload is invalid: %s.',
+            'Route cache payload is invalid: %s.',
             $reason
-        ));
-    }
-
-    public static function staleCacheMeta(string $key): self
-    {
-        return new self(sprintf(
-            'Route definition cache meta mismatch for key "%s".',
-            $key
-        ));
-    }
-
-    public static function cacheWriteFailed(string $cacheFile, string $operation, ?string $reason = null): self
-    {
-        $reasonSuffix = null === $reason ? '' : sprintf(' Reason: %s.', $reason);
-
-        return new self(sprintf(
-            'Failed to %s route definition cache file "%s".%s',
-            $operation,
-            $cacheFile,
-            $reasonSuffix
-        ));
-    }
-
-    public static function discoveryClassMapCacheWriteFailed(string $cacheFile, string $operation, ?string $reason = null): self
-    {
-        $reasonSuffix = null === $reason ? '' : sprintf(' Reason: %s.', $reason);
-
-        return new self(sprintf(
-            'Failed to %s discovery class map cache file "%s".%s',
-            $operation,
-            $cacheFile,
-            $reasonSuffix
         ));
     }
 

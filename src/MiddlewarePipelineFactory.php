@@ -9,98 +9,101 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
-use ReflectionMethod;
-use Sirix\Mezzio\Routing\Attributes\Exception\InvalidServiceDefinitionException;
 
 use function count;
-use function get_debug_type;
-use function is_object;
-use function method_exists;
+use function implode;
 
-final readonly class MiddlewarePipelineFactory
+final class MiddlewarePipelineFactory
 {
-    public function __construct(private ContainerInterface $container) {}
+    /** @var array<string, MiddlewareInterface> */
+    private array $compiledMiddlewareCache = [];
+
+    public function __construct(
+        private readonly ContainerInterface $container,
+        private readonly ?ServiceMiddlewareResolver $serviceMiddlewareResolver = null
+    ) {}
 
     /**
      * @return array{middleware: MiddlewareInterface, middlewareDisplay: non-empty-string}
      */
     public function create(RouteDefinition $route): array
     {
-        $middlewares = [];
-        $middlewareDisplay = '';
-        foreach ($route->middlewareServices as $serviceName) {
-            $service = $this->container->get($serviceName);
-            $middlewares[] = $this->prepareMiddleware($serviceName, $service, 'process');
-            $middlewareDisplay = '' === $middlewareDisplay
-                ? $serviceName
-                : $middlewareDisplay . ' -> ' . $serviceName;
+        $middleware = $this->createFromCompiled(
+            $route->handlerService,
+            $route->handlerMethod,
+            $route->middlewareServices
+        );
+
+        return [
+            'middleware' => $middleware,
+            'middlewareDisplay' => $this->buildMiddlewareDisplay(
+                $route->handlerService,
+                $route->handlerMethod,
+                $route->middlewareServices
+            ),
+        ];
+    }
+
+    /**
+     * @param list<non-empty-string> $middlewareServices
+     */
+    public function createFromCompiled(string $handlerService, string $handlerMethod, array $middlewareServices): MiddlewareInterface
+    {
+        $cacheKey = $this->compiledRouteSignature($handlerService, $handlerMethod, $middlewareServices);
+        if (isset($this->compiledMiddlewareCache[$cacheKey])) {
+            return $this->compiledMiddlewareCache[$cacheKey];
         }
 
-        $handlerService = $this->container->get($route->handlerService);
-        $middlewares[] = $this->prepareMiddleware($route->handlerService, $handlerService, $route->handlerMethod);
-        $handlerDisplay = $route->handlerService . '::' . $route->handlerMethod;
-        $middlewareDisplay = '' === $middlewareDisplay
-            ? $handlerDisplay
-            : $middlewareDisplay . ' -> ' . $handlerDisplay;
+        $middlewares = [];
+        foreach ($middlewareServices as $serviceName) {
+            $middlewares[] = $this->createServiceMiddleware($serviceName, 'process');
+        }
+
+        $middlewares[] = $this->createServiceMiddleware($handlerService, $handlerMethod);
 
         $middleware = 1 === count($middlewares)
             ? $middlewares[0]
             : $this->createPipeline($middlewares);
 
-        return [
-            'middleware' => $middleware,
-            'middlewareDisplay' => $middlewareDisplay,
-        ];
+        $this->compiledMiddlewareCache[$cacheKey] = $middleware;
+
+        return $middleware;
     }
 
-    private function prepareMiddleware(string $serviceName, mixed $service, string $methodName): MiddlewareInterface
+    private function createServiceMiddleware(string $serviceName, string $methodName): MiddlewareInterface
     {
-        if ($service instanceof MiddlewareInterface) {
-            if ('process' !== $methodName) {
-                return $this->createMethodMiddleware($serviceName, $service, $methodName);
-            }
-
-            return $service;
-        }
-
-        if ($service instanceof RequestHandlerInterface) {
-            if ('handle' === $methodName) {
-                return new class($service) implements MiddlewareInterface {
-                    public function __construct(private readonly RequestHandlerInterface $handler) {}
-
-                    public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
-                    {
-                        return $this->handler->handle($request);
-                    }
-                };
-            }
-
-            return $this->createMethodMiddleware($serviceName, $service, $methodName);
-        }
-
-        if ('process' !== $methodName) {
-            return $this->createMethodMiddleware($serviceName, $service, $methodName);
-        }
-
-        throw InvalidServiceDefinitionException::invalidMiddlewareServiceType($serviceName, get_debug_type($service));
+        return new LazyServiceMiddleware(
+            $this->container,
+            $this->serviceMiddlewareResolver(),
+            $serviceName,
+            $methodName
+        );
     }
 
-    private function createMethodMiddleware(string $serviceName, mixed $service, string $methodName): MiddlewareInterface
+    private function serviceMiddlewareResolver(): ServiceMiddlewareResolver
     {
-        if (! is_object($service)) {
-            throw InvalidServiceDefinitionException::invalidMiddlewareServiceType($serviceName, get_debug_type($service));
+        return $this->serviceMiddlewareResolver ?? new ServiceMiddlewareResolver();
+    }
+
+    /**
+     * @param list<non-empty-string> $middlewareServices
+     *
+     * @return non-empty-string
+     */
+    private function buildMiddlewareDisplay(string $handlerService, string $handlerMethod, array $middlewareServices): string
+    {
+        $middlewareDisplay = '';
+        foreach ($middlewareServices as $serviceName) {
+            $middlewareDisplay = '' === $middlewareDisplay
+                ? $serviceName
+                : $middlewareDisplay . ' -> ' . $serviceName;
         }
 
-        if (! method_exists($service, $methodName)) {
-            throw InvalidServiceDefinitionException::missingMethod($serviceName, $methodName);
-        }
+        $handlerDisplay = $handlerService . '::' . $handlerMethod;
 
-        $reflection = new ReflectionMethod($service, $methodName);
-        if (! $reflection->isPublic()) {
-            throw InvalidServiceDefinitionException::nonPublicMethod($service::class, $methodName);
-        }
-
-        return new MethodInvokerMiddleware($service, $methodName);
+        return '' === $middlewareDisplay
+            ? $handlerDisplay
+            : $middlewareDisplay . ' -> ' . $handlerDisplay;
     }
 
     /**
@@ -124,5 +127,13 @@ final readonly class MiddlewarePipelineFactory
                 return $pipelineHandler->handle($request);
             }
         };
+    }
+
+    /**
+     * @param list<non-empty-string> $middlewareServices
+     */
+    private function compiledRouteSignature(string $handlerService, string $handlerMethod, array $middlewareServices): string
+    {
+        return $handlerService . "\0" . $handlerMethod . "\0" . implode("\0", $middlewareServices);
     }
 }

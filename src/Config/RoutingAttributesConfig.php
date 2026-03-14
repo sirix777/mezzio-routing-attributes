@@ -6,10 +6,9 @@ namespace Sirix\Mezzio\Routing\Attributes\Config;
 
 use Sirix\Mezzio\Routing\Attributes\AttributeRouteProvider;
 use Sirix\Mezzio\Routing\Attributes\Command\RouteMiddlewareDisplayResolver;
-use Sirix\Mezzio\Routing\Attributes\Discovery\DiscoveryClassMapCache;
 use Sirix\Mezzio\Routing\Attributes\Exception\InvalidConfigurationException;
-use Sirix\Mezzio\Routing\Attributes\RouteDefinitionCache;
 
+use function array_key_exists;
 use function array_values;
 use function in_array;
 use function is_array;
@@ -19,15 +18,13 @@ use function is_string;
 final readonly class RoutingAttributesConfig
 {
     /**
-     * @param list<non-empty-string>                                                                               $classes
-     * @param AttributeRouteProvider::DUPLICATE_STRATEGY_IGNORE|AttributeRouteProvider::DUPLICATE_STRATEGY_THROW   $duplicateStrategy
-     * @param 'callable'|'psr15'                                                                                   $handlersMode
-     * @param 'resolved'|'upstream'                                                                                $classicRoutesMiddlewareDisplay
-     * @param RouteDefinitionCache::WRITE_FAIL_STRATEGY_IGNORE|RouteDefinitionCache::WRITE_FAIL_STRATEGY_THROW     $cacheWriteFailStrategy
-     * @param list<non-empty-string>                                                                               $discoveryPaths
-     * @param 'psr4'|'token'                                                                                       $discoveryStrategy
-     * @param array<non-empty-string, non-empty-string>                                                            $discoveryPsr4Mappings
-     * @param DiscoveryClassMapCache::WRITE_FAIL_STRATEGY_IGNORE|DiscoveryClassMapCache::WRITE_FAIL_STRATEGY_THROW $discoveryClassMapCacheWriteFailStrategy
+     * @param list<non-empty-string>                                                                             $classes
+     * @param AttributeRouteProvider::DUPLICATE_STRATEGY_IGNORE|AttributeRouteProvider::DUPLICATE_STRATEGY_THROW $duplicateStrategy
+     * @param 'callable'|'psr15'                                                                                 $handlersMode
+     * @param 'resolved'|'upstream'                                                                              $classicRoutesMiddlewareDisplay
+     * @param list<non-empty-string>                                                                             $discoveryPaths
+     * @param 'psr4'|'token'                                                                                     $discoveryStrategy
+     * @param array<non-empty-string, non-empty-string>                                                          $discoveryPsr4Mappings
      */
     public function __construct(
         public array $classes,
@@ -36,17 +33,11 @@ final readonly class RoutingAttributesConfig
         public string $classicRoutesMiddlewareDisplay,
         public bool $cacheEnabled,
         public ?string $cacheFile,
-        public bool $cacheStrict,
-        public string $cacheWriteFailStrategy,
         public bool $discoveryEnabled,
         public array $discoveryPaths,
         public string $discoveryStrategy,
         public array $discoveryPsr4Mappings,
-        public bool $discoveryPsr4FallbackToToken,
-        public bool $discoveryClassMapCacheEnabled,
-        public ?string $discoveryClassMapCacheFile,
-        public bool $discoveryClassMapCacheValidate,
-        public string $discoveryClassMapCacheWriteFailStrategy
+        public bool $discoveryPsr4FallbackToToken
     ) {}
 
     public static function fromRootConfig(mixed $config): self
@@ -64,6 +55,7 @@ final readonly class RoutingAttributesConfig
         $duplicateStrategy = self::parseDuplicateStrategy($routingAttributesConfig);
         $handlersMode = self::parseHandlersMode($routingAttributesConfig);
         $classicRoutesMiddlewareDisplay = self::parseClassicRoutesMiddlewareDisplay($routingAttributesConfig);
+        self::assertRemovedRootOptions($routingAttributesConfig);
         $discovery = self::parseDiscovery($routingAttributesConfig);
         $cache = self::parseCache($routingAttributesConfig);
 
@@ -74,17 +66,11 @@ final readonly class RoutingAttributesConfig
             $classicRoutesMiddlewareDisplay,
             $cache['enabled'],
             $cache['file'],
-            $cache['strict'],
-            $cache['writeFailStrategy'],
             $discovery['enabled'],
             $discovery['paths'],
             $discovery['strategy'],
             $discovery['psr4Mappings'],
-            $discovery['psr4FallbackToToken'],
-            $discovery['classMapCacheEnabled'],
-            $discovery['classMapCacheFile'],
-            $discovery['classMapCacheValidate'],
-            $discovery['classMapCacheWriteFailStrategy']
+            $discovery['psr4FallbackToToken']
         );
     }
 
@@ -117,6 +103,16 @@ final readonly class RoutingAttributesConfig
         }
 
         return $classicRoutesMiddlewareDisplay;
+    }
+
+    /**
+     * @param array<string, mixed> $routingAttributesConfig
+     */
+    private static function assertRemovedRootOptions(array $routingAttributesConfig): void
+    {
+        if (array_key_exists('lazy_service_resolution', $routingAttributesConfig)) {
+            throw InvalidConfigurationException::removedOption('routing_attributes.lazy_service_resolution');
+        }
     }
 
     /**
@@ -192,11 +188,7 @@ final readonly class RoutingAttributesConfig
      *     paths: list<non-empty-string>,
      *     strategy: 'psr4'|'token',
      *     psr4Mappings: array<non-empty-string, non-empty-string>,
-     *     psr4FallbackToToken: bool,
-     *     classMapCacheEnabled: bool,
-     *     classMapCacheFile: ?string,
-     *     classMapCacheValidate: bool,
-     *     classMapCacheWriteFailStrategy: DiscoveryClassMapCache::WRITE_FAIL_STRATEGY_IGNORE|DiscoveryClassMapCache::WRITE_FAIL_STRATEGY_THROW
+     *     psr4FallbackToToken: bool
      * }
      */
     private static function parseDiscovery(array $routingAttributesConfig): array
@@ -215,10 +207,6 @@ final readonly class RoutingAttributesConfig
         $discoveryStrategy = 'token';
         $normalizedDiscoveryPsr4Mappings = [];
         $discoveryPsr4FallbackToToken = true;
-        $discoveryClassMapCacheEnabled = false;
-        $discoveryClassMapCacheFile = null;
-        $discoveryClassMapCacheValidate = true;
-        $discoveryClassMapCacheWriteFailStrategy = DiscoveryClassMapCache::WRITE_FAIL_STRATEGY_IGNORE;
 
         if ($discoveryEnabled) {
             $discoveryPaths = $discoveryConfig['paths'] ?? [];
@@ -270,44 +258,10 @@ final readonly class RoutingAttributesConfig
             if ('psr4' === $discoveryStrategy && [] === $normalizedDiscoveryPsr4Mappings) {
                 throw InvalidConfigurationException::missingDiscoveryPsr4Mappings();
             }
+        }
 
-            $classMapCacheConfig = $discoveryConfig['class_map_cache'] ?? [];
-            if (! is_array($classMapCacheConfig)) {
-                throw InvalidConfigurationException::invalidDiscoveryClassMapCacheType($classMapCacheConfig);
-            }
-
-            $discoveryClassMapCacheEnabled = $classMapCacheConfig['enabled'] ?? false;
-            if (! is_bool($discoveryClassMapCacheEnabled)) {
-                throw InvalidConfigurationException::invalidDiscoveryClassMapCacheEnabled($discoveryClassMapCacheEnabled);
-            }
-
-            if ($discoveryClassMapCacheEnabled) {
-                $configuredClassMapCacheFile = $classMapCacheConfig['file'] ?? null;
-                if (! is_string($configuredClassMapCacheFile) || '' === $configuredClassMapCacheFile) {
-                    throw InvalidConfigurationException::invalidDiscoveryClassMapCacheFile($configuredClassMapCacheFile);
-                }
-
-                $discoveryClassMapCacheFile = $configuredClassMapCacheFile;
-            }
-
-            $discoveryClassMapCacheValidate = $classMapCacheConfig['validate'] ?? true;
-            if (! is_bool($discoveryClassMapCacheValidate)) {
-                throw InvalidConfigurationException::invalidDiscoveryClassMapCacheValidate($discoveryClassMapCacheValidate);
-            }
-
-            $discoveryClassMapCacheWriteFailStrategy = $classMapCacheConfig['write_fail_strategy'] ?? DiscoveryClassMapCache::WRITE_FAIL_STRATEGY_IGNORE;
-            if (
-                ! in_array(
-                    $discoveryClassMapCacheWriteFailStrategy,
-                    [
-                        DiscoveryClassMapCache::WRITE_FAIL_STRATEGY_IGNORE,
-                        DiscoveryClassMapCache::WRITE_FAIL_STRATEGY_THROW,
-                    ],
-                    true
-                )
-            ) {
-                throw InvalidConfigurationException::invalidDiscoveryClassMapCacheWriteFailStrategy($discoveryClassMapCacheWriteFailStrategy);
-            }
+        if (array_key_exists('class_map_cache', $discoveryConfig)) {
+            throw InvalidConfigurationException::removedOption('routing_attributes.discovery.class_map_cache');
         }
 
         return [
@@ -316,10 +270,6 @@ final readonly class RoutingAttributesConfig
             'strategy' => $discoveryStrategy,
             'psr4Mappings' => $normalizedDiscoveryPsr4Mappings,
             'psr4FallbackToToken' => $discoveryPsr4FallbackToToken,
-            'classMapCacheEnabled' => $discoveryClassMapCacheEnabled,
-            'classMapCacheFile' => $discoveryClassMapCacheFile,
-            'classMapCacheValidate' => $discoveryClassMapCacheValidate,
-            'classMapCacheWriteFailStrategy' => $discoveryClassMapCacheWriteFailStrategy,
         ];
     }
 
@@ -328,9 +278,7 @@ final readonly class RoutingAttributesConfig
      *
      * @return array{
      *     enabled: bool,
-     *     file: ?string,
-     *     strict: bool,
-     *     writeFailStrategy: RouteDefinitionCache::WRITE_FAIL_STRATEGY_IGNORE|RouteDefinitionCache::WRITE_FAIL_STRATEGY_THROW
+     *     file: ?string
      * }
      */
     private static function parseCache(array $routingAttributesConfig): array
@@ -346,41 +294,34 @@ final readonly class RoutingAttributesConfig
         }
 
         $cacheFile = null;
-        $cacheStrict = false;
-        $cacheWriteFailStrategy = RouteDefinitionCache::WRITE_FAIL_STRATEGY_IGNORE;
         if ($cacheEnabled) {
+            if (array_key_exists('mode', $cacheConfig)) {
+                throw InvalidConfigurationException::removedCacheOption('mode');
+            }
+
+            if (array_key_exists('backend', $cacheConfig)) {
+                throw InvalidConfigurationException::removedCacheOption('backend');
+            }
+
+            if (array_key_exists('strict', $cacheConfig)) {
+                throw InvalidConfigurationException::removedCacheOption('strict');
+            }
+
+            if (array_key_exists('write_fail_strategy', $cacheConfig)) {
+                throw InvalidConfigurationException::removedCacheOption('write_fail_strategy');
+            }
+
             $configuredCacheFile = $cacheConfig['file'] ?? null;
             if (! is_string($configuredCacheFile) || '' === $configuredCacheFile) {
                 throw InvalidConfigurationException::invalidCacheFile($configuredCacheFile);
             }
 
             $cacheFile = $configuredCacheFile;
-
-            $cacheStrict = $cacheConfig['strict'] ?? false;
-            if (! is_bool($cacheStrict)) {
-                throw InvalidConfigurationException::invalidCacheStrict($cacheStrict);
-            }
-
-            $cacheWriteFailStrategy = $cacheConfig['write_fail_strategy'] ?? RouteDefinitionCache::WRITE_FAIL_STRATEGY_IGNORE;
-            if (
-                ! in_array(
-                    $cacheWriteFailStrategy,
-                    [
-                        RouteDefinitionCache::WRITE_FAIL_STRATEGY_IGNORE,
-                        RouteDefinitionCache::WRITE_FAIL_STRATEGY_THROW,
-                    ],
-                    true
-                )
-            ) {
-                throw InvalidConfigurationException::invalidCacheWriteFailStrategy($cacheWriteFailStrategy);
-            }
         }
 
         return [
             'enabled' => $cacheEnabled,
             'file' => $cacheFile,
-            'strict' => $cacheStrict,
-            'writeFailStrategy' => $cacheWriteFailStrategy,
         ];
     }
 }
