@@ -17,27 +17,15 @@ final class ServiceMiddlewareResolver
 {
     public function resolve(string $serviceName, mixed $service, string $methodName): MiddlewareInterface
     {
-        if ($service instanceof MiddlewareInterface) {
-            if ('process' !== $methodName) {
-                return $this->createMethodMiddleware($serviceName, $service, $methodName);
-            }
-
+        if ($service instanceof MiddlewareInterface && 'process' === $methodName) {
             return $service;
         }
 
-        if ($service instanceof RequestHandlerInterface) {
-            if ('handle' === $methodName) {
-                return new RequestHandlerMiddleware($service);
-            }
-
-            return $this->createMethodMiddleware($serviceName, $service, $methodName);
+        if ($service instanceof RequestHandlerInterface && 'handle' === $methodName) {
+            return new RequestHandlerMiddleware($service);
         }
 
-        if ('process' !== $methodName) {
-            return $this->createMethodMiddleware($serviceName, $service, $methodName);
-        }
-
-        throw InvalidServiceDefinitionException::invalidMiddlewareServiceType($serviceName, get_debug_type($service));
+        return $this->createMethodMiddleware($serviceName, $service, $methodName);
     }
 
     private function createMethodMiddleware(string $serviceName, mixed $service, string $methodName): MiddlewareInterface

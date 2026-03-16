@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Until `1.0.0` is released, backward compatibility is not guaranteed. Public APIs and configuration may change between releases, including minor and patch releases.
 
+## [0.1.5] - 2026-03-16
+
+### Fixed
+
+- Fixed a bug in `ServiceMiddlewareResolver` where regular classes (not implementing `MiddlewareInterface`) could not use a method named `process`.
+- Fixed a limitation in `MethodInvokerMiddleware` that prevented passing the request handler (`$handler`) to the called service method, which caused `ArgumentCountError`.
+
 ## [0.1.4] - 2026-03-14
 
 ### Added

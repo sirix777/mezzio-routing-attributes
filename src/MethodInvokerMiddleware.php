@@ -16,9 +16,7 @@ final readonly class MethodInvokerMiddleware implements MiddlewareInterface
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
-        unset($handler);
-
-        $response = $this->service->{$this->methodName}($request);
+        $response = $this->service->{$this->methodName}($request, $handler);
 
         if (! $response instanceof ResponseInterface) {
             throw InvalidServiceDefinitionException::invalidMethodReturnType(
