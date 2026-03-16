@@ -45,7 +45,7 @@ jobs:
               if: ${{ matrix.mezzio-tooling }}
               run: |
                   composer update --with "mezzio/mezzio-router:${{ matrix.mezzio-router.version }}" --prefer-dist --no-progress --no-interaction
-                  composer require --dev mezzio/mezzio-tooling --no-interaction
+                  composer require --dev mezzio/mezzio-tooling -W --no-interaction
 
             - name: Run cs-check
               run: composer cs-check
