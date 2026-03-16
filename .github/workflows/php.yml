@@ -24,7 +24,6 @@ jobs:
                       label: "3.15"
                     - version: "^4.1"
                       label: "4.1"
-                mezzio-tooling: [true, false]
         steps:
             - uses: actions/checkout@v5
 
@@ -37,15 +36,8 @@ jobs:
             - name: Validate composer.json
               run: composer validate --strict --no-check-lock
 
-            - name: Install dependencies (without mezzio-tooling)
-              if: ${{ !matrix.mezzio-tooling }}
+            - name: Install dependencies
               run: composer update --with "mezzio/mezzio-router:${{ matrix.mezzio-router.version }}" --prefer-dist --no-progress --no-interaction
-
-            - name: Install dependencies (with mezzio-tooling)
-              if: ${{ matrix.mezzio-tooling }}
-              run: |
-                  composer update --with "mezzio/mezzio-router:${{ matrix.mezzio-router.version }}" --prefer-dist --no-progress --no-interaction
-                  composer require --dev mezzio/mezzio-tooling -W --no-interaction
 
             - name: Run cs-check
               run: composer cs-check
