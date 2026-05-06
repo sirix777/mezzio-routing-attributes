@@ -8,10 +8,14 @@ use Mezzio\Router\Route;
 use Mezzio\Router\RouteCollectorInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Server\MiddlewareInterface;
+use Sirix\Mezzio\Routing\Attributes\Cache\RouteCacheGenerator;
+use Sirix\Mezzio\Routing\Attributes\Cache\RouteCacheLoader;
+use Sirix\Mezzio\Routing\Attributes\Cache\RouteCacheStorage;
 use Sirix\Mezzio\Routing\Attributes\CompiledRouteRegistrarCache;
 use Sirix\Mezzio\Routing\Attributes\Exception\InvalidConfigurationException;
 use Sirix\Mezzio\Routing\Attributes\MiddlewarePipelineFactory;
 use Sirix\Mezzio\Routing\Attributes\RouteDefinition;
+use Sirix\Mezzio\Routing\Attributes\ServiceMiddlewareResolver;
 use SirixTest\Mezzio\Routing\Attributes\TestAsset\InMemoryContainer;
 
 use function file_get_contents;
@@ -48,7 +52,7 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
     {
         $cacheFile = $this->createCacheFilePath();
         $this->cacheFiles[] = $cacheFile;
-        $cache = new CompiledRouteRegistrarCache($cacheFile);
+        $cache = $this->createCache($cacheFile);
 
         $cache->save([
             new RouteDefinition('/compiled', ['GET'], 'handler.service', 'process', ['mw.service'], 'compiled.route'),
@@ -101,10 +105,10 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
                 return [];
             }
         };
-        $pipelineFactory = new MiddlewarePipelineFactory(new InMemoryContainer([
+        $pipelineFactory = $this->createPipelineFactory([
             'mw.service' => new TestMiddleware(),
             'handler.service' => new TestMiddleware(),
-        ]));
+        ]);
 
         self::assertTrue($cache->registerRoutes($collector, $pipelineFactory));
         self::assertSame(1, $collector->routeCalls);
@@ -118,7 +122,7 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
 
     public function testRegisterRoutesReturnsFalseWhenCacheFileMissing(): void
     {
-        $cache = new CompiledRouteRegistrarCache($this->createCacheFilePath());
+        $cache = $this->createCache($this->createCacheFilePath());
         $collector = new class implements RouteCollectorInterface {
             public int $routeCalls = 0;
 
@@ -164,7 +168,7 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
                 return [];
             }
         };
-        $pipelineFactory = new MiddlewarePipelineFactory(new InMemoryContainer([]));
+        $pipelineFactory = $this->createPipelineFactory([]);
 
         self::assertFalse($cache->registerRoutes($collector, $pipelineFactory));
         self::assertSame(0, $collector->routeCalls);
@@ -174,8 +178,8 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
     {
         $cacheFile = $this->createCacheFilePath();
         $this->cacheFiles[] = $cacheFile;
-        $writer = new CompiledRouteRegistrarCache($cacheFile);
-        $reader = new CompiledRouteRegistrarCache($cacheFile);
+        $writer = $this->createCache($cacheFile);
+        $reader = $this->createCache($cacheFile);
 
         $writer->save([
             new RouteDefinition('/compiled', ['GET'], 'handler.service', 'process', [], 'compiled.route'),
@@ -226,9 +230,9 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
                 return [];
             }
         };
-        $pipelineFactory = new MiddlewarePipelineFactory(new InMemoryContainer([
+        $pipelineFactory = $this->createPipelineFactory([
             'handler.service' => new TestMiddleware(),
-        ]));
+        ]);
 
         self::assertTrue($reader->registerRoutes($collector, $pipelineFactory));
         self::assertSame(1, $collector->routeCalls);
@@ -238,7 +242,7 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
     {
         $cacheFile = $this->createCacheFilePath();
         $this->cacheFiles[] = $cacheFile;
-        $cache = new CompiledRouteRegistrarCache($cacheFile);
+        $cache = $this->createCache($cacheFile);
 
         $cache->save([
             new RouteDefinition('/compiled-options', ['GET'], 'handler.service', 'process', [], 'compiled.options.route'),
@@ -292,9 +296,9 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
             }
         };
 
-        $pipelineFactory = new MiddlewarePipelineFactory(new InMemoryContainer([
+        $pipelineFactory = $this->createPipelineFactory([
             'handler.service' => new TestMiddleware(),
-        ]));
+        ]);
         self::assertTrue($cache->registerRoutes($collector, $pipelineFactory));
         self::assertInstanceOf(Route::class, $collector->lastRoute);
         self::assertSame('keep-me', $collector->lastRoute->getOptions()['existing_option'] ?? null);
@@ -308,7 +312,7 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
     {
         $cacheFile = $this->createCacheFilePath();
         $this->cacheFiles[] = $cacheFile;
-        $cache = new CompiledRouteRegistrarCache($cacheFile);
+        $cache = $this->createCache($cacheFile);
 
         $routes = [];
         for ($i = 1; $i <= 1200; ++$i) {
@@ -369,10 +373,10 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
                 return [];
             }
         };
-        $pipelineFactory = new MiddlewarePipelineFactory(new InMemoryContainer([
+        $pipelineFactory = $this->createPipelineFactory([
             'mw.shared' => new TestMiddleware(),
             'handler.service' => new TestMiddleware(),
-        ]));
+        ]);
 
         self::assertTrue($cache->registerRoutes($collector, $pipelineFactory));
         self::assertSame(1200, $collector->routeCalls);
@@ -396,7 +400,7 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
                 PHP
         );
 
-        $cache = new CompiledRouteRegistrarCache($cacheFile);
+        $cache = $this->createCache($cacheFile);
 
         $collector = new class implements RouteCollectorInterface {
             public function route(string $path, MiddlewareInterface $middleware, ?array $methods = null, ?string $name = null): Route
@@ -439,7 +443,7 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
                 return [];
             }
         };
-        $pipelineFactory = new MiddlewarePipelineFactory(new InMemoryContainer([]));
+        $pipelineFactory = $this->createPipelineFactory([]);
 
         $this->expectException(InvalidConfigurationException::class);
         $cache->registerRoutes($collector, $pipelineFactory);
@@ -451,12 +455,33 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
         $this->cacheFiles[] = $cacheFile;
         mkdir($cacheFile, 0o775, true);
 
-        $cache = new CompiledRouteRegistrarCache($cacheFile);
+        $cache = $this->createCache($cacheFile);
         $cache->save([
             new RouteDefinition('/compiled', ['GET'], 'handler.service', 'process', [], 'compiled.route'),
         ]);
 
         self::assertTrue(is_dir($cacheFile));
+    }
+
+    private function createCache(string $cacheFile): CompiledRouteRegistrarCache
+    {
+        return new CompiledRouteRegistrarCache(
+            $cacheFile,
+            new RouteCacheGenerator(),
+            new RouteCacheStorage(),
+            new RouteCacheLoader()
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $services
+     */
+    private function createPipelineFactory(array $services): MiddlewarePipelineFactory
+    {
+        return new MiddlewarePipelineFactory(
+            new InMemoryContainer($services),
+            new ServiceMiddlewareResolver()
+        );
     }
 
     private function createCacheFilePath(): string

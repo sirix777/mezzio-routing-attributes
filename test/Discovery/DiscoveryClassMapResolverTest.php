@@ -6,6 +6,10 @@ namespace SirixTest\Mezzio\Routing\Attributes\Discovery;
 
 use PHPUnit\Framework\TestCase;
 use Sirix\Mezzio\Routing\Attributes\Discovery\DiscoveryClassMapResolver;
+use Sirix\Mezzio\Routing\Attributes\Discovery\DiscoveryFileInventory;
+use Sirix\Mezzio\Routing\Attributes\Discovery\PhpClassNameParser;
+use Sirix\Mezzio\Routing\Attributes\Discovery\Psr4ClassNameResolver;
+use Sirix\Mezzio\Routing\Attributes\Discovery\RoutableClassFilter;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\NotMiddleware;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\PingHandler;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\PingRequestHandler;
@@ -56,11 +60,7 @@ final class DiscoveryClassMapResolverTest extends TestCase
 
     public function testDiscoversOnlyRoutableClasses(): void
     {
-        /** @var non-empty-string $path */
-        $path = $this->tempDir;
-        $resolver = new DiscoveryClassMapResolver([$path]);
-
-        $classes = $resolver->resolve();
+        $classes = $this->createResolver()->resolve();
 
         self::assertContains(PingHandler::class, $classes);
         self::assertContains(PingRequestHandler::class, $classes);
@@ -71,14 +71,7 @@ final class DiscoveryClassMapResolverTest extends TestCase
     {
         $mappingNamespace = 'SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\\';
 
-        /** @var non-empty-string $path */
-        $path = $this->tempDir;
-
-        $result = (new DiscoveryClassMapResolver(
-            paths: [$path],
-            strategy: 'psr4',
-            psr4Mappings: [$path => $mappingNamespace]
-        ))->resolve();
+        $result = $this->createResolver('psr4', [$this->tempDir => $mappingNamespace])->resolve();
 
         self::assertContains(PingHandler::class, $result);
         self::assertContains(PingRequestHandler::class, $result);
@@ -87,15 +80,7 @@ final class DiscoveryClassMapResolverTest extends TestCase
 
     public function testFallsBackToTokenWhenPsr4CannotResolve(): void
     {
-        /** @var non-empty-string $path */
-        $path = $this->tempDir;
-
-        $result = (new DiscoveryClassMapResolver(
-            paths: [$path],
-            strategy: 'psr4',
-            psr4Mappings: [$path => 'Invalid Namespace'],
-            psr4FallbackToToken: true
-        ))->resolve();
+        $result = $this->createResolver('psr4', [$this->tempDir => 'Invalid Namespace'], true)->resolve();
 
         self::assertContains(PingHandler::class, $result);
         self::assertContains(PingRequestHandler::class, $result);
@@ -103,16 +88,33 @@ final class DiscoveryClassMapResolverTest extends TestCase
 
     public function testSkipsFileWhenPsr4CannotResolveAndFallbackDisabled(): void
     {
-        /** @var non-empty-string $path */
-        $path = $this->tempDir;
-
-        $result = (new DiscoveryClassMapResolver(
-            paths: [$path],
-            strategy: 'psr4',
-            psr4Mappings: [$path => 'Invalid Namespace'],
-            psr4FallbackToToken: false
-        ))->resolve();
+        $result = $this->createResolver('psr4', [$this->tempDir => 'Invalid Namespace'], false)->resolve();
 
         self::assertSame([], $result);
+    }
+
+    /**
+     * @param 'psr4'|'token'                  $strategy
+     * @param array<string, non-empty-string> $psr4Mappings
+     */
+    private function createResolver(
+        string $strategy = 'token',
+        array $psr4Mappings = [],
+        bool $psr4FallbackToToken = true
+    ): DiscoveryClassMapResolver {
+        /** @var list<non-empty-string> $paths */
+        $paths = [$this->tempDir];
+
+        /** @var array<non-empty-string, non-empty-string> $normalizedPsr4Mappings */
+        $normalizedPsr4Mappings = $psr4Mappings;
+
+        return new DiscoveryClassMapResolver(
+            $strategy,
+            $psr4FallbackToToken,
+            new DiscoveryFileInventory($paths),
+            new PhpClassNameParser(),
+            new Psr4ClassNameResolver($normalizedPsr4Mappings),
+            new RoutableClassFilter()
+        );
     }
 }

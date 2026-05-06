@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Until `1.0.0` is released, backward compatibility is not guaranteed. Public APIs and configuration may change between releases, including minor and patch releases.
 
+## [0.1.6] - 2026-05-06
+
+### Added
+
+- New specialized configuration parsers in `Sirix\Mezzio\Routing\Attributes\Config` namespace for modular and strict configuration handling
+- New `RouteCacheGenerator`, `RouteCacheStorage`, and `RouteCacheLoader` services to separate cache generation, filesystem operations, and loading logic
+- New `MethodSignatureValidator` for stricter extraction-time validation of route handler methods
+- New `RouteDataNormalizer` to unify path, method, and middleware normalization logic
+- New `DiscoveredClassesResolverInterface` for flexible class discovery strategies
+
+### Changed
+
+- Major refactoring of `CompiledRouteRegistrarCache` to delegate responsibilities to specialized services
+- `AttributeRouteProvider` now uses explicit constructor injection instead of lazy-initialization/container-awareness
+- `DiscoveryClassMapResolver` refactored to use explicit dependencies and implement the new resolver interface
+- Improved `RoutingAttributesConfig` by delegating parsing to dedicated sub-parsers
+- Streamlined `AttributeRouteExtractor` and `RouteDefinitionBuilder` by extracting validation and normalization logic
+- Updated benchmark tooling with improved baseline comparisons
+
 ## [0.1.5] - 2026-03-16
 
 ### Fixed

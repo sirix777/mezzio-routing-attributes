@@ -154,14 +154,14 @@ composer benchmark-threshold
 
 Latest local run (`PHP 8.2.30`):
 
-- `warm_cache_hit_manual`: `0.0059 ms` median, `2.0625 KB` median peak
-- `no_cache_manual`: `0.0211 ms` median, `3.4922 KB` median peak
-- `cold_cache_rebuild_manual`: `0.0922 ms` median, `6.1719 KB` median peak
-- `warm_cache_hit_discovery_token`: `0.0128 ms` median, `3.3438 KB` median peak
-- `warm_cache_hit_discovery_psr4`: `0.0124 ms` median, `3.3438 KB` median peak
+- `warm_cache_hit_manual`: `0.0015 ms` median, `2.0156 KB` median peak
+- `no_cache_manual`: `0.0059 ms` median, `3.4453 KB` median peak
+- `cold_cache_rebuild_manual`: `0.0315 ms` median, `5.9063 KB` median peak
+- `warm_cache_hit_discovery_token`: `0.0033 ms` median, `3.1406 KB` median peak
+- `warm_cache_hit_discovery_psr4`: `0.0033 ms` median, `3.1406 KB` median peak
 - Threshold benchmark (`compiled`) showed cache-win from `10` routes onward.
-- At `12800` routes: `50.4975 ms` (no-cache) vs `23.1091 ms` (compiled), speedup `54.24%`;
-  peak memory `13213.25 KB` vs `9260.84 KB`.
+- At `12800` routes: `16.4387 ms` (no-cache) vs `6.5921 ms` (compiled), speedup `59.90%`;
+  peak memory `13213.21 KB` vs `9260.80 KB`.
 
 ## Troubleshooting
 

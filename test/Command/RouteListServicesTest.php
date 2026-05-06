@@ -12,12 +12,15 @@ use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 use RuntimeException;
+use Sirix\Mezzio\Routing\Attributes\Command\ClosureRouteConfigLoader;
+use Sirix\Mezzio\Routing\Attributes\Command\NullRouteConfigLoader;
 use Sirix\Mezzio\Routing\Attributes\Command\RouteListFilter;
 use Sirix\Mezzio\Routing\Attributes\Command\RouteListFormatter;
 use Sirix\Mezzio\Routing\Attributes\Command\RouteListSorter;
 use Sirix\Mezzio\Routing\Attributes\Command\RouteMiddlewareDisplayResolver;
 use Sirix\Mezzio\Routing\Attributes\Command\RouteTableProvider;
 use Sirix\Mezzio\Routing\Attributes\MiddlewarePipelineFactory;
+use Sirix\Mezzio\Routing\Attributes\ServiceMiddlewareResolver;
 use SirixTest\Mezzio\Routing\Attributes\TestAsset\InMemoryContainer;
 
 final class RouteListServicesTest extends TestCase
@@ -33,17 +36,31 @@ final class RouteListServicesTest extends TestCase
             ->willReturn([])
         ;
 
-        $provider = new RouteTableProvider($collector, static function() use (&$loaderCalled): void {
+        $provider = new RouteTableProvider($collector, new ClosureRouteConfigLoader(static function() use (&$loaderCalled): void {
             $loaderCalled = true;
-        });
+        }));
         $provider->getRoutes();
 
         self::assertTrue($loaderCalled);
     }
 
+    public function testRouteTableProviderWorksWithNullLoader(): void
+    {
+        $collector = $this->createMock(RouteCollectorInterface::class);
+        $collector
+            ->expects(self::once())
+            ->method('getRoutes')
+            ->willReturn([])
+        ;
+
+        $provider = new RouteTableProvider($collector, new NullRouteConfigLoader());
+
+        self::assertSame([], $provider->getRoutes());
+    }
+
     public function testRouteListFilterFiltersByMethod(): void
     {
-        $filter = new RouteListFilter();
+        $filter = new RouteListFilter(new RouteMiddlewareDisplayResolver());
         $middleware = new class implements MiddlewareInterface {
             public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
             {
@@ -64,7 +81,7 @@ final class RouteListServicesTest extends TestCase
 
     public function testRouteListFilterUsesAttributeMiddlewareDisplayForAttributeRoute(): void
     {
-        $filter = new RouteListFilter();
+        $filter = new RouteListFilter(new RouteMiddlewareDisplayResolver());
         $middleware = new class implements MiddlewareInterface {
             public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
             {
@@ -131,7 +148,7 @@ final class RouteListServicesTest extends TestCase
 
     public function testRouteListFormatterUsesAttributeMiddlewareDisplayWhenAvailable(): void
     {
-        $formatter = new RouteListFormatter();
+        $formatter = new RouteListFormatter(new RouteMiddlewareDisplayResolver());
         $middleware = new class implements MiddlewareInterface {
             public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
             {
@@ -150,7 +167,7 @@ final class RouteListServicesTest extends TestCase
 
     public function testRouteListFormatterUsesOriginalMiddlewareClassForNonAttributeRoute(): void
     {
-        $formatter = new RouteListFormatter();
+        $formatter = new RouteListFormatter(new RouteMiddlewareDisplayResolver());
         $middleware = new class implements MiddlewareInterface {
             public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
             {
@@ -224,21 +241,21 @@ final class RouteListServicesTest extends TestCase
     public function testRouteListFormatterUsesMiddlewareDisplayOptionForLazyAttributeRoute(): void
     {
         $container = new InMemoryContainer([]);
-        $factory = new MiddlewarePipelineFactory($container);
+        $factory = new MiddlewarePipelineFactory($container, new ServiceMiddlewareResolver());
         $middleware = $factory->createFromCompiled('handler.service', 'process', ['mw.first']);
         $route = new Route('/lazy', $middleware, ['GET'], 'lazy.route');
         $route->setOptions([
             RouteMiddlewareDisplayResolver::ROUTE_OPTION_MIDDLEWARE_DISPLAY => 'mw.first -> handler.service::process',
         ]);
 
-        $rows = (new RouteListFormatter())->formatRows([$route]);
+        $rows = (new RouteListFormatter(new RouteMiddlewareDisplayResolver()))->formatRows([$route]);
 
         self::assertSame('mw.first -> handler.service::process', $rows[0]['middleware']);
     }
 
     public function testRouteListFilterUsesMiddlewareDisplayOptionForLazyAttributeRoute(): void
     {
-        $middleware = (new MiddlewarePipelineFactory(new InMemoryContainer([])))
+        $middleware = (new MiddlewarePipelineFactory(new InMemoryContainer([]), new ServiceMiddlewareResolver()))
             ->createFromCompiled('handler.single', 'process', [])
         ;
         $route = new Route('/lazy-single', $middleware, ['GET'], 'lazy.single');
@@ -246,7 +263,7 @@ final class RouteListServicesTest extends TestCase
             RouteMiddlewareDisplayResolver::ROUTE_OPTION_MIDDLEWARE_DISPLAY => 'handler.single::process',
         ]);
 
-        $filtered = (new RouteListFilter())->filter([$route], false, false, 'handler.single', false);
+        $filtered = (new RouteListFilter(new RouteMiddlewareDisplayResolver()))->filter([$route], false, false, 'handler.single', false);
 
         self::assertCount(1, $filtered);
         self::assertSame('lazy.single', $filtered[0]->getName());

@@ -14,12 +14,18 @@ use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 use RuntimeException;
 use Sirix\Mezzio\Routing\Attributes\AttributeRouteProvider;
+use Sirix\Mezzio\Routing\Attributes\Cache\NullRouteRegistrarCache;
+use Sirix\Mezzio\Routing\Attributes\Cache\RouteCacheGenerator;
+use Sirix\Mezzio\Routing\Attributes\Cache\RouteCacheLoader;
+use Sirix\Mezzio\Routing\Attributes\Cache\RouteCacheStorage;
 use Sirix\Mezzio\Routing\Attributes\CompiledRouteRegistrarCache;
+use Sirix\Mezzio\Routing\Attributes\DuplicateRouteResolver;
 use Sirix\Mezzio\Routing\Attributes\Exception\DuplicateRouteDefinitionException;
 use Sirix\Mezzio\Routing\Attributes\Exception\InvalidServiceDefinitionException;
 use Sirix\Mezzio\Routing\Attributes\Extractor\AttributeRouteExtractorInterface;
 use Sirix\Mezzio\Routing\Attributes\MiddlewarePipelineFactory;
 use Sirix\Mezzio\Routing\Attributes\RouteDefinition;
+use Sirix\Mezzio\Routing\Attributes\ServiceMiddlewareResolver;
 
 use function file_exists;
 use function sys_get_temp_dir;
@@ -77,7 +83,7 @@ final class AttributeRouteProviderTest extends TestCase
             ): Route => new Route('/test', $registered, ['GET'], 'test.route'))
         ;
 
-        $provider = new AttributeRouteProvider($container, $extractor, [TestMiddleware::class]);
+        $provider = $this->createProvider($container, $extractor, [TestMiddleware::class]);
         $provider->registerRoutes($collector);
     }
 
@@ -120,7 +126,7 @@ final class AttributeRouteProviderTest extends TestCase
             )
         ;
 
-        $provider = new AttributeRouteProvider($container, $extractor, [TestRequestHandler::class]);
+        $provider = $this->createProvider($container, $extractor, [TestRequestHandler::class]);
         $provider->registerRoutes($collector);
     }
 
@@ -156,7 +162,7 @@ final class AttributeRouteProviderTest extends TestCase
             })
         ;
 
-        $provider = new AttributeRouteProvider($container, $extractor, [TestMiddleware::class]);
+        $provider = $this->createProvider($container, $extractor, [TestMiddleware::class]);
         $provider->registerRoutes($collector);
 
         self::assertInstanceOf(Route::class, $registeredRoute);
@@ -245,7 +251,7 @@ final class AttributeRouteProviderTest extends TestCase
             )
         ;
 
-        $provider = new AttributeRouteProvider($container, $extractor, [TestRequestHandler::class]);
+        $provider = $this->createProvider($container, $extractor, [TestRequestHandler::class]);
         $provider->registerRoutes($collector);
 
         self::assertTrue($first->called);
@@ -322,14 +328,7 @@ final class AttributeRouteProviderTest extends TestCase
             })
         ;
 
-        $provider = new AttributeRouteProvider(
-            $container,
-            $extractor,
-            [TestRequestHandler::class],
-            AttributeRouteProvider::DUPLICATE_STRATEGY_THROW,
-            null,
-            new MiddlewarePipelineFactory($container)
-        );
+        $provider = $this->createProvider($container, $extractor, [TestRequestHandler::class]);
         $provider->registerRoutes($collector);
 
         self::assertSame(1, $container->getCalls);
@@ -358,12 +357,7 @@ final class AttributeRouteProviderTest extends TestCase
 
         $this->expectException(DuplicateRouteDefinitionException::class);
 
-        $provider = new AttributeRouteProvider(
-            $container,
-            $extractor,
-            [TestRequestHandler::class],
-            AttributeRouteProvider::DUPLICATE_STRATEGY_THROW
-        );
+        $provider = $this->createProvider($container, $extractor, [TestRequestHandler::class]);
         $provider->registerRoutes($collector);
     }
 
@@ -405,7 +399,7 @@ final class AttributeRouteProviderTest extends TestCase
             ): Route => new Route('/same', $registered, ['GET'], 'same.route'))
         ;
 
-        $provider = new AttributeRouteProvider(
+        $provider = $this->createProvider(
             $container,
             $extractor,
             [TestRequestHandler::class],
@@ -452,7 +446,7 @@ final class AttributeRouteProviderTest extends TestCase
             })
         ;
 
-        $provider = new AttributeRouteProvider($container, $extractor, [TestRequestHandler::class]);
+        $provider = $this->createProvider($container, $extractor, [TestRequestHandler::class]);
         $provider->registerRoutes($collector);
 
         self::assertInstanceOf(MiddlewareInterface::class, $registeredMiddleware);
@@ -507,7 +501,7 @@ final class AttributeRouteProviderTest extends TestCase
             })
         ;
 
-        $provider = new AttributeRouteProvider($container, $extractor, [TestRequestHandler::class]);
+        $provider = $this->createProvider($container, $extractor, [TestRequestHandler::class]);
         $provider->registerRoutes($collector);
 
         self::assertInstanceOf(MiddlewareInterface::class, $registeredMiddleware);
@@ -570,7 +564,7 @@ final class AttributeRouteProviderTest extends TestCase
 
         $this->expectException(InvalidServiceDefinitionException::class);
 
-        $provider = new AttributeRouteProvider($container, $extractor, [TestRequestHandler::class]);
+        $provider = $this->createProvider($container, $extractor, [TestRequestHandler::class]);
         $provider->registerRoutes($collector);
     }
 
@@ -627,7 +621,7 @@ final class AttributeRouteProviderTest extends TestCase
             })
         ;
 
-        $provider = new AttributeRouteProvider($container, $extractor, [TestRequestHandler::class]);
+        $provider = $this->createProvider($container, $extractor, [TestRequestHandler::class]);
         $provider->registerRoutes($collector);
     }
 
@@ -638,7 +632,7 @@ final class AttributeRouteProviderTest extends TestCase
         $collector = $this->createMock(RouteCollectorInterface::class);
         $cacheFile = $this->createCacheFilePath();
         $this->cacheFiles[] = $cacheFile;
-        $compiledCache = new CompiledRouteRegistrarCache($cacheFile);
+        $compiledCache = $this->createCompiledCache($cacheFile);
         $compiledCache->save([
             new RouteDefinition('/compiled', ['GET'], 'compiled.service', 'process', [], 'compiled.route'),
         ]);
@@ -670,16 +664,44 @@ final class AttributeRouteProviderTest extends TestCase
             ): Route => new Route('/compiled', $registered, ['GET'], 'compiled.route'))
         ;
 
-        $provider = new AttributeRouteProvider(
+        $provider = $this->createProvider(
             $container,
             $extractor,
             [TestMiddleware::class],
             AttributeRouteProvider::DUPLICATE_STRATEGY_THROW,
-            null,
-            new MiddlewarePipelineFactory($container),
             $compiledCache
         );
         $provider->registerRoutes($collector);
+    }
+
+    /**
+     * @param list<string>     $classes
+     * @param 'ignore'|'throw' $duplicateStrategy
+     */
+    private function createProvider(
+        ContainerInterface $container,
+        AttributeRouteExtractorInterface $extractor,
+        array $classes,
+        string $duplicateStrategy = AttributeRouteProvider::DUPLICATE_STRATEGY_THROW,
+        ?CompiledRouteRegistrarCache $routeRegistrarCache = null
+    ): AttributeRouteProvider {
+        return new AttributeRouteProvider(
+            $extractor,
+            $classes,
+            new DuplicateRouteResolver($duplicateStrategy),
+            new MiddlewarePipelineFactory($container, new ServiceMiddlewareResolver()),
+            $routeRegistrarCache ?? new NullRouteRegistrarCache()
+        );
+    }
+
+    private function createCompiledCache(string $cacheFile): CompiledRouteRegistrarCache
+    {
+        return new CompiledRouteRegistrarCache(
+            $cacheFile,
+            new RouteCacheGenerator(),
+            new RouteCacheStorage(),
+            new RouteCacheLoader()
+        );
     }
 
     private function createCacheFilePath(): string

@@ -4,11 +4,19 @@ declare(strict_types=1);
 
 namespace Sirix\Mezzio\Routing\Attributes;
 
+use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\ContainerInterface;
+use Psr\Container\NotFoundExceptionInterface;
+use Sirix\Mezzio\Routing\Attributes\Cache\RouteRegistrarCacheInterface;
 use Sirix\Mezzio\Routing\Attributes\Config\RoutingAttributesConfig;
+use Sirix\Mezzio\Routing\Attributes\Discovery\DiscoveredClassesResolverInterface;
 use Sirix\Mezzio\Routing\Attributes\Discovery\DiscoveryClassMapResolver;
-use Sirix\Mezzio\Routing\Attributes\Discovery\RoutableClassFilter;
+use Sirix\Mezzio\Routing\Attributes\Discovery\NullDiscoveredClassesResolver;
 use Sirix\Mezzio\Routing\Attributes\Extractor\AttributeRouteExtractorInterface;
+use Sirix\Mezzio\Routing\Attributes\Factory\CompiledRouteRegistrarCacheFactory;
+use Sirix\Mezzio\Routing\Attributes\Factory\DiscoveryClassMapResolverFactory;
+use Sirix\Mezzio\Routing\Attributes\Factory\DuplicateRouteResolverFactory;
+use Sirix\Mezzio\Routing\Attributes\Factory\MiddlewarePipelineFactoryFactory;
 
 use function array_merge;
 use function array_unique;
@@ -16,58 +24,59 @@ use function array_values;
 
 final class AttributeRouteProviderFactory
 {
-    /** @var null|callable(RoutingAttributesConfig): DiscoveryClassMapResolver */
-    private $discoveryResolverFactory;
-
-    /** @param null|callable(RoutingAttributesConfig): DiscoveryClassMapResolver $discoveryResolverFactory */
-    public function __construct(?callable $discoveryResolverFactory = null)
-    {
-        $this->discoveryResolverFactory = $discoveryResolverFactory;
-    }
-
+    /**
+     * @throws ContainerExceptionInterface
+     * @throws NotFoundExceptionInterface
+     */
     public function __invoke(ContainerInterface $container): AttributeRouteProvider
     {
         $rootConfig = $container->has('config') ? $container->get('config') : [];
         $config = RoutingAttributesConfig::fromRootConfig($rootConfig);
-        $compiledRouteRegistrarCache = $config->cacheEnabled
-            ? new CompiledRouteRegistrarCache($config->cacheFile)
-            : null;
 
-        $classes = $config->classes;
-        if ($config->discoveryEnabled && ! $this->shouldSkipDiscovery($compiledRouteRegistrarCache)) {
-            $discoveredClasses = $this->discoveryResolver($config)->resolve();
-            $classes = array_values(array_unique(array_merge($classes, $discoveredClasses)));
-        }
+        $cacheFactory = new CompiledRouteRegistrarCacheFactory();
+        $routeRegistrarCache = $cacheFactory($config->cacheFile);
+
+        $classes = array_values(array_unique(array_merge(
+            $config->classes,
+            $this->discoveryResolver($container, $config, $routeRegistrarCache)->resolve()
+        )));
+
+        $duplicateResolverFactory = new DuplicateRouteResolverFactory();
+        $middlewareFactoryFactory = new MiddlewarePipelineFactoryFactory();
+        $attributeRouteExtractor = $container->get(AttributeRouteExtractorInterface::class);
 
         return new AttributeRouteProvider(
-            $container,
-            $container->get(AttributeRouteExtractorInterface::class),
+            $attributeRouteExtractor,
             $classes,
-            $config->duplicateStrategy,
-            new DuplicateRouteResolver($config->duplicateStrategy),
-            new MiddlewarePipelineFactory($container),
-            $compiledRouteRegistrarCache
+            $duplicateResolverFactory($config->duplicateStrategy),
+            $middlewareFactoryFactory($container),
+            $routeRegistrarCache
         );
     }
 
-    private function shouldSkipDiscovery(?CompiledRouteRegistrarCache $compiledRouteRegistrarCache): bool
-    {
-        return $compiledRouteRegistrarCache instanceof CompiledRouteRegistrarCache
-            && $compiledRouteRegistrarCache->hasUsableArtifact();
-    }
-
-    private function discoveryResolver(RoutingAttributesConfig $config): DiscoveryClassMapResolver
-    {
-        if (null !== $this->discoveryResolverFactory) {
-            return ($this->discoveryResolverFactory)($config);
+    /**
+     * @throws ContainerExceptionInterface
+     * @throws NotFoundExceptionInterface
+     */
+    private function discoveryResolver(
+        ContainerInterface $container,
+        RoutingAttributesConfig $config,
+        RouteRegistrarCacheInterface $routeRegistrarCache
+    ): DiscoveredClassesResolverInterface {
+        if (! $config->discoveryEnabled || $routeRegistrarCache->hasUsableArtifact()) {
+            return new NullDiscoveredClassesResolver();
         }
 
-        return new DiscoveryClassMapResolver(
-            paths: $config->discoveryPaths,
-            strategy: $config->discoveryStrategy,
-            psr4Mappings: $config->discoveryPsr4Mappings,
-            psr4FallbackToToken: $config->discoveryPsr4FallbackToToken,
-            routableClassFilter: new RoutableClassFilter('callable' === $config->handlersMode)
-        );
+        if ($container->has(DiscoveredClassesResolverInterface::class)) {
+            return $container->get(DiscoveredClassesResolverInterface::class);
+        }
+
+        if ($container->has(DiscoveryClassMapResolver::class)) {
+            return $container->get(DiscoveryClassMapResolver::class);
+        }
+
+        $factory = new DiscoveryClassMapResolverFactory();
+
+        return $factory->createFromConfig($config);
     }
 }

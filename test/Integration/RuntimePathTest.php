@@ -15,6 +15,11 @@ use Sirix\Mezzio\Routing\Attributes\AttributeRouteProviderFactory;
 use Sirix\Mezzio\Routing\Attributes\ConfigProvider;
 use Sirix\Mezzio\Routing\Attributes\Extractor\AttributeRouteExtractor;
 use Sirix\Mezzio\Routing\Attributes\Extractor\AttributeRouteExtractorInterface;
+use Sirix\Mezzio\Routing\Attributes\Extractor\ClassEligibilityValidator;
+use Sirix\Mezzio\Routing\Attributes\Extractor\MethodSignatureValidator;
+use Sirix\Mezzio\Routing\Attributes\Extractor\RouteAttributeReader;
+use Sirix\Mezzio\Routing\Attributes\Extractor\RouteDataNormalizer;
+use Sirix\Mezzio\Routing\Attributes\Extractor\RouteDefinitionBuilder;
 use Sirix\Mezzio\Routing\Attributes\RouteCollectorDelegator;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\PingHandler;
 use SirixTest\Mezzio\Routing\Attributes\TestAsset\InMemoryContainer;
@@ -26,7 +31,7 @@ final class RuntimePathTest extends TestCase
     public function testConfigFactoryExtractorAndCollectorWorkTogether(): void
     {
         $collector = $this->createMock(RouteCollectorInterface::class);
-        $extractor = new AttributeRouteExtractor();
+        $extractor = $this->createAttributeRouteExtractor();
         $container = new InMemoryContainer([
             'config' => [
                 'routing_attributes' => [
@@ -95,7 +100,7 @@ final class RuntimePathTest extends TestCase
                 'classes' => [PingHandler::class],
             ],
         ]);
-        $container->set(AttributeRouteExtractorInterface::class, new AttributeRouteExtractor());
+        $container->set(AttributeRouteExtractorInterface::class, $this->createAttributeRouteExtractor());
         $container->set(PingHandler::class, new PingHandler());
         $container->set(
             AttributeRouteProvider::class,
@@ -132,6 +137,19 @@ final class RuntimePathTest extends TestCase
                 ['/ping', ['POST'], 'ping.create'],
             ],
             $observedRoutes
+        );
+    }
+
+    private function createAttributeRouteExtractor(): AttributeRouteExtractor
+    {
+        return new AttributeRouteExtractor(
+            new ClassEligibilityValidator(false),
+            new RouteAttributeReader(),
+            new RouteDefinitionBuilder(
+                new RouteAttributeReader(),
+                new MethodSignatureValidator(),
+                new RouteDataNormalizer()
+            )
         );
     }
 }

@@ -20,7 +20,7 @@ final class MiddlewarePipelineFactory
 
     public function __construct(
         private readonly ContainerInterface $container,
-        private readonly ?ServiceMiddlewareResolver $serviceMiddlewareResolver = null
+        private readonly ServiceMiddlewareResolver $serviceMiddlewareResolver
     ) {}
 
     /**
@@ -74,15 +74,10 @@ final class MiddlewarePipelineFactory
     {
         return new LazyServiceMiddleware(
             $this->container,
-            $this->serviceMiddlewareResolver(),
+            $this->serviceMiddlewareResolver,
             $serviceName,
             $methodName
         );
-    }
-
-    private function serviceMiddlewareResolver(): ServiceMiddlewareResolver
-    {
-        return $this->serviceMiddlewareResolver ?? new ServiceMiddlewareResolver();
     }
 
     /**

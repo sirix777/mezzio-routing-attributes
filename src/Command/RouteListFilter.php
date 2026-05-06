@@ -18,7 +18,7 @@ use function strtoupper;
 
 final readonly class RouteListFilter
 {
-    public function __construct(private RouteMiddlewareDisplayResolver $middlewareDisplayResolver = new RouteMiddlewareDisplayResolver()) {}
+    public function __construct(private RouteMiddlewareDisplayResolver $middlewareDisplayResolver) {}
 
     /**
      * @param list<Route> $routes

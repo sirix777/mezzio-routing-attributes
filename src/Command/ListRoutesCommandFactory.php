@@ -30,18 +30,15 @@ final class ListRoutesCommandFactory
         $routeCollector = $container->get(RouteCollector::class);
         $middlewareDisplayResolver = new RouteMiddlewareDisplayResolver($config->classicRoutesMiddlewareDisplay);
 
-        $loadConfig = $this->createConfigLoader($container);
-
         return new ListRoutesCommand(
-            new RouteTableProvider($routeCollector, $loadConfig),
+            new RouteTableProvider($routeCollector, $this->createConfigLoader($container)),
             new RouteListFilter($middlewareDisplayResolver),
             new RouteListSorter(),
             new RouteListFormatter($middlewareDisplayResolver)
         );
     }
 
-    /** @return null|callable():void */
-    private function createConfigLoader(ContainerInterface $container): ?callable
+    private function createConfigLoader(ContainerInterface $container): RouteConfigLoaderInterface
     {
         if (
             interface_exists(ConfigLoaderInterface::class)
@@ -49,9 +46,9 @@ final class ListRoutesCommandFactory
         ) {
             $configLoader = $container->get(ConfigLoaderInterface::class);
 
-            return function() use ($configLoader): void {
+            return new ClosureRouteConfigLoader(static function() use ($configLoader): void {
                 $configLoader->load();
-            };
+            });
         }
 
         if (
@@ -59,10 +56,10 @@ final class ListRoutesCommandFactory
             || ! $container->has(self::MIDDLEWARE_FACTORY_SERVICE)
             || ! file_exists(self::DEFAULT_ROUTES_FILE)
         ) {
-            return null;
+            return new NullRouteConfigLoader();
         }
 
-        return function() use ($container): void {
+        return new ClosureRouteConfigLoader(static function() use ($container): void {
             /** @phpstan-ignore require.fileNotFound */
             $routes = require self::DEFAULT_ROUTES_FILE;
             $routes(
@@ -70,6 +67,6 @@ final class ListRoutesCommandFactory
                 $container->get(self::MIDDLEWARE_FACTORY_SERVICE),
                 $container
             );
-        };
+        });
     }
 }

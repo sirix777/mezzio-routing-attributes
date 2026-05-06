@@ -9,25 +9,14 @@ use Mezzio\Router\RouteCollectorInterface;
 
 final readonly class RouteTableProvider
 {
-    /** @var null|callable():void */
-    private mixed $loadConfig;
-
-    /**
-     * @param null|callable():void $loadConfig
-     */
-    public function __construct(private RouteCollectorInterface $routeCollector, mixed $loadConfig = null)
-    {
-        $this->loadConfig = $loadConfig;
-    }
+    public function __construct(private RouteCollectorInterface $routeCollector, private RouteConfigLoaderInterface $routeConfigLoader) {}
 
     /**
      * @return list<Route>
      */
     public function getRoutes(): array
     {
-        if (null !== $this->loadConfig) {
-            ($this->loadConfig)();
-        }
+        $this->routeConfigLoader->load();
 
         return $this->routeCollector->getRoutes();
     }

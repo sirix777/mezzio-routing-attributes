@@ -12,9 +12,9 @@ use Sirix\Mezzio\Routing\Attributes\RouteDefinition;
 final readonly class AttributeRouteExtractor implements AttributeRouteExtractorInterface
 {
     public function __construct(
-        private ?ClassEligibilityValidator $classEligibilityValidator = null,
-        private ?RouteAttributeReader $routeAttributeReader = null,
-        private ?RouteDefinitionBuilder $routeDefinitionBuilder = null
+        private ClassEligibilityValidator $classEligibilityValidator,
+        private RouteAttributeReader $routeAttributeReader,
+        private RouteDefinitionBuilder $routeDefinitionBuilder
     ) {}
 
     /**
@@ -27,18 +27,18 @@ final readonly class AttributeRouteExtractor implements AttributeRouteExtractorI
         $routes = [];
 
         foreach ($classes as $index => $className) {
-            $this->classEligibilityValidator()->assertClassExists($className, $index);
+            $this->classEligibilityValidator->assertClassExists($className, $index);
 
             /** @var class-string<object> $className */
             $reflection = new ReflectionClass($className);
-            $classRoutes = $this->routeAttributeReader()->forReflection($reflection);
+            $classRoutes = $this->routeAttributeReader->forReflection($reflection);
             $methodRoutes = [];
 
             /** @var list<array{method: ReflectionMethod, attributes: list<Route>}> $methodsWithRouteAttributes */
             $methodsWithRouteAttributes = [];
 
             foreach ($reflection->getMethods() as $method) {
-                $methodAttributes = $this->routeAttributeReader()->forReflection($method);
+                $methodAttributes = $this->routeAttributeReader->forReflection($method);
                 if ([] === $methodAttributes) {
                     continue;
                 }
@@ -49,10 +49,10 @@ final readonly class AttributeRouteExtractor implements AttributeRouteExtractorI
                 ];
             }
 
-            $this->classEligibilityValidator()->assertMiddlewareClass($className, [] !== $methodsWithRouteAttributes);
+            $this->classEligibilityValidator->assertMiddlewareClass($className, [] !== $methodsWithRouteAttributes);
 
             foreach ($methodsWithRouteAttributes as $entry) {
-                foreach ($this->routeDefinitionBuilder()->buildForMethodWithAttributes(
+                foreach ($this->routeDefinitionBuilder->buildForMethodWithAttributes(
                     $entry['method'],
                     $className,
                     $classRoutes,
@@ -70,27 +70,11 @@ final readonly class AttributeRouteExtractor implements AttributeRouteExtractorI
                 continue;
             }
 
-            foreach ($this->routeDefinitionBuilder()->buildForClass($reflection, $className) as $route) {
+            foreach ($this->routeDefinitionBuilder->buildForClass($reflection, $className) as $route) {
                 $routes[] = $route;
             }
         }
 
         return $routes;
-    }
-
-    private function classEligibilityValidator(): ClassEligibilityValidator
-    {
-        return $this->classEligibilityValidator ?? new ClassEligibilityValidator();
-    }
-
-    private function routeAttributeReader(): RouteAttributeReader
-    {
-        return $this->routeAttributeReader ?? new RouteAttributeReader();
-    }
-
-    private function routeDefinitionBuilder(): RouteDefinitionBuilder
-    {
-        return $this->routeDefinitionBuilder
-            ?? new RouteDefinitionBuilder($this->routeAttributeReader());
     }
 }

@@ -10,7 +10,7 @@ use function implode;
 
 final readonly class RouteListFormatter
 {
-    public function __construct(private RouteMiddlewareDisplayResolver $middlewareDisplayResolver = new RouteMiddlewareDisplayResolver()) {}
+    public function __construct(private RouteMiddlewareDisplayResolver $middlewareDisplayResolver) {}
 
     /**
      * @param list<Route> $routes

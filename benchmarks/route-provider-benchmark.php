@@ -9,6 +9,11 @@ use Psr\Http\Server\MiddlewareInterface;
 use Sirix\Mezzio\Routing\Attributes\AttributeRouteProviderFactory;
 use Sirix\Mezzio\Routing\Attributes\Extractor\AttributeRouteExtractor;
 use Sirix\Mezzio\Routing\Attributes\Extractor\AttributeRouteExtractorInterface;
+use Sirix\Mezzio\Routing\Attributes\Extractor\ClassEligibilityValidator;
+use Sirix\Mezzio\Routing\Attributes\Extractor\MethodSignatureValidator;
+use Sirix\Mezzio\Routing\Attributes\Extractor\RouteAttributeReader;
+use Sirix\Mezzio\Routing\Attributes\Extractor\RouteDataNormalizer;
+use Sirix\Mezzio\Routing\Attributes\Extractor\RouteDefinitionBuilder;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\PingHandler;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\PingRequestHandler;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\StackFirstMiddleware;
@@ -169,9 +174,24 @@ function runScenario(callable $iteration, int $iterations): array
     return $summary;
 }
 
+function createBenchmarkExtractor(): AttributeRouteExtractor
+{
+    $attributeReader = new RouteAttributeReader();
+
+    return new AttributeRouteExtractor(
+        new ClassEligibilityValidator(false),
+        $attributeReader,
+        new RouteDefinitionBuilder(
+            $attributeReader,
+            new MethodSignatureValidator(),
+            new RouteDataNormalizer()
+        )
+    );
+}
+
 function runProvider(array $config): array
 {
-    $extractor = new AttributeRouteExtractor();
+    $extractor = createBenchmarkExtractor();
     $container = new BenchmarkContainer([
         'config' => $config,
         AttributeRouteExtractorInterface::class => $extractor,

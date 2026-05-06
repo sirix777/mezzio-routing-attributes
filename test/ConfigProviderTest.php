@@ -14,9 +14,11 @@ use Sirix\Mezzio\Routing\Attributes\Command\ConsoleRegistrationPolicy;
 use Sirix\Mezzio\Routing\Attributes\Command\ListRoutesCommand;
 use Sirix\Mezzio\Routing\Attributes\Command\ListRoutesCommandDelegator;
 use Sirix\Mezzio\Routing\Attributes\ConfigProvider;
+use Sirix\Mezzio\Routing\Attributes\Discovery\DiscoveredClassesResolverInterface;
 use Sirix\Mezzio\Routing\Attributes\Extractor\AttributeRouteExtractor;
 use Sirix\Mezzio\Routing\Attributes\Extractor\AttributeRouteExtractorFactory;
 use Sirix\Mezzio\Routing\Attributes\Extractor\AttributeRouteExtractorInterface;
+use Sirix\Mezzio\Routing\Attributes\Factory\DiscoveryClassMapResolverFactory;
 use Sirix\Mezzio\Routing\Attributes\RouteCollectorDelegator;
 
 class ConfigProviderTest extends TestCase
@@ -44,6 +46,10 @@ class ConfigProviderTest extends TestCase
         self::assertSame(AttributeRouteProviderFactory::class, $dependencies['factories'][AttributeRouteProvider::class]);
         self::assertSame(AttributeRouteExtractorFactory::class, $dependencies['factories'][AttributeRouteExtractor::class]);
         self::assertSame(AttributeRouteExtractor::class, $dependencies['aliases'][AttributeRouteExtractorInterface::class]);
+        self::assertSame(
+            DiscoveryClassMapResolverFactory::class,
+            $dependencies['factories'][DiscoveredClassesResolverInterface::class]
+        );
         self::assertSame([RouteCollectorDelegator::class], $dependencies['delegators'][RouteCollector::class]);
 
         $consoleDependencies = (new ConfigProvider(new ConsoleRegistrationPolicy(true, false)))->getDependencies();

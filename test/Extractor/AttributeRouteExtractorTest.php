@@ -9,6 +9,10 @@ use Sirix\Mezzio\Routing\Attributes\Exception\InvalidMiddlewareClassException;
 use Sirix\Mezzio\Routing\Attributes\Exception\InvalidRouteDefinitionException;
 use Sirix\Mezzio\Routing\Attributes\Extractor\AttributeRouteExtractor;
 use Sirix\Mezzio\Routing\Attributes\Extractor\ClassEligibilityValidator;
+use Sirix\Mezzio\Routing\Attributes\Extractor\MethodSignatureValidator;
+use Sirix\Mezzio\Routing\Attributes\Extractor\RouteAttributeReader;
+use Sirix\Mezzio\Routing\Attributes\Extractor\RouteDataNormalizer;
+use Sirix\Mezzio\Routing\Attributes\Extractor\RouteDefinitionBuilder;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\CallableActionController;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\CallableActionInvalidIntersectionParameter;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\CallableActionInvalidReturnType;
@@ -26,7 +30,7 @@ class AttributeRouteExtractorTest extends TestCase
 {
     public function testExtractsClassLevelRouteAttributes(): void
     {
-        $extractor = new AttributeRouteExtractor();
+        $extractor = $this->createExtractor();
         $routes = $extractor->extract([PingHandler::class]);
 
         self::assertCount(2, $routes);
@@ -48,7 +52,7 @@ class AttributeRouteExtractorTest extends TestCase
 
     public function testThrowsForNonExistentClass(): void
     {
-        $extractor = new AttributeRouteExtractor();
+        $extractor = $this->createExtractor();
 
         $this->expectException(InvalidMiddlewareClassException::class);
 
@@ -57,7 +61,7 @@ class AttributeRouteExtractorTest extends TestCase
 
     public function testThrowsForEmptyConfiguredClassEntry(): void
     {
-        $extractor = new AttributeRouteExtractor();
+        $extractor = $this->createExtractor();
 
         $this->expectException(InvalidMiddlewareClassException::class);
 
@@ -66,7 +70,7 @@ class AttributeRouteExtractorTest extends TestCase
 
     public function testThrowsForClassThatIsNotMiddleware(): void
     {
-        $extractor = new AttributeRouteExtractor();
+        $extractor = $this->createExtractor();
 
         $this->expectException(InvalidMiddlewareClassException::class);
 
@@ -75,7 +79,7 @@ class AttributeRouteExtractorTest extends TestCase
 
     public function testExtractsRequestHandlerRouteAttributes(): void
     {
-        $extractor = new AttributeRouteExtractor();
+        $extractor = $this->createExtractor();
         $routes = $extractor->extract([PingRequestHandler::class]);
 
         self::assertCount(1, $routes);
@@ -89,7 +93,7 @@ class AttributeRouteExtractorTest extends TestCase
 
     public function testExtractsConfiguredMiddlewareStackFromAttribute(): void
     {
-        $extractor = new AttributeRouteExtractor();
+        $extractor = $this->createExtractor();
         $routes = $extractor->extract([StackedHandler::class]);
 
         self::assertCount(1, $routes);
@@ -105,9 +109,7 @@ class AttributeRouteExtractorTest extends TestCase
 
     public function testAllowsCallableActionClassInCallableMode(): void
     {
-        $extractor = new AttributeRouteExtractor(
-            new ClassEligibilityValidator(true)
-        );
+        $extractor = $this->createExtractor(true);
         $routes = $extractor->extract([CallableActionController::class]);
 
         self::assertCount(1, $routes);
@@ -119,9 +121,7 @@ class AttributeRouteExtractorTest extends TestCase
 
     public function testThrowsForCallableActionClassInPsr15Mode(): void
     {
-        $extractor = new AttributeRouteExtractor(
-            new ClassEligibilityValidator(false)
-        );
+        $extractor = $this->createExtractor(false);
 
         $this->expectException(InvalidMiddlewareClassException::class);
 
@@ -130,9 +130,7 @@ class AttributeRouteExtractorTest extends TestCase
 
     public function testThrowsForCallableActionWithNonPublicMethodRoute(): void
     {
-        $extractor = new AttributeRouteExtractor(
-            new ClassEligibilityValidator(true)
-        );
+        $extractor = $this->createExtractor(true);
 
         $this->expectException(InvalidRouteDefinitionException::class);
         $this->expectExceptionMessage('must be public');
@@ -142,9 +140,7 @@ class AttributeRouteExtractorTest extends TestCase
 
     public function testThrowsForCallableActionWithInvalidMethodSignature(): void
     {
-        $extractor = new AttributeRouteExtractor(
-            new ClassEligibilityValidator(true)
-        );
+        $extractor = $this->createExtractor(true);
 
         $this->expectException(InvalidRouteDefinitionException::class);
         $this->expectExceptionMessage('incompatible first parameter');
@@ -154,9 +150,7 @@ class AttributeRouteExtractorTest extends TestCase
 
     public function testThrowsForCallableActionWithInvalidDeclaredReturnType(): void
     {
-        $extractor = new AttributeRouteExtractor(
-            new ClassEligibilityValidator(true)
-        );
+        $extractor = $this->createExtractor(true);
 
         $this->expectException(InvalidRouteDefinitionException::class);
         $this->expectExceptionMessage('must declare');
@@ -166,9 +160,7 @@ class AttributeRouteExtractorTest extends TestCase
 
     public function testThrowsForCallableActionWithInvalidUnionReturnType(): void
     {
-        $extractor = new AttributeRouteExtractor(
-            new ClassEligibilityValidator(true)
-        );
+        $extractor = $this->createExtractor(true);
 
         $this->expectException(InvalidRouteDefinitionException::class);
         $this->expectExceptionMessage('must declare');
@@ -178,13 +170,24 @@ class AttributeRouteExtractorTest extends TestCase
 
     public function testThrowsForCallableActionWithInvalidIntersectionParameter(): void
     {
-        $extractor = new AttributeRouteExtractor(
-            new ClassEligibilityValidator(true)
-        );
+        $extractor = $this->createExtractor(true);
 
         $this->expectException(InvalidRouteDefinitionException::class);
         $this->expectExceptionMessage('incompatible first parameter');
 
         $extractor->extract([CallableActionInvalidIntersectionParameter::class]);
+    }
+
+    private function createExtractor(bool $allowCallable = false): AttributeRouteExtractor
+    {
+        return new AttributeRouteExtractor(
+            new ClassEligibilityValidator($allowCallable),
+            new RouteAttributeReader(),
+            new RouteDefinitionBuilder(
+                new RouteAttributeReader(),
+                new MethodSignatureValidator(),
+                new RouteDataNormalizer()
+            )
+        );
     }
 }

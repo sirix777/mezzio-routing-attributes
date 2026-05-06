@@ -11,9 +11,11 @@ use Sirix\Mezzio\Routing\Attributes\Command\ConsoleRegistrationPolicy;
 use Sirix\Mezzio\Routing\Attributes\Command\ListRoutesCommand;
 use Sirix\Mezzio\Routing\Attributes\Command\ListRoutesCommandDelegator;
 use Sirix\Mezzio\Routing\Attributes\Command\ListRoutesCommandFactory;
+use Sirix\Mezzio\Routing\Attributes\Discovery\DiscoveredClassesResolverInterface;
 use Sirix\Mezzio\Routing\Attributes\Extractor\AttributeRouteExtractor;
 use Sirix\Mezzio\Routing\Attributes\Extractor\AttributeRouteExtractorFactory;
 use Sirix\Mezzio\Routing\Attributes\Extractor\AttributeRouteExtractorInterface;
+use Sirix\Mezzio\Routing\Attributes\Factory\DiscoveryClassMapResolverFactory;
 
 final readonly class ConfigProvider
 {
@@ -51,6 +53,7 @@ final readonly class ConfigProvider
             'factories' => [
                 AttributeRouteProvider::class => AttributeRouteProviderFactory::class,
                 AttributeRouteExtractor::class => AttributeRouteExtractorFactory::class,
+                DiscoveredClassesResolverInterface::class => DiscoveryClassMapResolverFactory::class,
             ],
             'aliases' => [
                 AttributeRouteExtractorInterface::class => AttributeRouteExtractor::class,

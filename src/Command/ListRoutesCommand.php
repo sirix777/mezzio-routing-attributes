@@ -29,9 +29,9 @@ final class ListRoutesCommand extends Command
 
     public function __construct(
         private readonly RouteTableProvider $routeTableProvider,
-        private readonly RouteListFilter $routeListFilter = new RouteListFilter(),
-        private readonly RouteListSorter $routeListSorter = new RouteListSorter(),
-        private readonly RouteListFormatter $routeListFormatter = new RouteListFormatter()
+        private readonly RouteListFilter $routeListFilter,
+        private readonly RouteListSorter $routeListSorter,
+        private readonly RouteListFormatter $routeListFormatter
     ) {
         parent::__construct();
     }

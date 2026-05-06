@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace SirixTest\Mezzio\Routing\Attributes;
 
 use PHPUnit\Framework\TestCase;
-use RuntimeException;
 use Sirix\Mezzio\Routing\Attributes\AttributeRouteProvider;
 use Sirix\Mezzio\Routing\Attributes\AttributeRouteProviderFactory;
-use Sirix\Mezzio\Routing\Attributes\Config\RoutingAttributesConfig;
+use Sirix\Mezzio\Routing\Attributes\Discovery\DiscoveredClassesResolverInterface;
 use Sirix\Mezzio\Routing\Attributes\Discovery\DiscoveryClassMapResolver;
+use Sirix\Mezzio\Routing\Attributes\Discovery\DiscoveryFileInventory;
+use Sirix\Mezzio\Routing\Attributes\Discovery\PhpClassNameParser;
+use Sirix\Mezzio\Routing\Attributes\Discovery\Psr4ClassNameResolver;
+use Sirix\Mezzio\Routing\Attributes\Discovery\RoutableClassFilter;
 use Sirix\Mezzio\Routing\Attributes\Exception\InvalidConfigurationException;
 use Sirix\Mezzio\Routing\Attributes\Extractor\AttributeRouteExtractorInterface;
 use SirixTest\Mezzio\Routing\Attributes\TestAsset\InMemoryContainer;
@@ -435,11 +438,7 @@ final class AttributeRouteProviderFactoryTest extends TestCase
             AttributeRouteExtractorInterface::class => $extractor,
         ]);
 
-        $provider = (new AttributeRouteProviderFactory(
-            static function(RoutingAttributesConfig $config): DiscoveryClassMapResolver {
-                throw new RuntimeException('Discovery must be skipped on compiled cache hit.');
-            }
-        ))($container);
+        $provider = (new AttributeRouteProviderFactory())($container);
 
         self::assertInstanceOf(AttributeRouteProvider::class, $provider);
     }
@@ -448,6 +447,8 @@ final class AttributeRouteProviderFactoryTest extends TestCase
     {
         $cacheFile = sys_get_temp_dir() . '/routing-attributes-discovery-run-' . uniqid('', true) . '.php';
         $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
+        $resolverFromContainer = $this->createDiscoveryResolver();
+
         $container = new InMemoryContainer([
             'config' => [
                 'routing_attributes' => [
@@ -463,19 +464,12 @@ final class AttributeRouteProviderFactoryTest extends TestCase
                 ],
             ],
             AttributeRouteExtractorInterface::class => $extractor,
+            DiscoveredClassesResolverInterface::class => $resolverFromContainer,
         ]);
 
-        $discoveryCalled = false;
-        $provider = (new AttributeRouteProviderFactory(
-            static function(RoutingAttributesConfig $config) use (&$discoveryCalled): DiscoveryClassMapResolver {
-                $discoveryCalled = true;
-
-                return new DiscoveryClassMapResolver($config->discoveryPaths);
-            }
-        ))($container);
+        $provider = (new AttributeRouteProviderFactory())($container);
 
         self::assertInstanceOf(AttributeRouteProvider::class, $provider);
-        self::assertTrue($discoveryCalled);
     }
 
     public function testRunsDiscoveryResolutionWhenCompiledCacheFileExistsButIsInvalid(): void
@@ -485,6 +479,8 @@ final class AttributeRouteProviderFactoryTest extends TestCase
         file_put_contents($cacheFile, "<?php\n\ndeclare(strict_types=1);\n\nreturn ['broken' => true];\n");
 
         $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
+        $resolverFromContainer = $this->createDiscoveryResolver();
+
         $container = new InMemoryContainer([
             'config' => [
                 'routing_attributes' => [
@@ -500,19 +496,12 @@ final class AttributeRouteProviderFactoryTest extends TestCase
                 ],
             ],
             AttributeRouteExtractorInterface::class => $extractor,
+            DiscoveredClassesResolverInterface::class => $resolverFromContainer,
         ]);
 
-        $discoveryCalled = false;
-        $provider = (new AttributeRouteProviderFactory(
-            static function(RoutingAttributesConfig $config) use (&$discoveryCalled): DiscoveryClassMapResolver {
-                $discoveryCalled = true;
-
-                return new DiscoveryClassMapResolver($config->discoveryPaths);
-            }
-        ))($container);
+        $provider = (new AttributeRouteProviderFactory())($container);
 
         self::assertInstanceOf(AttributeRouteProvider::class, $provider);
-        self::assertTrue($discoveryCalled);
     }
 
     public function testThrowsForInvalidDiscoveryType(): void
@@ -600,5 +589,20 @@ final class AttributeRouteProviderFactoryTest extends TestCase
         $this->expectException(InvalidConfigurationException::class);
 
         (new AttributeRouteProviderFactory())($container);
+    }
+
+    private function createDiscoveryResolver(): DiscoveryClassMapResolver
+    {
+        /** @var list<non-empty-string> $paths */
+        $paths = [$this->discoveryPath];
+
+        return new DiscoveryClassMapResolver(
+            'token',
+            true,
+            new DiscoveryFileInventory($paths),
+            new PhpClassNameParser(),
+            new Psr4ClassNameResolver([]),
+            new RoutableClassFilter()
+        );
     }
 }

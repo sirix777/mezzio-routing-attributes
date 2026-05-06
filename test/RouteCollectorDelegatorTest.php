@@ -10,10 +10,14 @@ use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Sirix\Mezzio\Routing\Attributes\AttributeRouteProvider;
+use Sirix\Mezzio\Routing\Attributes\Cache\NullRouteRegistrarCache;
+use Sirix\Mezzio\Routing\Attributes\DuplicateRouteResolver;
 use Sirix\Mezzio\Routing\Attributes\Exception\InvalidConfigurationException;
 use Sirix\Mezzio\Routing\Attributes\Extractor\AttributeRouteExtractorInterface;
+use Sirix\Mezzio\Routing\Attributes\MiddlewarePipelineFactory;
 use Sirix\Mezzio\Routing\Attributes\RouteCollectorDelegator;
 use Sirix\Mezzio\Routing\Attributes\RouteDefinition;
+use Sirix\Mezzio\Routing\Attributes\ServiceMiddlewareResolver;
 use stdClass;
 
 final class RouteCollectorDelegatorTest extends TestCase
@@ -55,7 +59,13 @@ final class RouteCollectorDelegatorTest extends TestCase
             ): Route => new Route('/delegated', $registered, ['GET'], 'delegated.route'))
         ;
 
-        $provider = new AttributeRouteProvider($middlewareContainer, $extractor, [TestMiddleware::class]);
+        $provider = new AttributeRouteProvider(
+            $extractor,
+            [TestMiddleware::class],
+            new DuplicateRouteResolver(),
+            new MiddlewarePipelineFactory($middlewareContainer, new ServiceMiddlewareResolver()),
+            new NullRouteRegistrarCache()
+        );
         $container = $this->createMock(ContainerInterface::class);
         $container
             ->expects(self::once())

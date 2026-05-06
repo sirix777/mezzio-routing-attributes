@@ -34,7 +34,7 @@ final class MiddlewarePipelineFactoryTest extends TestCase
                     return $handler->handle($request);
                 }
             },
-        ]));
+        ]), new ServiceMiddlewareResolver());
 
         $first = $factory->createFromCompiled('handler.service', 'process', ['mw.first']);
         $second = $factory->createFromCompiled('handler.service', 'process', ['mw.first']);

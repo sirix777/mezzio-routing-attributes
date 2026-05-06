@@ -15,7 +15,13 @@ final class AttributeRouteExtractorFactory
         $config = RoutingAttributesConfig::fromRootConfig($rootConfig);
 
         return new AttributeRouteExtractor(
-            new ClassEligibilityValidator('callable' === $config->handlersMode)
+            new ClassEligibilityValidator('callable' === $config->handlersMode),
+            new RouteAttributeReader(),
+            new RouteDefinitionBuilder(
+                new RouteAttributeReader(),
+                new MethodSignatureValidator(),
+                new RouteDataNormalizer()
+            )
         );
     }
 }

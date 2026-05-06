@@ -1,3 +1,66 @@
 {
-    "note": "Run `composer benchmark` and update this baseline in your target environment."
+    "php_version": "8.2.30",
+    "timestamp": "2026-03-12T16:10:43+00:00",
+    "iterations": 100,
+    "scenarios": {
+        "warm_cache_hit_manual": {
+            "avg_ms": 0.0126,
+            "median_ms": 0.0097,
+            "min_ms": 0.0091,
+            "max_ms": 0.1956,
+            "avg_container_get_calls": 4,
+            "avg_route_calls": 2
+        },
+        "no_cache_manual": {
+            "avg_ms": 0.0074,
+            "median_ms": 0.006,
+            "min_ms": 0.0054,
+            "max_ms": 0.0657,
+            "avg_container_get_calls": 4,
+            "avg_route_calls": 2
+        },
+        "cold_cache_rebuild_manual": {
+            "avg_ms": 0.0236,
+            "median_ms": 0.0192,
+            "min_ms": 0.0178,
+            "max_ms": 0.1997,
+            "avg_container_get_calls": 4,
+            "avg_route_calls": 2
+        },
+        "warm_cache_hit_discovery_validate_true": {
+            "avg_ms": 0.0271,
+            "median_ms": 0.0253,
+            "min_ms": 0.0234,
+            "max_ms": 0.079,
+            "avg_container_get_calls": 8,
+            "avg_route_calls": 4
+        },
+        "warm_cache_hit_discovery_validate_false": {
+            "avg_ms": 0.0196,
+            "median_ms": 0.0176,
+            "min_ms": 0.0162,
+            "max_ms": 0.1248,
+            "avg_container_get_calls": 8,
+            "avg_route_calls": 4
+        },
+        "warm_cache_hit_discovery_psr4_validate_true": {
+            "avg_ms": 0.026,
+            "median_ms": 0.0248,
+            "min_ms": 0.0235,
+            "max_ms": 0.0908,
+            "avg_container_get_calls": 8,
+            "avg_route_calls": 4
+        },
+        "warm_cache_hit_discovery_psr4_validate_false": {
+            "avg_ms": 0.0201,
+            "median_ms": 0.0181,
+            "min_ms": 0.0162,
+            "max_ms": 0.1623,
+            "avg_container_get_calls": 8,
+            "avg_route_calls": 4
+        }
+    },
+    "budget": {
+        "cache_hit_regression_max_percent": 5
+    }
 }
