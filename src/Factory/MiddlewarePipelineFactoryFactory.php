@@ -12,6 +12,9 @@ final class MiddlewarePipelineFactoryFactory
 {
     public function __invoke(ContainerInterface $container): MiddlewarePipelineFactory
     {
-        return new MiddlewarePipelineFactory($container, new ServiceMiddlewareResolver());
+        return new MiddlewarePipelineFactory(
+            $container,
+            $container->get(ServiceMiddlewareResolver::class)
+        );
     }
 }

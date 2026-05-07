@@ -8,7 +8,7 @@
 
 Attribute-based route registration for Mezzio applications.
 
-> Warning: this package is not production-ready yet. Before `1.0.0`, backward compatibility is not guaranteed.
+> Pre-1.0 package: usable in controlled applications, but public API and configuration may still change before `1.0.0`.
 
 ## Installation
 
@@ -29,6 +29,13 @@ This package provides:
 - CLI commands:
   - `routing-attributes:routes:list`
   - `routing-attributes:cache:clear`
+
+Recommended production mode:
+
+- use an explicit `classes` list;
+- enable compiled cache;
+- clear/warm cache during deploy;
+- restart long-running workers after route/cache changes.
 
 ## Configuration
 
@@ -70,26 +77,21 @@ Supported `routing_attributes.cache` keys:
 - `enabled` (`bool`)
 - `file` (`non-empty string`, required when `enabled=true`)
 
-Removed and no longer supported:
-
-- `routing_attributes.lazy_service_resolution`
-- `routing_attributes.cache.mode`
-- `routing_attributes.cache.backend`
-- `routing_attributes.cache.strict`
-- `routing_attributes.cache.write_fail_strategy`
-- `routing_attributes.discovery.class_map_cache`
+The package registers its own factories through `ConfigProvider`; application handlers and middleware still need to be available in your container.
 
 ## Discovery Behavior
 
 - If `discovery.enabled=false`, only explicit `classes` are used.
 - If `discovery.enabled=true`, classes are discovered from `discovery.paths`.
 - If compiled cache is enabled and cache file already exists, discovery is skipped on boot.
+- Prefer discovery for development or cache warmup, not as the main production boot path.
 
 ## Compiled Cache Behavior
 
 - If `cache.enabled=true` and cache file exists, routes are registered from compiled cache.
 - If cache file is missing or invalid, routes are extracted/discovered and cache file is rebuilt.
 - Cache format is optimized for startup speed and keeps middleware pipeline resolution lazy per service.
+- Ensure the cache directory is writable by the process that warms/rebuilds routes.
 
 ## Cache Clear Command
 
@@ -104,6 +106,8 @@ Override file path:
 ```bash
 php vendor/bin/laminas routing-attributes:cache:clear --file=data/cache/custom-routes.php
 ```
+
+In RoadRunner/Swoole-style runtimes, reload workers after clearing or rebuilding the cache.
 
 ## Basic Usage
 
@@ -154,14 +158,16 @@ composer benchmark-threshold
 
 Latest local run (`PHP 8.2.30`):
 
-- `warm_cache_hit_manual`: `0.0015 ms` median, `2.0156 KB` median peak
-- `no_cache_manual`: `0.0059 ms` median, `3.4453 KB` median peak
-- `cold_cache_rebuild_manual`: `0.0315 ms` median, `5.9063 KB` median peak
-- `warm_cache_hit_discovery_token`: `0.0033 ms` median, `3.1406 KB` median peak
-- `warm_cache_hit_discovery_psr4`: `0.0033 ms` median, `3.1406 KB` median peak
+- `warm_cache_hit_manual`: `0.0022 ms` median, `2.0156 KB` median peak
+- `no_cache_manual`: `0.0071 ms` median, `3.4453 KB` median peak
+- `cold_cache_rebuild_manual`: `0.0489 ms` median, `5.9063 KB` median peak
+- `warm_cache_hit_discovery_token`: `0.0053 ms` median, `3.1406 KB` median peak
+- `warm_cache_hit_discovery_psr4`: `0.0040 ms` median, `3.1406 KB` median peak
 - Threshold benchmark (`compiled`) showed cache-win from `10` routes onward.
-- At `12800` routes: `16.4387 ms` (no-cache) vs `6.5921 ms` (compiled), speedup `59.90%`;
+- At `12800` routes: `22.8902 ms` (no-cache) vs `8.7022 ms` (compiled), speedup `61.98%`;
   peak memory `13213.21 KB` vs `9260.80 KB`.
+
+These are microbenchmarks for route registration/cache paths, not end-to-end HTTP latency.
 
 ## Troubleshooting
 

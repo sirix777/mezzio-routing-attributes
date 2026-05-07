@@ -14,6 +14,7 @@ use Psr\Http\Server\MiddlewareInterface;
 use RuntimeException;
 use Sirix\Mezzio\Routing\Attributes\Command\ListRoutesCommand;
 use Sirix\Mezzio\Routing\Attributes\Command\ListRoutesCommandFactory;
+use Sirix\Mezzio\Routing\Attributes\Command\RouteMiddlewareDisplayResolver;
 use stdClass;
 use Symfony\Component\Console\Tester\CommandTester;
 
@@ -118,6 +119,7 @@ final class ListRoutesCommandFactoryTest extends TestCase
             {
                 return match ($id) {
                     RouteCollector::class => $this->collector,
+                    RouteMiddlewareDisplayResolver::class => new RouteMiddlewareDisplayResolver('resolved'),
                     'Mezzio\Application' => $this->application,
                     'Mezzio\MiddlewareFactory' => new stdClass(),
                     'config' => [
@@ -133,6 +135,7 @@ final class ListRoutesCommandFactoryTest extends TestCase
             {
                 return match ($id) {
                     RouteCollector::class,
+                    RouteMiddlewareDisplayResolver::class,
                     'Mezzio\Application',
                     'Mezzio\MiddlewareFactory',
                     'config' => true,

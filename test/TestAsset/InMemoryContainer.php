@@ -11,7 +11,7 @@ use RuntimeException;
 use function array_key_exists;
 use function sprintf;
 
-final readonly class InMemoryContainer implements ContainerInterface
+final class InMemoryContainer implements ContainerInterface
 {
     /**
      * @param array<string, mixed> $services
@@ -30,5 +30,10 @@ final readonly class InMemoryContainer implements ContainerInterface
     public function has(string $id): bool
     {
         return array_key_exists($id, $this->services);
+    }
+
+    public function set(string $id, mixed $service): void
+    {
+        $this->services[$id] = $service;
     }
 }

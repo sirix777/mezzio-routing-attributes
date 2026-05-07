@@ -7,16 +7,23 @@ namespace SirixTest\Mezzio\Routing\Attributes;
 use PHPUnit\Framework\TestCase;
 use Sirix\Mezzio\Routing\Attributes\AttributeRouteProvider;
 use Sirix\Mezzio\Routing\Attributes\AttributeRouteProviderFactory;
+use Sirix\Mezzio\Routing\Attributes\Cache\NullRouteRegistrarCache;
+use Sirix\Mezzio\Routing\Attributes\Cache\RouteRegistrarCacheInterface;
 use Sirix\Mezzio\Routing\Attributes\Discovery\DiscoveredClassesResolverInterface;
 use Sirix\Mezzio\Routing\Attributes\Discovery\DiscoveryClassMapResolver;
 use Sirix\Mezzio\Routing\Attributes\Discovery\DiscoveryFileInventory;
+use Sirix\Mezzio\Routing\Attributes\Discovery\NullDiscoveredClassesResolver;
 use Sirix\Mezzio\Routing\Attributes\Discovery\PhpClassNameParser;
 use Sirix\Mezzio\Routing\Attributes\Discovery\Psr4ClassNameResolver;
 use Sirix\Mezzio\Routing\Attributes\Discovery\RoutableClassFilter;
+use Sirix\Mezzio\Routing\Attributes\DuplicateRouteResolver;
 use Sirix\Mezzio\Routing\Attributes\Exception\InvalidConfigurationException;
 use Sirix\Mezzio\Routing\Attributes\Extractor\AttributeRouteExtractorInterface;
+use Sirix\Mezzio\Routing\Attributes\MiddlewarePipelineFactory;
+use Sirix\Mezzio\Routing\Attributes\ServiceMiddlewareResolver;
 use SirixTest\Mezzio\Routing\Attributes\TestAsset\InMemoryContainer;
 
+use function array_merge;
 use function file_put_contents;
 use function is_file;
 use function sys_get_temp_dir;
@@ -47,7 +54,7 @@ final class AttributeRouteProviderFactoryTest extends TestCase
     public function testCreatesProviderFromValidConfiguration(): void
     {
         $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
-        $container = new InMemoryContainer([
+        $container = $this->createContainerWithMiddlewarePipeline([
             'config' => [
                 'routing_attributes' => [
                     'classes' => [
@@ -66,7 +73,7 @@ final class AttributeRouteProviderFactoryTest extends TestCase
     public function testCreatesProviderWhenConfigMissing(): void
     {
         $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
-        $container = new InMemoryContainer([
+        $container = $this->createContainerWithMiddlewarePipeline([
             AttributeRouteExtractorInterface::class => $extractor,
         ]);
 
@@ -95,7 +102,7 @@ final class AttributeRouteProviderFactoryTest extends TestCase
     public function testAllowsDuplicateStrategyIgnore(): void
     {
         $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
-        $container = new InMemoryContainer([
+        $container = $this->createContainerWithMiddlewarePipeline([
             'config' => [
                 'routing_attributes' => [
                     'classes' => [
@@ -155,7 +162,7 @@ final class AttributeRouteProviderFactoryTest extends TestCase
     public function testAllowsCacheConfigurationWhenEnabled(): void
     {
         $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
-        $container = new InMemoryContainer([
+        $container = $this->createContainerWithMiddlewarePipeline([
             'config' => [
                 'routing_attributes' => [
                     'classes' => [
@@ -387,7 +394,8 @@ final class AttributeRouteProviderFactoryTest extends TestCase
     public function testAllowsDiscoveryConfigurationWhenEnabled(): void
     {
         $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
-        $container = new InMemoryContainer([
+        $resolverFromContainer = $this->createDiscoveryResolver();
+        $container = $this->createContainerWithMiddlewarePipeline([
             'config' => [
                 'routing_attributes' => [
                     'classes' => [],
@@ -398,6 +406,7 @@ final class AttributeRouteProviderFactoryTest extends TestCase
                 ],
             ],
             AttributeRouteExtractorInterface::class => $extractor,
+            DiscoveredClassesResolverInterface::class => $resolverFromContainer,
         ]);
 
         $provider = (new AttributeRouteProviderFactory())($container);
@@ -421,7 +430,7 @@ final class AttributeRouteProviderFactoryTest extends TestCase
         );
 
         $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
-        $container = new InMemoryContainer([
+        $container = $this->createContainerWithMiddlewarePipeline([
             'config' => [
                 'routing_attributes' => [
                     'classes' => [],
@@ -449,7 +458,7 @@ final class AttributeRouteProviderFactoryTest extends TestCase
         $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
         $resolverFromContainer = $this->createDiscoveryResolver();
 
-        $container = new InMemoryContainer([
+        $container = $this->createContainerWithMiddlewarePipeline([
             'config' => [
                 'routing_attributes' => [
                     'classes' => [],
@@ -481,7 +490,7 @@ final class AttributeRouteProviderFactoryTest extends TestCase
         $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
         $resolverFromContainer = $this->createDiscoveryResolver();
 
-        $container = new InMemoryContainer([
+        $container = $this->createContainerWithMiddlewarePipeline([
             'config' => [
                 'routing_attributes' => [
                     'classes' => [],
@@ -604,5 +613,32 @@ final class AttributeRouteProviderFactoryTest extends TestCase
             new Psr4ClassNameResolver([]),
             new RoutableClassFilter()
         );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function defaultServices(): array
+    {
+        return [
+            RouteRegistrarCacheInterface::class => new NullRouteRegistrarCache(),
+            DuplicateRouteResolver::class => new DuplicateRouteResolver('throw'),
+            DiscoveredClassesResolverInterface::class => new NullDiscoveredClassesResolver(),
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $extraServices
+     */
+    private function createContainerWithMiddlewarePipeline(array $extraServices = []): InMemoryContainer
+    {
+        $baseServices = array_merge($this->defaultServices(), $extraServices);
+        $container = new InMemoryContainer($baseServices);
+        $container->set(
+            MiddlewarePipelineFactory::class,
+            new MiddlewarePipelineFactory($container, new ServiceMiddlewareResolver())
+        );
+
+        return $container;
     }
 }

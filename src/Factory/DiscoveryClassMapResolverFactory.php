@@ -19,12 +19,8 @@ final class DiscoveryClassMapResolverFactory
     public function __invoke(ContainerInterface $container): DiscoveredClassesResolverInterface
     {
         $rootConfig = $container->has('config') ? $container->get('config') : [];
+        $config = RoutingAttributesConfig::fromRootConfig($rootConfig);
 
-        return $this->createFromConfig(RoutingAttributesConfig::fromRootConfig($rootConfig));
-    }
-
-    public function createFromConfig(RoutingAttributesConfig $config): DiscoveredClassesResolverInterface
-    {
         if (! $config->discoveryEnabled) {
             return new NullDiscoveredClassesResolver();
         }

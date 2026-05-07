@@ -12,7 +12,12 @@ use Psr\Container\ContainerInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Sirix\Mezzio\Routing\Attributes\AttributeRouteProvider;
 use Sirix\Mezzio\Routing\Attributes\AttributeRouteProviderFactory;
+use Sirix\Mezzio\Routing\Attributes\Cache\NullRouteRegistrarCache;
+use Sirix\Mezzio\Routing\Attributes\Cache\RouteRegistrarCacheInterface;
 use Sirix\Mezzio\Routing\Attributes\ConfigProvider;
+use Sirix\Mezzio\Routing\Attributes\Discovery\DiscoveredClassesResolverInterface;
+use Sirix\Mezzio\Routing\Attributes\Discovery\NullDiscoveredClassesResolver;
+use Sirix\Mezzio\Routing\Attributes\DuplicateRouteResolver;
 use Sirix\Mezzio\Routing\Attributes\Extractor\AttributeRouteExtractor;
 use Sirix\Mezzio\Routing\Attributes\Extractor\AttributeRouteExtractorInterface;
 use Sirix\Mezzio\Routing\Attributes\Extractor\ClassEligibilityValidator;
@@ -20,7 +25,9 @@ use Sirix\Mezzio\Routing\Attributes\Extractor\MethodSignatureValidator;
 use Sirix\Mezzio\Routing\Attributes\Extractor\RouteAttributeReader;
 use Sirix\Mezzio\Routing\Attributes\Extractor\RouteDataNormalizer;
 use Sirix\Mezzio\Routing\Attributes\Extractor\RouteDefinitionBuilder;
+use Sirix\Mezzio\Routing\Attributes\MiddlewarePipelineFactory;
 use Sirix\Mezzio\Routing\Attributes\RouteCollectorDelegator;
+use Sirix\Mezzio\Routing\Attributes\ServiceMiddlewareResolver;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\PingHandler;
 use SirixTest\Mezzio\Routing\Attributes\TestAsset\InMemoryContainer;
 
@@ -42,7 +49,14 @@ final class RuntimePathTest extends TestCase
             ],
             AttributeRouteExtractorInterface::class => $extractor,
             PingHandler::class => new PingHandler(),
+            RouteRegistrarCacheInterface::class => new NullRouteRegistrarCache(),
+            DuplicateRouteResolver::class => new DuplicateRouteResolver('throw'),
+            DiscoveredClassesResolverInterface::class => new NullDiscoveredClassesResolver(),
         ]);
+        $container->set(
+            MiddlewarePipelineFactory::class,
+            new MiddlewarePipelineFactory($container, new ServiceMiddlewareResolver())
+        );
 
         $provider = (new AttributeRouteProviderFactory())($container);
         self::assertInstanceOf(AttributeRouteProvider::class, $provider);
@@ -102,6 +116,13 @@ final class RuntimePathTest extends TestCase
         ]);
         $container->set(AttributeRouteExtractorInterface::class, $this->createAttributeRouteExtractor());
         $container->set(PingHandler::class, new PingHandler());
+        $container->set(RouteRegistrarCacheInterface::class, new NullRouteRegistrarCache());
+        $container->set(DuplicateRouteResolver::class, new DuplicateRouteResolver('throw'));
+        $container->set(DiscoveredClassesResolverInterface::class, new NullDiscoveredClassesResolver());
+        $container->set(
+            MiddlewarePipelineFactory::class,
+            new MiddlewarePipelineFactory($container, new ServiceMiddlewareResolver())
+        );
         $container->set(
             AttributeRouteProvider::class,
             (new AttributeRouteProviderFactory())($container)

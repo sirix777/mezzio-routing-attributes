@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Until `1.0.0` is released, backward compatibility is not guaranteed. Public APIs and configuration may change between releases, including minor and patch releases.
 
+## [0.1.7] - 2026-05-07
+
+### Added
+
+- Added container-registered factories for core runtime services: `RouteRegistrarCacheInterface`, `DuplicateRouteResolver`, `MiddlewarePipelineFactory`, and `RouteMiddlewareDisplayResolver`
+- Added integration coverage that verifies package dependencies can be configured through the real Laminas `ServiceManager`
+- Added `@internal` marker to `NullDiscoveredClassesResolver`
+- Added detailed benchmark documentation in `benchmarks/README.md`
+
+### Changed
+
+- Refactored package factories to resolve their dependencies from the container, making `AttributeRouteProviderFactory` and CLI factories more self-contained
+- `AttributeRouteProviderFactory` now skips discovery by returning an empty discovered-class list when a compiled cache artifact is already usable
+- `AttributeRouteExtractorFactory` now reuses a single `RouteAttributeReader` instance for the extractor and route definition builder
+- Updated README production guidance for explicit class lists, compiled cache warmup, discovery usage, worker reloads, and current benchmark results
+- Reworked benchmark scripts to use the same factory-built services as the package runtime wiring, and refreshed `benchmarks/baseline.json`
+
+### Fixed
+
+- Fixed Laminas ServiceManager wiring by registering `ServiceMiddlewareResolver` through the supported `invokables` key instead of `invokable_factories`
+- Fixed benchmark cache scenarios that previously enabled cache in configuration while injecting `NullRouteRegistrarCache`, causing cache-hit measurements to be invalid
+- Fixed discovery benchmark scenarios that previously injected `NullDiscoveredClassesResolver`, causing discovery cache-hit runs to register zero routes
+- Fixed benchmark `container_get_calls` reporting so it now reflects only lookups made during the timed `registerRoutes()` block
+
 ## [0.1.6] - 2026-05-06
 
 ### Added

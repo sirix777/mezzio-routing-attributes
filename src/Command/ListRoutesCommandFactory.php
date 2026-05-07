@@ -7,7 +7,6 @@ namespace Sirix\Mezzio\Routing\Attributes\Command;
 use Mezzio\Router\RouteCollector;
 use Mezzio\Tooling\Routes\ConfigLoaderInterface;
 use Psr\Container\ContainerInterface;
-use Sirix\Mezzio\Routing\Attributes\Config\RoutingAttributesConfig;
 
 use function file_exists;
 use function interface_exists;
@@ -23,12 +22,11 @@ final class ListRoutesCommandFactory
 
     public function __invoke(ContainerInterface $container): ListRoutesCommand
     {
-        $rootConfig = $container->has('config') ? $container->get('config') : [];
-        $config = RoutingAttributesConfig::fromRootConfig($rootConfig);
-
         /** @var RouteCollector $routeCollector */
         $routeCollector = $container->get(RouteCollector::class);
-        $middlewareDisplayResolver = new RouteMiddlewareDisplayResolver($config->classicRoutesMiddlewareDisplay);
+
+        /** @var RouteMiddlewareDisplayResolver $middlewareDisplayResolver */
+        $middlewareDisplayResolver = $container->get(RouteMiddlewareDisplayResolver::class);
 
         return new ListRoutesCommand(
             new RouteTableProvider($routeCollector, $this->createConfigLoader($container)),

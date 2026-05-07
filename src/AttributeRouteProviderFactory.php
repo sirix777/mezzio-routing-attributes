@@ -10,13 +10,7 @@ use Psr\Container\NotFoundExceptionInterface;
 use Sirix\Mezzio\Routing\Attributes\Cache\RouteRegistrarCacheInterface;
 use Sirix\Mezzio\Routing\Attributes\Config\RoutingAttributesConfig;
 use Sirix\Mezzio\Routing\Attributes\Discovery\DiscoveredClassesResolverInterface;
-use Sirix\Mezzio\Routing\Attributes\Discovery\DiscoveryClassMapResolver;
-use Sirix\Mezzio\Routing\Attributes\Discovery\NullDiscoveredClassesResolver;
 use Sirix\Mezzio\Routing\Attributes\Extractor\AttributeRouteExtractorInterface;
-use Sirix\Mezzio\Routing\Attributes\Factory\CompiledRouteRegistrarCacheFactory;
-use Sirix\Mezzio\Routing\Attributes\Factory\DiscoveryClassMapResolverFactory;
-use Sirix\Mezzio\Routing\Attributes\Factory\DuplicateRouteResolverFactory;
-use Sirix\Mezzio\Routing\Attributes\Factory\MiddlewarePipelineFactoryFactory;
 
 use function array_merge;
 use function array_unique;
@@ -33,50 +27,31 @@ final class AttributeRouteProviderFactory
         $rootConfig = $container->has('config') ? $container->get('config') : [];
         $config = RoutingAttributesConfig::fromRootConfig($rootConfig);
 
-        $cacheFactory = new CompiledRouteRegistrarCacheFactory();
-        $routeRegistrarCache = $cacheFactory($config->cacheFile);
+        $routeRegistrarCache = $container->get(RouteRegistrarCacheInterface::class);
 
         $classes = array_values(array_unique(array_merge(
             $config->classes,
-            $this->discoveryResolver($container, $config, $routeRegistrarCache)->resolve()
+            $this->resolveDiscoveredClasses($container, $routeRegistrarCache)
         )));
 
-        $duplicateResolverFactory = new DuplicateRouteResolverFactory();
-        $middlewareFactoryFactory = new MiddlewarePipelineFactoryFactory();
-        $attributeRouteExtractor = $container->get(AttributeRouteExtractorInterface::class);
-
         return new AttributeRouteProvider(
-            $attributeRouteExtractor,
+            $container->get(AttributeRouteExtractorInterface::class),
             $classes,
-            $duplicateResolverFactory($config->duplicateStrategy),
-            $middlewareFactoryFactory($container),
+            $container->get(DuplicateRouteResolver::class),
+            $container->get(MiddlewarePipelineFactory::class),
             $routeRegistrarCache
         );
     }
 
     /**
-     * @throws ContainerExceptionInterface
-     * @throws NotFoundExceptionInterface
+     * @return list<non-empty-string>
      */
-    private function discoveryResolver(
-        ContainerInterface $container,
-        RoutingAttributesConfig $config,
-        RouteRegistrarCacheInterface $routeRegistrarCache
-    ): DiscoveredClassesResolverInterface {
-        if (! $config->discoveryEnabled || $routeRegistrarCache->hasUsableArtifact()) {
-            return new NullDiscoveredClassesResolver();
+    private function resolveDiscoveredClasses(ContainerInterface $container, RouteRegistrarCacheInterface $routeRegistrarCache): array
+    {
+        if ($routeRegistrarCache->hasUsableArtifact()) {
+            return [];
         }
 
-        if ($container->has(DiscoveredClassesResolverInterface::class)) {
-            return $container->get(DiscoveredClassesResolverInterface::class);
-        }
-
-        if ($container->has(DiscoveryClassMapResolver::class)) {
-            return $container->get(DiscoveryClassMapResolver::class);
-        }
-
-        $factory = new DiscoveryClassMapResolverFactory();
-
-        return $factory->createFromConfig($config);
+        return $container->get(DiscoveredClassesResolverInterface::class)->resolve();
     }
 }

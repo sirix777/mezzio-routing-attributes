@@ -5,17 +5,23 @@ declare(strict_types=1);
 namespace Sirix\Mezzio\Routing\Attributes;
 
 use Mezzio\Router\RouteCollector;
+use Sirix\Mezzio\Routing\Attributes\Cache\RouteRegistrarCacheInterface;
 use Sirix\Mezzio\Routing\Attributes\Command\ClearRouteCacheCommand;
 use Sirix\Mezzio\Routing\Attributes\Command\ClearRouteCacheCommandFactory;
 use Sirix\Mezzio\Routing\Attributes\Command\ConsoleRegistrationPolicy;
 use Sirix\Mezzio\Routing\Attributes\Command\ListRoutesCommand;
 use Sirix\Mezzio\Routing\Attributes\Command\ListRoutesCommandDelegator;
 use Sirix\Mezzio\Routing\Attributes\Command\ListRoutesCommandFactory;
+use Sirix\Mezzio\Routing\Attributes\Command\RouteMiddlewareDisplayResolver;
+use Sirix\Mezzio\Routing\Attributes\Command\RouteMiddlewareDisplayResolverFactory;
 use Sirix\Mezzio\Routing\Attributes\Discovery\DiscoveredClassesResolverInterface;
 use Sirix\Mezzio\Routing\Attributes\Extractor\AttributeRouteExtractor;
 use Sirix\Mezzio\Routing\Attributes\Extractor\AttributeRouteExtractorFactory;
 use Sirix\Mezzio\Routing\Attributes\Extractor\AttributeRouteExtractorInterface;
+use Sirix\Mezzio\Routing\Attributes\Factory\CompiledRouteRegistrarCacheFactory;
 use Sirix\Mezzio\Routing\Attributes\Factory\DiscoveryClassMapResolverFactory;
+use Sirix\Mezzio\Routing\Attributes\Factory\DuplicateRouteResolverFactory;
+use Sirix\Mezzio\Routing\Attributes\Factory\MiddlewarePipelineFactoryFactory;
 
 final readonly class ConfigProvider
 {
@@ -54,6 +60,12 @@ final readonly class ConfigProvider
                 AttributeRouteProvider::class => AttributeRouteProviderFactory::class,
                 AttributeRouteExtractor::class => AttributeRouteExtractorFactory::class,
                 DiscoveredClassesResolverInterface::class => DiscoveryClassMapResolverFactory::class,
+                MiddlewarePipelineFactory::class => MiddlewarePipelineFactoryFactory::class,
+                DuplicateRouteResolver::class => DuplicateRouteResolverFactory::class,
+                RouteRegistrarCacheInterface::class => CompiledRouteRegistrarCacheFactory::class,
+            ],
+            'invokables' => [
+                ServiceMiddlewareResolver::class => ServiceMiddlewareResolver::class,
             ],
             'aliases' => [
                 AttributeRouteExtractorInterface::class => AttributeRouteExtractor::class,
@@ -68,6 +80,7 @@ final readonly class ConfigProvider
         if ($consolePolicy->canRegisterConsoleConfig()) {
             $dependencies['factories'][ListRoutesCommand::class] = ListRoutesCommandFactory::class;
             $dependencies['factories'][ClearRouteCacheCommand::class] = ClearRouteCacheCommandFactory::class;
+            $dependencies['factories'][RouteMiddlewareDisplayResolver::class] = RouteMiddlewareDisplayResolverFactory::class;
             if ($consolePolicy->shouldRegisterToolingDelegator()) {
                 $dependencies['delegators'][self::TOOLING_LIST_ROUTES_COMMAND] = [
                     ListRoutesCommandDelegator::class,

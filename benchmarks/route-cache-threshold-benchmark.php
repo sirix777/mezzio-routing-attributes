@@ -10,8 +10,17 @@ use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 use Sirix\Mezzio\Routing\Attributes\AttributeRouteProviderFactory;
+use Sirix\Mezzio\Routing\Attributes\Cache\RouteRegistrarCacheInterface;
+use Sirix\Mezzio\Routing\Attributes\Discovery\DiscoveredClassesResolverInterface;
+use Sirix\Mezzio\Routing\Attributes\DuplicateRouteResolver;
 use Sirix\Mezzio\Routing\Attributes\Extractor\AttributeRouteExtractorInterface;
+use Sirix\Mezzio\Routing\Attributes\Factory\CompiledRouteRegistrarCacheFactory;
+use Sirix\Mezzio\Routing\Attributes\Factory\DiscoveryClassMapResolverFactory;
+use Sirix\Mezzio\Routing\Attributes\Factory\DuplicateRouteResolverFactory;
+use Sirix\Mezzio\Routing\Attributes\Factory\MiddlewarePipelineFactoryFactory;
+use Sirix\Mezzio\Routing\Attributes\MiddlewarePipelineFactory;
 use Sirix\Mezzio\Routing\Attributes\RouteDefinition;
+use Sirix\Mezzio\Routing\Attributes\ServiceMiddlewareResolver;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
 
@@ -39,6 +48,11 @@ final class ThresholdBenchmarkContainer implements ContainerInterface
     public function has(string $id): bool
     {
         return isset($this->services[$id]);
+    }
+
+    public function set(string $id, mixed $service): void
+    {
+        $this->services[$id] = $service;
     }
 }
 
@@ -172,8 +186,13 @@ function runProvider(
     $container = new ThresholdBenchmarkContainer([
         'config' => $config,
         AttributeRouteExtractorInterface::class => new SyntheticExtractor($routeCount),
+        ServiceMiddlewareResolver::class => new ServiceMiddlewareResolver(),
         'bench.handler' => new BenchHandlerMiddleware(),
     ]);
+    $container->set(RouteRegistrarCacheInterface::class, (new CompiledRouteRegistrarCacheFactory())($container));
+    $container->set(DuplicateRouteResolver::class, (new DuplicateRouteResolverFactory())($container));
+    $container->set(DiscoveredClassesResolverInterface::class, (new DiscoveryClassMapResolverFactory())($container));
+    $container->set(MiddlewarePipelineFactory::class, (new MiddlewarePipelineFactoryFactory())($container));
 
     $provider = (new AttributeRouteProviderFactory())($container);
     $collector = new ThresholdBenchmarkCollector();

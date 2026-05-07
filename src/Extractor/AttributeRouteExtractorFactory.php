@@ -13,12 +13,13 @@ final class AttributeRouteExtractorFactory
     {
         $rootConfig = $container->has('config') ? $container->get('config') : [];
         $config = RoutingAttributesConfig::fromRootConfig($rootConfig);
+        $reader = new RouteAttributeReader();
 
         return new AttributeRouteExtractor(
             new ClassEligibilityValidator('callable' === $config->handlersMode),
-            new RouteAttributeReader(),
+            $reader,
             new RouteDefinitionBuilder(
-                new RouteAttributeReader(),
+                $reader,
                 new MethodSignatureValidator(),
                 new RouteDataNormalizer()
             )

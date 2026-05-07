@@ -7,6 +7,9 @@ use Mezzio\Router\RouteCollectorInterface;
 use Psr\Container\ContainerInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Sirix\Mezzio\Routing\Attributes\AttributeRouteProviderFactory;
+use Sirix\Mezzio\Routing\Attributes\Cache\RouteRegistrarCacheInterface;
+use Sirix\Mezzio\Routing\Attributes\Discovery\DiscoveredClassesResolverInterface;
+use Sirix\Mezzio\Routing\Attributes\DuplicateRouteResolver;
 use Sirix\Mezzio\Routing\Attributes\Extractor\AttributeRouteExtractor;
 use Sirix\Mezzio\Routing\Attributes\Extractor\AttributeRouteExtractorInterface;
 use Sirix\Mezzio\Routing\Attributes\Extractor\ClassEligibilityValidator;
@@ -14,6 +17,12 @@ use Sirix\Mezzio\Routing\Attributes\Extractor\MethodSignatureValidator;
 use Sirix\Mezzio\Routing\Attributes\Extractor\RouteAttributeReader;
 use Sirix\Mezzio\Routing\Attributes\Extractor\RouteDataNormalizer;
 use Sirix\Mezzio\Routing\Attributes\Extractor\RouteDefinitionBuilder;
+use Sirix\Mezzio\Routing\Attributes\Factory\CompiledRouteRegistrarCacheFactory;
+use Sirix\Mezzio\Routing\Attributes\Factory\DiscoveryClassMapResolverFactory;
+use Sirix\Mezzio\Routing\Attributes\Factory\DuplicateRouteResolverFactory;
+use Sirix\Mezzio\Routing\Attributes\Factory\MiddlewarePipelineFactoryFactory;
+use Sirix\Mezzio\Routing\Attributes\MiddlewarePipelineFactory;
+use Sirix\Mezzio\Routing\Attributes\ServiceMiddlewareResolver;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\PingHandler;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\PingRequestHandler;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\StackFirstMiddleware;
@@ -26,7 +35,6 @@ final class BenchmarkContainer implements ContainerInterface
 {
     /** @var array<string, mixed> */
     private array $services;
-    public int $getCalls = 0;
 
     /**
      * @param array<string, mixed> $services
@@ -38,14 +46,17 @@ final class BenchmarkContainer implements ContainerInterface
 
     public function get(string $id): mixed
     {
-        $this->getCalls++;
-
         return $this->services[$id];
     }
 
     public function has(string $id): bool
     {
         return isset($this->services[$id]);
+    }
+
+    public function set(string $id, mixed $service): void
+    {
+        $this->services[$id] = $service;
     }
 }
 
@@ -132,7 +143,6 @@ function summarizeSamples(array $samples): array
  * @param callable(): array{
  *     elapsed_ms: float,
  *     peak_memory_usage_kb: float,
- *     container_get_calls: int,
  *     route_calls: int
  * } $iteration
  *
@@ -144,7 +154,6 @@ function summarizeSamples(array $samples): array
  *     avg_peak_memory_usage_kb: float,
  *     median_peak_memory_usage_kb: float,
  *     max_peak_memory_usage_kb: float,
- *     avg_container_get_calls: float,
  *     avg_route_calls: float
  * }
  */
@@ -152,14 +161,12 @@ function runScenario(callable $iteration, int $iterations): array
 {
     $durations = [];
     $peakMemoryUsages = [];
-    $containerCalls = 0;
     $routeCalls = 0;
 
     for ($i = 0; $i < $iterations; $i++) {
         $sample = $iteration();
         $durations[] = $sample['elapsed_ms'];
         $peakMemoryUsages[] = $sample['peak_memory_usage_kb'];
-        $containerCalls += $sample['container_get_calls'];
         $routeCalls += $sample['route_calls'];
     }
 
@@ -168,7 +175,6 @@ function runScenario(callable $iteration, int $iterations): array
     $summary['avg_peak_memory_usage_kb'] = $peakMemorySummary['avg_ms'];
     $summary['median_peak_memory_usage_kb'] = $peakMemorySummary['median_ms'];
     $summary['max_peak_memory_usage_kb'] = $peakMemorySummary['max_ms'];
-    $summary['avg_container_get_calls'] = round($containerCalls / $iterations, 2);
     $summary['avg_route_calls'] = round($routeCalls / $iterations, 2);
 
     return $summary;
@@ -195,12 +201,17 @@ function runProvider(array $config): array
     $container = new BenchmarkContainer([
         'config' => $config,
         AttributeRouteExtractorInterface::class => $extractor,
+        ServiceMiddlewareResolver::class => new ServiceMiddlewareResolver(),
         PingHandler::class => new PingHandler(),
         PingRequestHandler::class => new PingRequestHandler(),
         StackedHandler::class => new StackedHandler(),
         StackFirstMiddleware::class => new StackFirstMiddleware(),
         StackSecondMiddleware::class => new StackSecondMiddleware(),
     ]);
+    $container->set(RouteRegistrarCacheInterface::class, (new CompiledRouteRegistrarCacheFactory())($container));
+    $container->set(DuplicateRouteResolver::class, (new DuplicateRouteResolverFactory())($container));
+    $container->set(DiscoveredClassesResolverInterface::class, (new DiscoveryClassMapResolverFactory())($container));
+    $container->set(MiddlewarePipelineFactory::class, (new MiddlewarePipelineFactoryFactory())($container));
 
     $provider = (new AttributeRouteProviderFactory())($container);
     $collector = new BenchmarkCollector();
@@ -217,7 +228,6 @@ function runProvider(array $config): array
     return [
         'elapsed_ms' => $elapsed,
         'peak_memory_usage_kb' => round($peakMemoryUsage, 4),
-        'container_get_calls' => $container->getCalls,
         'route_calls' => $collector->routeCalls,
     ];
 }
@@ -376,13 +386,13 @@ foreach ($report['scenario_notes'] as $name => $note) {
     echo sprintf("- `%s`: %s\n", $name, $note);
 }
 echo "\n";
-echo "| Scenario | median ms | avg ms | min ms | max ms | median peak KB | avg peak KB | max peak KB | avg container get() | avg routes |\n";
-echo "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|\n";
+echo "| Scenario | median ms | avg ms | min ms | max ms | median peak KB | avg peak KB | max peak KB | avg routes |\n";
+echo "|---|---:|---:|---:|---:|---:|---:|---:|---:|\n";
 
 foreach ($report['scenarios'] as $name => $metrics) {
     $scenarioName = $name;
     echo sprintf(
-        "| `%s` | %s | %s | %s | %s | %s | %s | %s | %s | %s |\n",
+        "| `%s` | %s | %s | %s | %s | %s | %s | %s | %s |\n",
         $scenarioName,
         number_format((float) $metrics['median_ms'], 4, '.', ''),
         number_format((float) $metrics['avg_ms'], 4, '.', ''),
@@ -391,7 +401,6 @@ foreach ($report['scenarios'] as $name => $metrics) {
         number_format((float) $metrics['median_peak_memory_usage_kb'], 4, '.', ''),
         number_format((float) $metrics['avg_peak_memory_usage_kb'], 4, '.', ''),
         number_format((float) $metrics['max_peak_memory_usage_kb'], 4, '.', ''),
-        number_format((float) $metrics['avg_container_get_calls'], 2, '.', ''),
         number_format((float) $metrics['avg_route_calls'], 2, '.', '')
     );
 }
