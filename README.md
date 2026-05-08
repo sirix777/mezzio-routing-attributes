@@ -147,6 +147,101 @@ final class PingHandler implements RequestHandlerInterface
 }
 ```
 
+## Custom Attribute Modifiers
+
+You can create route-related attributes in your own package by implementing
+`Sirix\Mezzio\Routing\Attributes\Contract\RouteAttributeModifierInterface`.
+
+Example custom attribute:
+
+```php
+namespace Acme\Routing\Attribute;
+
+use Attribute;
+use Sirix\Mezzio\Routing\Attributes\Contract\RouteAttributeModifierInterface;
+
+#[Attribute(Attribute::TARGET_CLASS | Attribute::TARGET_METHOD | Attribute::IS_REPEATABLE)]
+final readonly class RequireTenant implements RouteAttributeModifierInterface
+{
+    public function __construct(private string $tenantHeader = 'x-tenant-id') {}
+
+    public function getMiddleware(): array
+    {
+        return [Acme\Middleware\RequireTenantMiddleware::class];
+    }
+
+    public function getDefaults(): array
+    {
+        return ['tenant_header' => $this->tenantHeader];
+    }
+}
+```
+
+Usage with route attributes:
+
+```php
+use Acme\Routing\Attribute\RequireTenant;
+use Sirix\Mezzio\Routing\Attributes\Attribute\Get;
+
+#[RequireTenant('x-tenant-id')]
+final class OrdersHandler
+{
+    #[Get('/orders', name: 'orders.list')]
+    #[RequireTenant('x-org-id')]
+    public function index(mixed ...$args): mixed
+    {
+        // ...
+    }
+}
+```
+
+### Route Defaults and Placeholders
+
+The `getDefaults()` method allows you to provide default values for route placeholders. This is useful when you have optional parameters in your route paths.
+
+Example with optional parameter:
+
+```php
+use Attribute;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
+use Sirix\Mezzio\Routing\Attributes\Attribute\Get;
+use Sirix\Mezzio\Routing\Attributes\Contract\RouteAttributeModifierInterface;
+
+#[Attribute]
+final readonly class DefaultFormat implements RouteAttributeModifierInterface
+{
+    public function __construct(private string $format = 'html') {}
+
+    public function getMiddleware(): array
+    {
+        return [];
+    }
+
+    public function getDefaults(): array
+    {
+        return ['format' => $this->format];
+    }
+}
+
+final class ExportHandler
+{
+    #[Get('/export/:format?')]
+    #[DefaultFormat('json')]
+    public function __invoke(ServerRequestInterface $request): ResponseInterface
+    {
+        // $request->getAttribute('format') will be 'json' if not provided in URL
+    }
+}
+```
+
+Notes:
+
+- class-level and method-level modifiers are merged for method routes;
+- method-level defaults override class-level defaults on the same key;
+- middleware from modifiers is appended after middleware declared in `Route`/`Get` attributes.
+- defaults are passed to the Mezzio `Route::setOptions()` and can be used by the underlying router (like FastRoute) to fill missing optional placeholders.
+
 ## Benchmarks
 
 Run:

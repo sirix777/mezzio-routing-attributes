@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Until `1.0.0` is released, backward compatibility is not guaranteed. Public APIs and configuration may change between releases, including minor and patch releases.
 
+## [0.1.8] - 2026-05-08
+
+### Added
+
+- New `RouteAttributeModifierInterface` for creating custom attributes that can inject middleware and route defaults
+- Support for route `defaults` in `RouteDefinition`, allowing attributes to provide default values for route parameters
+- Support for class-level and method-level attribute modifiers in `RouteDefinitionBuilder`
+- Documentation for Custom Attribute Modifiers in `README.md`
+
+### Changed
+
+- `RouteCacheGenerator` now persists and restores route `defaults` in the compiled cache artifact
+- `AttributeRouteProvider` now applies route `defaults` to the registered Mezzio routes
+- `RouteDefinition` constructor now accepts an optional `defaults` array
+
 ## [0.1.7] - 2026-05-07
 
 ### Added

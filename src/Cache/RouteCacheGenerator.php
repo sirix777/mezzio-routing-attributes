@@ -76,12 +76,13 @@ final readonly class RouteCacheGenerator
                 true
             );
             $middlewareVariable = '$compiledMiddlewares[' . $signatureIndexByKey[$signatureKey] . ']';
+            $defaultsCode = $this->buildDefaultsCode($route->defaults);
 
             $routeLines[] = <<<PHP
                     \$route = \$collector->route({$path}, {$middlewareVariable}, {$methods}, {$name});
                     \$options = \$route->getOptions();
                     \$options[{$routeOptionKey}] = {$middlewareDisplay};
-                    \$route->setOptions(\$options);
+                    {$defaultsCode}\$route->setOptions(\$options);
                 PHP;
         }
 
@@ -154,6 +155,7 @@ final readonly class RouteCacheGenerator
                 $compiledSignatureIndexByValue[$compiledSignature],
                 $this->normalizeRouteName($route->name),
                 $this->buildMiddlewareDisplay($route->handlerService, $route->handlerMethod, $route->middlewareServices),
+                $route->defaults,
             ];
         }
 
@@ -195,6 +197,9 @@ final readonly class RouteCacheGenerator
                         \$route = \$collector->route(\$path, \$compiledMiddlewares[\$row[2]], \$methods, \$row[3]);
                         \$options = \$route->getOptions();
                         \$options[{$routeOptionKey}] = \$row[4];
+                        if ([] !== \$row[5]) {
+                            \$options = [...\$options, ...\$row[5]];
+                        }
                         \$route->setOptions(\$options);
                     }
                 }
@@ -253,5 +258,19 @@ final readonly class RouteCacheGenerator
         }
 
         return implode(' -> ', [...$middlewareServices, $handlerService . '::' . $handlerMethod]);
+    }
+
+    /**
+     * @param array<string, mixed> $defaults
+     */
+    private function buildDefaultsCode(array $defaults): string
+    {
+        if ([] === $defaults) {
+            return '';
+        }
+
+        $exported = var_export($defaults, true);
+
+        return "\$options = [...\$options, ...{$exported}];\n                    ";
     }
 }

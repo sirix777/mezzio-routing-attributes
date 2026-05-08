@@ -13,6 +13,7 @@ final readonly class RouteDefinition
      * @param non-empty-string            $handlerMethod
      * @param list<non-empty-string>      $middlewareServices
      * @param null|non-empty-string       $name
+     * @param array<string, mixed>        $defaults
      */
     public function __construct(
         public string $path,
@@ -20,6 +21,7 @@ final readonly class RouteDefinition
         public string $handlerService,
         public string $handlerMethod,
         public array $middlewareServices,
-        public ?string $name = null
+        public ?string $name = null,
+        public array $defaults = []
     ) {}
 }

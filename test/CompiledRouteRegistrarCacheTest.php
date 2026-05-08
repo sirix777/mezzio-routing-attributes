@@ -463,6 +463,78 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
         self::assertTrue(is_dir($cacheFile));
     }
 
+    public function testSaveAndRegisterRoutesWithDefaultsRoundTrip(): void
+    {
+        $cacheFile = $this->createCacheFilePath();
+        $this->cacheFiles[] = $cacheFile;
+        $cache = $this->createCache($cacheFile);
+
+        $cache->save([
+            new RouteDefinition('/compiled-defaults', ['GET'], 'handler.service', 'process', [], 'compiled.defaults.route', ['foo' => 'bar', 'num' => 42]),
+        ]);
+
+        $collector = new class implements RouteCollectorInterface {
+            public int $routeCalls = 0;
+            public ?Route $lastRoute = null;
+
+            public function route(string $path, MiddlewareInterface $middleware, ?array $methods = null, ?string $name = null): Route
+            {
+                ++$this->routeCalls;
+                $this->lastRoute = new Route($path, $middleware, $methods, $name);
+
+                return $this->lastRoute;
+            }
+
+            public function get(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
+            {
+                return $this->route($path, $middleware, ['GET'], $name);
+            }
+
+            public function post(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
+            {
+                return $this->route($path, $middleware, ['POST'], $name);
+            }
+
+            public function put(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
+            {
+                return $this->route($path, $middleware, ['PUT'], $name);
+            }
+
+            public function patch(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
+            {
+                return $this->route($path, $middleware, ['PATCH'], $name);
+            }
+
+            public function delete(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
+            {
+                return $this->route($path, $middleware, ['DELETE'], $name);
+            }
+
+            public function any(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
+            {
+                return $this->route($path, $middleware, null, $name);
+            }
+
+            public function getRoutes(): array
+            {
+                return [];
+            }
+        };
+        $pipelineFactory = $this->createPipelineFactory([
+            'handler.service' => new TestMiddleware(),
+        ]);
+
+        self::assertTrue($cache->registerRoutes($collector, $pipelineFactory));
+        self::assertSame(1, $collector->routeCalls);
+        self::assertInstanceOf(Route::class, $collector->lastRoute);
+        self::assertSame('bar', $collector->lastRoute->getOptions()['foo'] ?? null);
+        self::assertSame(42, $collector->lastRoute->getOptions()['num'] ?? null);
+        self::assertSame(
+            'handler.service::process',
+            $collector->lastRoute->getOptions()['sirix_routing_attributes.middleware_display'] ?? null
+        );
+    }
+
     private function createCache(string $cacheFile): CompiledRouteRegistrarCache
     {
         return new CompiledRouteRegistrarCache(

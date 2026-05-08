@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Sirix\Mezzio\Routing\Attributes\Extractor;
 
+use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionMethod;
 use Sirix\Mezzio\Routing\Attributes\Attribute\Route;
+use Sirix\Mezzio\Routing\Attributes\Contract\RouteAttributeModifierInterface;
 use Sirix\Mezzio\Routing\Attributes\RouteDefinition;
 
 final readonly class RouteDefinitionBuilder
@@ -75,6 +77,24 @@ final readonly class RouteDefinitionBuilder
             $this->methodSignatureValidator->validate($reflection, $className);
         }
 
+        [$modifierMiddleware, $modifierDefaults] = $this->collectModifiers($reflection, $className);
+        if ($reflection instanceof ReflectionMethod) {
+            $classReflection = $reflection->getDeclaringClass();
+            [$classModifierMiddleware, $classModifierDefaults] = $this->collectModifiers(
+                $classReflection,
+                $className
+            );
+
+            $modifierMiddleware = [
+                ...$classModifierMiddleware,
+                ...$modifierMiddleware,
+            ];
+            $modifierDefaults = [
+                ...$classModifierDefaults,
+                ...$modifierDefaults,
+            ];
+        }
+
         foreach ($attributes as $route) {
             $handlerMethod = $reflection instanceof ReflectionMethod
                 ? $reflection->getName()
@@ -85,20 +105,50 @@ final readonly class RouteDefinitionBuilder
                 $path = $this->routeDataNormalizer->prependClassPrefixes($className, $path, $classRoutes);
             }
 
+            $routeMiddleware = $this->routeDataNormalizer->mergeMiddlewareServices(
+                $className,
+                $this->routeDataNormalizer->collectClassMiddleware($classRoutes),
+                $this->routeDataNormalizer->normalizeMiddlewareServices($className, $route->middleware)
+            );
+
             $routes[] = new RouteDefinition(
                 $path,
                 $this->routeDataNormalizer->normalizeMethods($className, $route->methods),
                 $className,
                 $handlerMethod,
-                $this->routeDataNormalizer->mergeMiddlewareServices(
-                    $className,
-                    $this->routeDataNormalizer->collectClassMiddleware($classRoutes),
-                    $this->routeDataNormalizer->normalizeMiddlewareServices($className, $route->middleware)
-                ),
-                $this->routeDataNormalizer->normalizeName($className, $route->name)
+                [
+                    ...$routeMiddleware,
+                    ...$modifierMiddleware,
+                ],
+                $this->routeDataNormalizer->normalizeName($className, $route->name),
+                $modifierDefaults
             );
         }
 
         return $routes;
+    }
+
+    /**
+     * @param ReflectionClass<object>|ReflectionMethod $reflection
+     * @param non-empty-string                         $className
+     *
+     * @return array{list<non-empty-string>, array<string, mixed>}
+     */
+    private function collectModifiers(ReflectionClass|ReflectionMethod $reflection, string $className): array
+    {
+        $middleware = [];
+        $defaults = [];
+
+        foreach ($reflection->getAttributes(RouteAttributeModifierInterface::class, ReflectionAttribute::IS_INSTANCEOF) as $attribute) {
+            $instance = $attribute->newInstance();
+
+            foreach ($instance->getMiddleware() as $service) {
+                $middleware[] = $service;
+            }
+
+            $defaults = [...$defaults, ...$instance->getDefaults()];
+        }
+
+        return [$this->routeDataNormalizer->normalizeMiddlewareServices($className, $middleware), $defaults];
     }
 }

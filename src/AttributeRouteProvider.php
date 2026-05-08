@@ -46,6 +46,9 @@ final readonly class AttributeRouteProvider
             );
             $options = $registeredRoute->getOptions();
             $options[RouteMiddlewareDisplayResolver::ROUTE_OPTION_MIDDLEWARE_DISPLAY] = $pipeline['middlewareDisplay'];
+            if ([] !== $route->defaults) {
+                $options = [...$options, ...$route->defaults];
+            }
             $registeredRoute->setOptions($options);
         }
     }

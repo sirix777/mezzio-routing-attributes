@@ -625,6 +625,49 @@ final class AttributeRouteProviderTest extends TestCase
         $provider->registerRoutes($collector);
     }
 
+    public function testAppliesRouteDefaultsToRouteOptions(): void
+    {
+        $container = $this->createMock(ContainerInterface::class);
+        $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
+        $collector = $this->createMock(RouteCollectorInterface::class);
+        $registeredRoute = null;
+
+        $extractor
+            ->expects(self::once())
+            ->method('extract')
+            ->with([TestMiddleware::class])
+            ->willReturn([
+                new RouteDefinition('/defaults', ['GET'], TestMiddleware::class, 'process', [], 'defaults.route', ['foo' => 'bar', 'baz' => 123]),
+            ])
+        ;
+
+        $collector
+            ->expects(self::once())
+            ->method('route')
+            ->willReturnCallback(static function(
+                string $path,
+                MiddlewareInterface $middleware,
+                ?array $methods,
+                ?string $name
+            ) use (&$registeredRoute): Route {
+                $registeredRoute = new Route('/defaults', $middleware, ['GET'], 'defaults.route');
+
+                return $registeredRoute;
+            })
+        ;
+
+        $provider = $this->createProvider($container, $extractor, [TestMiddleware::class]);
+        $provider->registerRoutes($collector);
+
+        self::assertInstanceOf(Route::class, $registeredRoute);
+        self::assertSame('bar', $registeredRoute->getOptions()['foo'] ?? null);
+        self::assertSame(123, $registeredRoute->getOptions()['baz'] ?? null);
+        self::assertSame(
+            TestMiddleware::class . '::process',
+            $registeredRoute->getOptions()['sirix_routing_attributes.middleware_display'] ?? null
+        );
+    }
+
     public function testUsesCompiledCacheFileWhenAvailable(): void
     {
         $container = $this->createMock(ContainerInterface::class);
