@@ -12,8 +12,7 @@ use stdClass;
 
 final class ListRoutesCommandDelegatorTest extends TestCase
 {
-    /** @noRector StringClassNameToClassConstantRector */
-    private const TOOLING_LIST_ROUTES_COMMAND = 'Mezzio\Tooling\Routes\ListRoutesCommand';
+    private const TOOLING_LIST_ROUTES_COMMAND = \Mezzio\Tooling\Routes\ListRoutesCommand::class;
 
     public function testReturnsOriginalCommandWhenOverrideDisabled(): void
     {

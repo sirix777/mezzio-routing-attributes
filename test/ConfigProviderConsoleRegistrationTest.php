@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace SirixTest\Mezzio\Routing\Attributes;
 
+use Mezzio\Tooling\Routes\ConfigLoaderInterface;
 use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use PHPUnit\Framework\TestCase;
 use Sirix\Mezzio\Routing\Attributes\Command\ClearRouteCacheCommand;
@@ -19,11 +20,8 @@ use function interface_exists;
 
 final class ConfigProviderConsoleRegistrationTest extends TestCase
 {
-    /** @noRector StringClassNameToClassConstantRector */
-    private const TOOLING_CONFIG_LOADER_INTERFACE = 'Mezzio\Tooling\Routes\ConfigLoaderInterface';
-
-    /** @noRector StringClassNameToClassConstantRector */
-    private const TOOLING_LIST_ROUTES_COMMAND = 'Mezzio\Tooling\Routes\ListRoutesCommand';
+    private const TOOLING_CONFIG_LOADER_INTERFACE = ConfigLoaderInterface::class;
+    private const TOOLING_LIST_ROUTES_COMMAND = \Mezzio\Tooling\Routes\ListRoutesCommand::class;
 
     #[RunInSeparateProcess]
     public function testDoesNotRegisterConsoleCommandWhenToolingClassesMissing(): void

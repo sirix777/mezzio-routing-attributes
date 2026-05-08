@@ -3,8 +3,6 @@
 declare(strict_types=1);
 
 use Rector\Config\RectorConfig;
-use Rector\Php74\Rector\Closure\ClosureToArrowFunctionRector;
-use Rector\Php55\Rector\String_\StringClassNameToClassConstantRector;
 use Rector\Set\ValueObject\LevelSetList;
 use Rector\Set\ValueObject\SetList;
 
@@ -22,17 +20,5 @@ return static function(RectorConfig $rectorConfig): void {
         SetList::DEAD_CODE,
         SetList::EARLY_RETURN,
         LevelSetList::UP_TO_PHP_82,
-    ]);
-
-    $rectorConfig->skip([
-        StringClassNameToClassConstantRector::class => [
-            __DIR__ . '/src/Command/ConsoleRegistrationPolicy.php',
-            __DIR__ . '/src/ConfigProvider.php',
-            __DIR__ . '/src/Command/ListRoutesCommandFactory.php',
-            __DIR__ . '/test/ConfigProviderConsoleRegistrationTest.php',
-            __DIR__ . '/test/ConfigProviderTest.php',
-            __DIR__ . '/test/Command/ListRoutesCommandDelegatorTest.php',
-            __DIR__ . '/test/Command/ListRoutesCommandFactoryTest.php',
-        ],
     ]);
 };

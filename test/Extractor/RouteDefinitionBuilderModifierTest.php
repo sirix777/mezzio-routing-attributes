@@ -24,6 +24,7 @@ final class RouteDefinitionBuilderModifierTest extends TestCase
             new RouteDataNormalizer()
         );
 
+        /** @var ReflectionClass<object> $reflection */
         $reflection = new ReflectionClass(ModifierHandler::class);
         $definitions = $builder->buildForClass($reflection, ModifierHandler::class);
 
