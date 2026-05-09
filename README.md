@@ -150,7 +150,7 @@ final class PingHandler implements RequestHandlerInterface
 ## Custom Attribute Modifiers
 
 You can create route-related attributes in your own package by implementing
-`Sirix\Mezzio\Routing\Attributes\Contract\RouteAttributeModifierInterface`.
+`Sirix\Mezzio\Routing\Contracts\RouteAttributeModifierInterface`.
 
 Example custom attribute:
 
@@ -158,7 +158,7 @@ Example custom attribute:
 namespace Acme\Routing\Attribute;
 
 use Attribute;
-use Sirix\Mezzio\Routing\Attributes\Contract\RouteAttributeModifierInterface;
+use Sirix\Mezzio\Routing\Contracts\RouteAttributeModifierInterface;
 
 #[Attribute(Attribute::TARGET_CLASS | Attribute::TARGET_METHOD | Attribute::IS_REPEATABLE)]
 final readonly class RequireTenant implements RouteAttributeModifierInterface
@@ -206,7 +206,7 @@ use Attribute;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Sirix\Mezzio\Routing\Attributes\Attribute\Get;
-use Sirix\Mezzio\Routing\Attributes\Contract\RouteAttributeModifierInterface;
+use Sirix\Mezzio\Routing\Contracts\RouteAttributeModifierInterface;
 
 #[Attribute]
 final readonly class DefaultFormat implements RouteAttributeModifierInterface

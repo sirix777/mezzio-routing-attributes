@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Until `1.0.0` is released, backward compatibility is not guaranteed. Public APIs and configuration may change between releases, including minor and patch releases.
 
+## [0.1.9] - 2026-05-09
+
+### Changed
+
+- Extracted `RouteAttributeModifierInterface` into a separate package `sirix/mezzio-routing-contracts`
+- Updated namespace from `Sirix\Mezzio\Routing\Attributes\Contract\RouteAttributeModifierInterface` to `Sirix\Mezzio\Routing\Contracts\RouteAttributeModifierInterface`
+
+### Removed
+
+- Removed local `RouteAttributeModifierInterface` in favor of the contracts package
+
 ## [0.1.8] - 2026-05-08
 
 ### Added

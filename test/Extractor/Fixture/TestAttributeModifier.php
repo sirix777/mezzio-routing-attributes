@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture;
 
 use Attribute;
-use Sirix\Mezzio\Routing\Attributes\Contract\RouteAttributeModifierInterface;
+use Sirix\Mezzio\Routing\Contracts\RouteAttributeModifierInterface;
 
 use function array_filter;
 use function array_map;

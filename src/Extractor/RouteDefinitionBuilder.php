@@ -8,8 +8,8 @@ use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionMethod;
 use Sirix\Mezzio\Routing\Attributes\Attribute\Route;
-use Sirix\Mezzio\Routing\Attributes\Contract\RouteAttributeModifierInterface;
 use Sirix\Mezzio\Routing\Attributes\RouteDefinition;
+use Sirix\Mezzio\Routing\Contracts\RouteAttributeModifierInterface;
 
 final readonly class RouteDefinitionBuilder
 {
