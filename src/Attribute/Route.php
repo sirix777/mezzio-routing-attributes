@@ -6,6 +6,9 @@ namespace Sirix\Mezzio\Routing\Attributes\Attribute;
 
 use Attribute;
 
+/**
+ * Generic route attribute.
+ */
 #[Attribute(Attribute::TARGET_CLASS | Attribute::TARGET_METHOD | Attribute::IS_REPEATABLE)]
 class Route
 {

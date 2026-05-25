@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace SirixTest\Mezzio\Routing\Attributes\Command;
 
+use const JSON_THROW_ON_ERROR;
+
 use Mezzio\Router\Route;
 use Mezzio\Router\RouteCollectorInterface;
 use PHPUnit\Framework\TestCase;
@@ -13,6 +15,7 @@ use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 use RuntimeException;
 use Sirix\Mezzio\Routing\Attributes\Command\ClosureRouteConfigLoader;
+use Sirix\Mezzio\Routing\Attributes\Command\ListRoutesCommand;
 use Sirix\Mezzio\Routing\Attributes\Command\NullRouteConfigLoader;
 use Sirix\Mezzio\Routing\Attributes\Command\RouteListFilter;
 use Sirix\Mezzio\Routing\Attributes\Command\RouteListFormatter;
@@ -22,6 +25,9 @@ use Sirix\Mezzio\Routing\Attributes\Command\RouteTableProvider;
 use Sirix\Mezzio\Routing\Attributes\MiddlewarePipelineFactory;
 use Sirix\Mezzio\Routing\Attributes\ServiceMiddlewareResolver;
 use SirixTest\Mezzio\Routing\Attributes\TestAsset\InMemoryContainer;
+use Symfony\Component\Console\Tester\CommandTester;
+
+use function json_decode;
 
 final class RouteListServicesTest extends TestCase
 {
@@ -77,6 +83,23 @@ final class RouteListServicesTest extends TestCase
 
         self::assertCount(1, $filtered);
         self::assertSame('users.create', $filtered[0]->getName());
+    }
+
+    public function testRouteListFilterReturnsEmptyWhenMethodDoesNotMatch(): void
+    {
+        $filter = new RouteListFilter(new RouteMiddlewareDisplayResolver());
+        $middleware = new class implements MiddlewareInterface {
+            public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
+            {
+                return $handler->handle($request);
+            }
+        };
+
+        $filtered = $filter->filter([
+            new Route('/users', $middleware, ['GET'], 'users.list'),
+        ], false, false, false, 'DELETE');
+
+        self::assertSame([], $filtered);
     }
 
     public function testRouteListFilterUsesAttributeMiddlewareDisplayForAttributeRoute(): void
@@ -267,5 +290,78 @@ final class RouteListServicesTest extends TestCase
 
         self::assertCount(1, $filtered);
         self::assertSame('lazy.single', $filtered[0]->getName());
+    }
+
+    public function testListRoutesCommandRendersJsonRows(): void
+    {
+        $middleware = new class implements MiddlewareInterface {
+            public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
+            {
+                return $handler->handle($request);
+            }
+        };
+        $route = new Route('/one', $middleware, ['GET'], 'route.one');
+        $route->setOptions([
+            RouteMiddlewareDisplayResolver::ROUTE_OPTION_MIDDLEWARE_DISPLAY => 'handler.one::process',
+        ]);
+
+        $tester = new CommandTester($this->createListRoutesCommand([$route]));
+
+        self::assertSame(0, $tester->execute(['--format' => 'json']));
+
+        $rows = json_decode($tester->getDisplay(), true, 512, JSON_THROW_ON_ERROR);
+        self::assertSame([
+            [
+                'name' => 'route.one',
+                'path' => '/one',
+                'methods' => 'GET',
+                'middleware' => 'handler.one::process',
+            ],
+        ], $rows);
+    }
+
+    public function testListRoutesCommandRendersTableRows(): void
+    {
+        $middleware = new class implements MiddlewareInterface {
+            public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
+            {
+                return $handler->handle($request);
+            }
+        };
+        $route = new Route('/one', $middleware, ['GET'], 'route.one');
+
+        $tester = new CommandTester($this->createListRoutesCommand([$route]));
+
+        self::assertSame(0, $tester->execute([]));
+
+        $display = $tester->getDisplay();
+        self::assertStringContainsString('Routes', $display);
+        self::assertStringContainsString('Name', $display);
+        self::assertStringContainsString('Path', $display);
+        self::assertStringContainsString('Methods', $display);
+        self::assertStringContainsString('Middleware', $display);
+        self::assertStringContainsString('route.one', $display);
+        self::assertStringContainsString('/one', $display);
+        self::assertStringContainsString('GET', $display);
+    }
+
+    /**
+     * @param list<Route> $routes
+     */
+    private function createListRoutesCommand(array $routes): ListRoutesCommand
+    {
+        $collector = $this->createMock(RouteCollectorInterface::class);
+        $collector
+            ->method('getRoutes')
+            ->willReturn($routes)
+        ;
+        $middlewareDisplayResolver = new RouteMiddlewareDisplayResolver();
+
+        return new ListRoutesCommand(
+            new RouteTableProvider($collector, new NullRouteConfigLoader()),
+            new RouteListFilter($middlewareDisplayResolver),
+            new RouteListSorter(),
+            new RouteListFormatter($middlewareDisplayResolver)
+        );
     }
 }

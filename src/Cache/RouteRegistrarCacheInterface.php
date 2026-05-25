@@ -8,6 +8,9 @@ use Mezzio\Router\RouteCollectorInterface;
 use Sirix\Mezzio\Routing\Attributes\MiddlewarePipelineFactory;
 use Sirix\Mezzio\Routing\Attributes\RouteDefinition;
 
+/**
+ * @internal
+ */
 interface RouteRegistrarCacheInterface
 {
     public function registerRoutes(RouteCollectorInterface $collector, MiddlewarePipelineFactory $pipelineFactory): bool;

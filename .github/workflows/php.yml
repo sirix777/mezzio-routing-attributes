@@ -34,10 +34,16 @@ jobs:
                   coverage: none
 
             - name: Validate composer.json
-              run: composer validate --strict --no-check-lock
+              run: composer validate --strict --no-check-lock --no-interaction
 
             - name: Install dependencies
               run: composer update --with "mezzio/mezzio-router:${{ matrix.mezzio-router.version }}" --prefer-dist --no-progress --no-interaction
+
+            - name: Run composer normalize
+              run: composer normalize
+
+            - name: Analyse dependencies
+              run: composer analyse-deps
 
             - name: Run cs-check
               run: composer cs-check
@@ -73,7 +79,7 @@ jobs:
                   coverage: pcov
 
             - name: Validate composer.json
-              run: composer validate --strict --no-check-lock
+              run: composer validate --strict --no-check-lock --no-interaction
 
             - name: Install dependencies
               run: composer update --with "mezzio/mezzio-router:^4.1" --prefer-dist --no-progress --no-interaction

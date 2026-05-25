@@ -3,9 +3,22 @@
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) for the documented `1.x` public API.
 
-Until `1.0.0` is released, backward compatibility is not guaranteed. Public APIs and configuration may change between releases, including minor and patch releases.
+## [Unreleased]
+
+### Added
+
+- Added stable public API documentation covering supported route attributes, configuration keys, the package `ConfigProvider`, optional CLI command names, and the custom attribute modifier contract
+- Added upgrade notes for applications moving from `0.1.x` to `1.0.0`
+- Added GitHub Actions checks for Composer normalization and dependency analysis
+- Added targeted release-hardening coverage for route cache loading/storage, cache/discovery factories, PHP class-name parsing, and route-list command output
+
+### Changed
+
+- Prepared first stable `1.0.0` release documentation without adding new feature scope
+- Documented internal package infrastructure interfaces with `@internal`
+- Refreshed benchmark baseline and README benchmark numbers on PHP `8.2.30`, with the fixture corpus and route counts documented
 
 ## [0.1.10] - 2026-05-25
 

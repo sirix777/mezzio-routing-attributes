@@ -106,4 +106,81 @@ final class PhpClassNameParserTest extends TestCase
 
         self::assertSame(['App\Handler\PingHandler'], $result);
     }
+
+    public function testParsesMultipleClassesInOneFile(): void
+    {
+        $file = $this->tempDir . '/MultipleClasses.php';
+        file_put_contents($file, <<<'PHP'
+            <?php
+            declare(strict_types=1);
+
+            namespace App\Handler;
+
+            final class FirstHandler {}
+
+            final class SecondHandler {}
+            PHP);
+
+        $result = (new PhpClassNameParser())->parse($file);
+
+        self::assertSame([
+            'App\Handler\FirstHandler',
+            'App\Handler\SecondHandler',
+        ], $result);
+    }
+
+    public function testIgnoresTraitsInterfacesAndEnums(): void
+    {
+        $file = $this->tempDir . '/NonClasses.php';
+        file_put_contents($file, <<<'PHP'
+            <?php
+            declare(strict_types=1);
+
+            namespace App\Handler;
+
+            trait RoutableTrait {}
+
+            interface RoutableInterface {}
+
+            enum RoutableEnum
+            {
+                case One;
+            }
+
+            final class ActualHandler {}
+            PHP);
+
+        $result = (new PhpClassNameParser())->parse($file);
+
+        self::assertSame(['App\Handler\ActualHandler'], $result);
+    }
+
+    public function testParsesBracketedNamespaceDeclarations(): void
+    {
+        $file = $this->tempDir . '/BracketedNamespaces.php';
+        file_put_contents($file, <<<'PHP'
+            <?php
+            declare(strict_types=1);
+
+            namespace App\Admin {
+                final class DashboardHandler {}
+            }
+
+            namespace App\Api {
+                final class PingHandler {}
+            }
+
+            namespace {
+                final class RootHandler {}
+            }
+            PHP);
+
+        $result = (new PhpClassNameParser())->parse($file);
+
+        self::assertSame([
+            'App\Admin\DashboardHandler',
+            'App\Api\PingHandler',
+            'RootHandler',
+        ], $result);
+    }
 }
