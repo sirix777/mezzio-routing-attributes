@@ -60,3 +60,30 @@ jobs:
                   path: |
                       benchmarks/report.md
                       benchmarks/report.json
+
+    coverage:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v5
+
+            - name: Setup PHP
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: "8.5"
+                  coverage: pcov
+
+            - name: Validate composer.json
+              run: composer validate --strict --no-check-lock
+
+            - name: Install dependencies
+              run: composer update --with "mezzio/mezzio-router:^4.1" --prefer-dist --no-progress --no-interaction
+
+            - name: Run coverage
+              run: composer coverage | tee coverage.txt
+
+            - name: Upload coverage artifact
+              if: always()
+              uses: actions/upload-artifact@v6
+              with:
+                  name: coverage-report
+                  path: coverage.txt

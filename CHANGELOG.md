@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 Until `1.0.0` is released, backward compatibility is not guaranteed. Public APIs and configuration may change between releases, including minor and patch releases.
 
+## [0.1.10] - 2026-05-25
+
+### Added
+
+- Added direct production requirements for `ext-tokenizer`, `psr/http-message`, and `psr/http-server-handler` to match symbols used by source code
+- Added `composer-dependency-analyser.php` configuration for guarded optional CLI and Mezzio Tooling integrations
+- Added `composer coverage` command backed by PCOV
+- Added a GitHub Actions coverage job that installs PCOV, prints coverage in the workflow log, and uploads `coverage.txt`
+- Added Composer `suggest` entries for optional CLI/tooling packages
+- Added regression coverage for compiled route cache generation:
+  - blank route names are restored as `null`
+  - duplicate compiled middleware signatures reuse the same middleware instance
+  - inline cache artifact generation is used at the inline route limit
+  - chunked cache artifact generation is used above the inline route limit
+- Added regression coverage ensuring class-level modifier attributes are instantiated once per class when multiple method-level routes are extracted
+
+### Changed
+
+- Class-level route modifier attributes are now collected once per class for method-level route extraction, reducing repeated reflection and attribute instantiation
+- `RouteCacheStorage::save()` now has an explicit best-effort `void` contract instead of returning a success flag that callers did not consume
+- README now documents optional CLI dependencies, PCOV coverage usage, and best-effort compiled cache writes
+- Dependency analysis now treats `laminas/laminas-cli`, `symfony/console`, and Mezzio Tooling classes as optional integrations instead of required runtime dependencies
+
+### Fixed
+
+- Fixed dependency analysis failures caused by undeclared direct runtime dependencies
+- Fixed misleading route cache storage return semantics when a temporary cache file could not be renamed into place
+
 ## [0.1.9] - 2026-05-09
 
 ### Changed

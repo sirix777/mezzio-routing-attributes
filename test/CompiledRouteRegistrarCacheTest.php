@@ -24,6 +24,7 @@ use function is_dir;
 use function is_file;
 use function mkdir;
 use function rmdir;
+use function spl_object_id;
 use function sys_get_temp_dir;
 use function uniqid;
 use function unlink;
@@ -238,6 +239,134 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
         self::assertSame(1, $collector->routeCalls);
     }
 
+    public function testCompiledCacheNormalizesBlankRouteName(): void
+    {
+        $cacheFile = $this->createCacheFilePath();
+        $this->cacheFiles[] = $cacheFile;
+        $cache = $this->createCache($cacheFile);
+
+        $cache->save([
+            new RouteDefinition('/compiled-blank-name', ['GET'], 'handler.service', 'process', [], '   '),
+        ]);
+
+        $collector = new class implements RouteCollectorInterface {
+            public mixed $lastName = 'not-called';
+
+            public function route(string $path, MiddlewareInterface $middleware, ?array $methods = null, ?string $name = null): Route
+            {
+                $this->lastName = $name;
+
+                return new Route($path, $middleware, $methods, $name);
+            }
+
+            public function get(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
+            {
+                return $this->route($path, $middleware, ['GET'], $name);
+            }
+
+            public function post(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
+            {
+                return $this->route($path, $middleware, ['POST'], $name);
+            }
+
+            public function put(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
+            {
+                return $this->route($path, $middleware, ['PUT'], $name);
+            }
+
+            public function patch(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
+            {
+                return $this->route($path, $middleware, ['PATCH'], $name);
+            }
+
+            public function delete(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
+            {
+                return $this->route($path, $middleware, ['DELETE'], $name);
+            }
+
+            public function any(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
+            {
+                return $this->route($path, $middleware, null, $name);
+            }
+
+            public function getRoutes(): array
+            {
+                return [];
+            }
+        };
+
+        self::assertTrue($cache->registerRoutes($collector, $this->createPipelineFactory([
+            'handler.service' => new TestMiddleware(),
+        ])));
+        self::assertNull($collector->lastName);
+    }
+
+    public function testCompiledCacheReusesMiddlewareForDuplicateSignatures(): void
+    {
+        $cacheFile = $this->createCacheFilePath();
+        $this->cacheFiles[] = $cacheFile;
+        $cache = $this->createCache($cacheFile);
+
+        $cache->save([
+            new RouteDefinition('/compiled/one', ['GET'], 'handler.service', 'process', ['mw.shared'], 'compiled.one'),
+            new RouteDefinition('/compiled/two', ['GET'], 'handler.service', 'process', ['mw.shared'], 'compiled.two'),
+        ]);
+
+        $collector = new class implements RouteCollectorInterface {
+            /** @var list<int> */
+            public array $middlewareIds = [];
+
+            public function route(string $path, MiddlewareInterface $middleware, ?array $methods = null, ?string $name = null): Route
+            {
+                $this->middlewareIds[] = spl_object_id($middleware);
+
+                return new Route($path, $middleware, $methods, $name);
+            }
+
+            public function get(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
+            {
+                return $this->route($path, $middleware, ['GET'], $name);
+            }
+
+            public function post(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
+            {
+                return $this->route($path, $middleware, ['POST'], $name);
+            }
+
+            public function put(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
+            {
+                return $this->route($path, $middleware, ['PUT'], $name);
+            }
+
+            public function patch(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
+            {
+                return $this->route($path, $middleware, ['PATCH'], $name);
+            }
+
+            public function delete(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
+            {
+                return $this->route($path, $middleware, ['DELETE'], $name);
+            }
+
+            public function any(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
+            {
+                return $this->route($path, $middleware, null, $name);
+            }
+
+            public function getRoutes(): array
+            {
+                return [];
+            }
+        };
+
+        self::assertTrue($cache->registerRoutes($collector, $this->createPipelineFactory([
+            'mw.shared' => new TestMiddleware(),
+            'handler.service' => new TestMiddleware(),
+        ])));
+        self::assertCount(2, $collector->middlewareIds);
+        self::assertSame($collector->middlewareIds[0], $collector->middlewareIds[1]);
+    }
+
     public function testPreservesExistingRouteOptionsWhenRegisteringFromCompiledCache(): void
     {
         $cacheFile = $this->createCacheFilePath();
@@ -381,6 +510,40 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
         self::assertTrue($cache->registerRoutes($collector, $pipelineFactory));
         self::assertSame(1200, $collector->routeCalls);
         self::assertStringContainsString('$compiledMiddlewares', (string) file_get_contents($cacheFile));
+    }
+
+    public function testCompiledCacheUsesInlineArtifactAtInlineLimit(): void
+    {
+        $cacheFile = $this->createCacheFilePath();
+        $this->cacheFiles[] = $cacheFile;
+        $cache = $this->createCache($cacheFile);
+
+        $routes = [];
+        for ($i = 1; $i <= 256; ++$i) {
+            $routes[] = new RouteDefinition('/inline/' . $i, ['GET'], 'handler.service', 'process', [], 'inline.route.' . $i);
+        }
+
+        $cache->save($routes);
+
+        $content = (string) file_get_contents($cacheFile);
+        self::assertStringContainsString('$compiledMiddlewares', $content);
+        self::assertStringNotContainsString('$routeChunks', $content);
+    }
+
+    public function testCompiledCacheUsesChunkedArtifactAboveInlineLimit(): void
+    {
+        $cacheFile = $this->createCacheFilePath();
+        $this->cacheFiles[] = $cacheFile;
+        $cache = $this->createCache($cacheFile);
+
+        $routes = [];
+        for ($i = 1; $i <= 257; ++$i) {
+            $routes[] = new RouteDefinition('/chunked/' . $i, ['GET'], 'handler.service', 'process', [], 'chunked.route.' . $i);
+        }
+
+        $cache->save($routes);
+
+        self::assertStringContainsString('$routeChunks', (string) file_get_contents($cacheFile));
     }
 
     public function testThrowsWhenPayloadIsMalformed(): void

@@ -21,8 +21,11 @@
     ],
     "require": {
         "php": "~8.2.0 || ~8.3.0 || ~8.4.0 || ~8.5.0",
+        "ext-tokenizer": "*",
         "mezzio/mezzio-router": "^3.15 || ^4.1",
         "psr/container": "^1.0 || ^2.0",
+        "psr/http-message": "^1.1 || ^2.0",
+        "psr/http-server-handler": "^1.0",
         "psr/http-server-middleware": "^1.0",
         "sirix/mezzio-routing-contracts": "^0.1.0"
     },
@@ -33,6 +36,11 @@
         "laminas/laminas-servicemanager": "^3.23",
         "phpunit/phpunit": "^11.5",
         "symfony/console": "^6.4 || ^7.0"
+    },
+    "suggest": {
+        "laminas/laminas-cli": "Enables routing-attributes CLI command registration.",
+        "mezzio/mezzio-tooling": "Enables integration with the Mezzio routes list command.",
+        "symfony/console": "Provides base Console command APIs used by the optional CLI commands."
     },
     "autoload": {
         "psr-4": {
@@ -72,6 +80,7 @@
             "@phpstan",
             "@test"
         ],
+        "coverage": "php -d pcov.enabled=1 -d pcov.directory=src vendor/bin/phpunit --coverage-text",
         "cs-check": "php tools/php-cs-fixer/vendor/bin/php-cs-fixer fix --dry-run -vvv --diff",
         "cs-fix": "php tools/php-cs-fixer/vendor/bin/php-cs-fixer fix -vvv",
         "normalize": "@composer bin composer-normalize normalize --diff ../../composer.json",

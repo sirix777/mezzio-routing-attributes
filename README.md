@@ -79,6 +79,16 @@ Supported `routing_attributes.cache` keys:
 
 The package registers its own factories through `ConfigProvider`; application handlers and middleware still need to be available in your container.
 
+## Optional CLI Support
+
+CLI command registration is enabled only when the optional console dependencies are installed.
+
+```bash
+composer require laminas/laminas-cli symfony/console
+```
+
+When `mezzio/mezzio-tooling` is available, the package can decorate the upstream routes list command. Without it, the package registers its own `mezzio:routes:list` alias when console support is available.
+
 ## Discovery Behavior
 
 - If `discovery.enabled=false`, only explicit `classes` are used.
@@ -90,6 +100,7 @@ The package registers its own factories through `ConfigProvider`; application ha
 
 - If `cache.enabled=true` and cache file exists, routes are registered from compiled cache.
 - If cache file is missing or invalid, routes are extracted/discovered and cache file is rebuilt.
+- Cache writes are best-effort: write failures do not break application boot, but they leave the next boot on the non-compiled path.
 - Cache format is optimized for startup speed and keeps middleware pipeline resolution lazy per service.
 - Ensure the cache directory is writable by the process that warms/rebuilds routes.
 
@@ -250,6 +261,14 @@ Run:
 composer benchmark
 composer benchmark-threshold
 ```
+
+Run test coverage with PCOV:
+
+```bash
+composer coverage
+```
+
+The coverage command requires the `pcov` PHP extension and runs PHPUnit with `pcov.enabled=1` and `pcov.directory=src`.
 
 Latest local run (`PHP 8.2.30`):
 

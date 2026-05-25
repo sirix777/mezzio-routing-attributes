@@ -18,21 +18,21 @@ use function unlink;
 
 final readonly class RouteCacheStorage
 {
-    public function save(string $cacheFile, string $content): bool
+    public function save(string $cacheFile, string $content): void
     {
         $directory = dirname($cacheFile);
         if (! is_dir($directory)) {
             $mkdirError = null;
             $mkdirResult = $this->mkdirWithCapturedError($directory, $mkdirError);
             if (! $mkdirResult && ! is_dir($directory)) {
-                return false;
+                return;
             }
         }
 
         $tmpFile = $cacheFile . '.tmp.' . uniqid('', true);
         $writeError = null;
         if (false === $this->filePutContentsWithCapturedError($tmpFile, $content, $writeError)) {
-            return false;
+            return;
         }
 
         $renameError = null;
@@ -40,8 +40,6 @@ final readonly class RouteCacheStorage
             $unlinkError = null;
             $this->unlinkWithCapturedError($tmpFile, $unlinkError);
         }
-
-        return true;
     }
 
     public function load(string $cacheFile): ?string

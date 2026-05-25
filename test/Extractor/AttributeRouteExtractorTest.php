@@ -19,7 +19,9 @@ use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\CallableActionInvalidR
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\CallableActionInvalidSignature;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\CallableActionInvalidUnionReturnType;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\CallableActionPrivateMethod;
+use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\CountingAttributeModifier;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\MethodRouteWithClassModifierHandler;
+use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\MultiMethodRouteWithClassModifierHandler;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\NotMiddleware;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\PingHandler;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\PingRequestHandler;
@@ -127,6 +129,21 @@ class AttributeRouteExtractorTest extends TestCase
         self::assertSame('method', $routes[0]->defaults['scope']);
         self::assertTrue($routes[0]->defaults['classOnly']);
         self::assertSame(1, $routes[0]->defaults['methodOnly']);
+    }
+
+    public function testCollectsClassModifierAttributesOnceForMethodRoutes(): void
+    {
+        CountingAttributeModifier::$instances = 0;
+
+        $extractor = $this->createExtractor();
+        $routes = $extractor->extract([MultiMethodRouteWithClassModifierHandler::class]);
+
+        self::assertCount(2, $routes);
+        self::assertSame(1, CountingAttributeModifier::$instances);
+        self::assertSame(['counting.modifier'], $routes[0]->middlewareServices);
+        self::assertSame(['counting.modifier'], $routes[1]->middlewareServices);
+        self::assertSame(['counting' => true], $routes[0]->defaults);
+        self::assertSame(['counting' => true], $routes[1]->defaults);
     }
 
     public function testAllowsCallableActionClassInCallableMode(): void

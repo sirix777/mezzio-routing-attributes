@@ -31,9 +31,10 @@ final readonly class RouteDefinitionBuilder
     }
 
     /**
-     * @param non-empty-string $className
-     * @param list<Route>      $classRoutes
-     * @param list<Route>      $methodRoutes
+     * @param non-empty-string                                         $className
+     * @param list<Route>                                              $classRoutes
+     * @param list<Route>                                              $methodRoutes
+     * @param null|array{list<non-empty-string>, array<string, mixed>} $classModifiers
      *
      * @return list<RouteDefinition>
      */
@@ -41,9 +42,10 @@ final readonly class RouteDefinitionBuilder
         ReflectionMethod $method,
         string $className,
         array $classRoutes,
-        array $methodRoutes
+        array $methodRoutes,
+        ?array $classModifiers = null
     ): array {
-        return $this->buildRouteDefinitions($method, $className, $classRoutes, $methodRoutes);
+        return $this->buildRouteDefinitions($method, $className, $classRoutes, $methodRoutes, $classModifiers);
     }
 
     /**
@@ -58,10 +60,22 @@ final readonly class RouteDefinitionBuilder
     }
 
     /**
-     * @param ReflectionClass<object>|ReflectionMethod $reflection
-     * @param non-empty-string                         $className
-     * @param list<Route>                              $classRoutes
-     * @param null|list<Route>                         $preloadedAttributes
+     * @param ReflectionClass<object> $classReflection
+     * @param non-empty-string        $className
+     *
+     * @return array{list<non-empty-string>, array<string, mixed>}
+     */
+    public function collectClassModifiers(ReflectionClass $classReflection, string $className): array
+    {
+        return $this->collectModifiers($classReflection, $className);
+    }
+
+    /**
+     * @param ReflectionClass<object>|ReflectionMethod                 $reflection
+     * @param non-empty-string                                         $className
+     * @param list<Route>                                              $classRoutes
+     * @param null|list<Route>                                         $preloadedAttributes
+     * @param null|array{list<non-empty-string>, array<string, mixed>} $preloadedClassModifiers
      *
      * @return list<RouteDefinition>
      */
@@ -69,7 +83,8 @@ final readonly class RouteDefinitionBuilder
         ReflectionClass|ReflectionMethod $reflection,
         string $className,
         array $classRoutes = [],
-        ?array $preloadedAttributes = null
+        ?array $preloadedAttributes = null,
+        ?array $preloadedClassModifiers = null
     ): array {
         $routes = [];
         $attributes = $preloadedAttributes ?? $this->attributeReader->forReflection($reflection);
@@ -79,11 +94,8 @@ final readonly class RouteDefinitionBuilder
 
         [$modifierMiddleware, $modifierDefaults] = $this->collectModifiers($reflection, $className);
         if ($reflection instanceof ReflectionMethod) {
-            $classReflection = $reflection->getDeclaringClass();
-            [$classModifierMiddleware, $classModifierDefaults] = $this->collectModifiers(
-                $classReflection,
-                $className
-            );
+            [$classModifierMiddleware, $classModifierDefaults] = $preloadedClassModifiers
+                ?? $this->collectModifiers($reflection->getDeclaringClass(), $className);
 
             $modifierMiddleware = [
                 ...$classModifierMiddleware,
