@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Prepared first stable `1.0.0` release documentation without adding new feature scope
+- Updated `sirix/mezzio-routing-contracts` requirement to stable `^1.0`
 - Documented internal package infrastructure interfaces with `@internal`
 - Refreshed benchmark baseline and README benchmark numbers on PHP `8.2.30`, with the fixture corpus and route counts documented
 
