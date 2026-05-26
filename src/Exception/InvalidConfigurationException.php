@@ -10,6 +10,9 @@ use Mezzio\Router\RouteCollectorInterface;
 use function get_debug_type;
 use function sprintf;
 
+/**
+ * Base exception for invalid package configuration and compiled cache payloads.
+ */
 class InvalidConfigurationException extends InvalidArgumentException
 {
     public static function invalidConfigType(mixed $config): self

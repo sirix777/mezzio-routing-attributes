@@ -6,6 +6,9 @@ namespace Sirix\Mezzio\Routing\Attributes\Extractor;
 
 use Sirix\Mezzio\Routing\Attributes\RouteDefinition;
 
+/**
+ * @internal
+ */
 interface AttributeRouteExtractorInterface
 {
     /**

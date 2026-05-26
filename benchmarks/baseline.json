@@ -1,7 +1,14 @@
 {
     "php_version": "8.2.30",
-    "timestamp": "2026-05-07T09:36:46+00:00",
+    "timestamp": "2026-05-25T08:18:03+00:00",
     "iterations": 100,
+    "benchmark_context": {
+        "provider_command": "php8.2 benchmarks/route-provider-benchmark.php",
+        "threshold_command": "php8.2 benchmarks/route-cache-threshold-benchmark.php",
+        "discovery_fixture_path": "test/Extractor/Fixture",
+        "manual_route_calls": 2,
+        "discovery_route_calls": 10
+    },
     "scenario_notes": {
         "warm_cache_hit_manual": "Route cache hit with explicit class list. Primary signal for route-cache load-path memory.",
         "no_cache_manual": "Manual class list without route cache. Lower-bound reference for registration overhead.",
@@ -11,63 +18,63 @@
     },
     "scenarios": {
         "warm_cache_hit_manual": {
-            "avg_ms": 0.0026,
-            "median_ms": 0.0025,
-            "min_ms": 0.0019,
-            "max_ms": 0.0131,
+            "avg_ms": 0.002,
+            "median_ms": 0.0018,
+            "min_ms": 0.0018,
+            "max_ms": 0.0066,
             "avg_peak_memory_usage_kb": 2.0156,
             "median_peak_memory_usage_kb": 2.0156,
             "max_peak_memory_usage_kb": 2.0156,
             "avg_route_calls": 2
         },
         "no_cache_manual": {
-            "avg_ms": 0.0101,
-            "median_ms": 0.0092,
-            "min_ms": 0.0072,
-            "max_ms": 0.063,
+            "avg_ms": 0.0092,
+            "median_ms": 0.0074,
+            "min_ms": 0.0073,
+            "max_ms": 0.1084,
             "avg_peak_memory_usage_kb": 3.4453,
             "median_peak_memory_usage_kb": 3.4453,
             "max_peak_memory_usage_kb": 3.4453,
             "avg_route_calls": 2
         },
         "cold_cache_rebuild_manual": {
-            "avg_ms": 0.1452,
-            "median_ms": 0.0834,
-            "min_ms": 0.0437,
-            "max_ms": 2.5545,
+            "avg_ms": 0.0697,
+            "median_ms": 0.0351,
+            "min_ms": 0.0317,
+            "max_ms": 1.8094,
             "avg_peak_memory_usage_kb": 5.9063,
             "median_peak_memory_usage_kb": 5.9063,
             "max_peak_memory_usage_kb": 5.9063,
             "avg_route_calls": 2
         },
         "warm_cache_hit_discovery_token": {
-            "avg_ms": 0.0041,
-            "median_ms": 0.0036,
-            "min_ms": 0.0031,
-            "max_ms": 0.0094,
-            "avg_peak_memory_usage_kb": 3.1406,
-            "median_peak_memory_usage_kb": 3.1406,
-            "max_peak_memory_usage_kb": 3.1406,
-            "avg_route_calls": 4
+            "avg_ms": 0.0117,
+            "median_ms": 0.0106,
+            "min_ms": 0.0103,
+            "max_ms": 0.0714,
+            "avg_peak_memory_usage_kb": 7.8906,
+            "median_peak_memory_usage_kb": 7.8906,
+            "max_peak_memory_usage_kb": 7.8906,
+            "avg_route_calls": 10
         },
         "warm_cache_hit_discovery_psr4": {
-            "avg_ms": 0.0038,
-            "median_ms": 0.0034,
-            "min_ms": 0.0031,
-            "max_ms": 0.0083,
-            "avg_peak_memory_usage_kb": 3.1406,
-            "median_peak_memory_usage_kb": 3.1406,
-            "max_peak_memory_usage_kb": 3.1406,
-            "avg_route_calls": 4
+            "avg_ms": 0.011,
+            "median_ms": 0.0106,
+            "min_ms": 0.0103,
+            "max_ms": 0.0255,
+            "avg_peak_memory_usage_kb": 7.8906,
+            "median_peak_memory_usage_kb": 7.8906,
+            "max_peak_memory_usage_kb": 7.8906,
+            "avg_route_calls": 10
         }
     },
     "budget": {
         "cache_hit_regression_max_percent": 5
     },
     "comparison": {
-        "baseline_warm_cache_hit_manual_median_ms": 0.0019,
-        "current_warm_cache_hit_manual_median_ms": 0.0025,
-        "regression_percent": 31.58,
-        "within_budget": false
+        "baseline_warm_cache_hit_manual_median_ms": 0.0018,
+        "current_warm_cache_hit_manual_median_ms": 0.0018,
+        "regression_percent": 0,
+        "within_budget": true
     }
 }
