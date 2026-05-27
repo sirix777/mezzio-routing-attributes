@@ -29,7 +29,7 @@ use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\StackedHandler;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\StackFirstMiddleware;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\StackSecondMiddleware;
 
-class AttributeRouteExtractorTest extends TestCase
+final class AttributeRouteExtractorTest extends TestCase
 {
     public function testExtractsClassLevelRouteAttributes(): void
     {

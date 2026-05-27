@@ -9,6 +9,7 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
+use Sirix\Mezzio\Routing\Attributes\Exception\InvalidServiceDefinitionException;
 use Sirix\Mezzio\Routing\Attributes\MethodInvokerMiddleware;
 use Sirix\Mezzio\Routing\Attributes\RequestHandlerMiddleware;
 use Sirix\Mezzio\Routing\Attributes\ServiceMiddlewareResolver;
@@ -83,5 +84,30 @@ final class ServiceMiddlewareResolverTest extends TestCase
         $handler->expects(self::once())->method('handle')->with($request)->willReturn($response);
 
         $result->process($request, $handler);
+    }
+
+    public function testThrowsWhenServiceIsNotAnObject(): void
+    {
+        $this->expectException(InvalidServiceDefinitionException::class);
+
+        $this->resolver->resolve('service', 'not-an-object', 'process');
+    }
+
+    public function testThrowsWhenMethodDoesNotExist(): void
+    {
+        $this->expectException(InvalidServiceDefinitionException::class);
+
+        $this->resolver->resolve('service', new class {}, 'missing');
+    }
+
+    public function testThrowsWhenMethodIsNotPublic(): void
+    {
+        $service = new class {
+            protected function hidden(): void {}
+        };
+
+        $this->expectException(InvalidServiceDefinitionException::class);
+
+        $this->resolver->resolve('service', $service, 'hidden');
     }
 }
