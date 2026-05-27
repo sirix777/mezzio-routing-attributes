@@ -11,8 +11,8 @@ use function array_values;
 use function in_array;
 use function is_string;
 use function preg_match;
+use function preg_quote;
 use function sprintf;
-use function str_replace;
 use function stripos;
 use function strtoupper;
 
@@ -78,13 +78,13 @@ final readonly class RouteListFilter
     private function matches(string $subject, string $search): bool
     {
         return (bool) preg_match(
-            sprintf('/^%s/', str_replace('/', '\/', $search)),
+            sprintf('/^%s/', preg_quote($search, '/')),
             $subject,
         );
     }
 
     private function escapeNamespaceSeparatorForRegex(string $toMatch): string
     {
-        return str_replace('\\', '\\\\', $toMatch);
+        return preg_quote($toMatch, '/');
     }
 }

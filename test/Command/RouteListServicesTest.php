@@ -67,12 +67,7 @@ final class RouteListServicesTest extends TestCase
     public function testRouteListFilterFiltersByMethod(): void
     {
         $filter = new RouteListFilter(new RouteMiddlewareDisplayResolver());
-        $middleware = new class implements MiddlewareInterface {
-            public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
-            {
-                return $handler->handle($request);
-            }
-        };
+        $middleware = $this->createMiddleware();
         $routes = [
             new Route('/users', $middleware, ['GET'], 'users.list'),
             new Route('/users', $middleware, ['POST'], 'users.create'),
@@ -88,12 +83,7 @@ final class RouteListServicesTest extends TestCase
     public function testRouteListFilterReturnsEmptyWhenMethodDoesNotMatch(): void
     {
         $filter = new RouteListFilter(new RouteMiddlewareDisplayResolver());
-        $middleware = new class implements MiddlewareInterface {
-            public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
-            {
-                return $handler->handle($request);
-            }
-        };
+        $middleware = $this->createMiddleware();
 
         $filtered = $filter->filter([
             new Route('/users', $middleware, ['GET'], 'users.list'),
@@ -102,15 +92,36 @@ final class RouteListServicesTest extends TestCase
         self::assertSame([], $filtered);
     }
 
+    public function testRouteListFilterTreatsNameSearchAsLiteralPrefix(): void
+    {
+        $filter = new RouteListFilter(new RouteMiddlewareDisplayResolver());
+        $middleware = $this->createMiddleware();
+
+        $filtered = $filter->filter([
+            new Route('/users/1', $middleware, ['GET'], 'route[1].show'),
+        ], 'route[1]', false, false, false);
+
+        self::assertCount(1, $filtered);
+        self::assertSame('route[1].show', $filtered[0]->getName());
+    }
+
+    public function testRouteListFilterTreatsPathSearchAsLiteralPrefix(): void
+    {
+        $filter = new RouteListFilter(new RouteMiddlewareDisplayResolver());
+        $middleware = $this->createMiddleware();
+
+        $filtered = $filter->filter([
+            new Route('/users/{id}', $middleware, ['GET'], 'users.show'),
+        ], false, '/users/{id}', false, false);
+
+        self::assertCount(1, $filtered);
+        self::assertSame('users.show', $filtered[0]->getName());
+    }
+
     public function testRouteListFilterUsesAttributeMiddlewareDisplayForAttributeRoute(): void
     {
         $filter = new RouteListFilter(new RouteMiddlewareDisplayResolver());
-        $middleware = new class implements MiddlewareInterface {
-            public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
-            {
-                return $handler->handle($request);
-            }
-        };
+        $middleware = $this->createMiddleware();
         $route = new Route('/attribute', $middleware, ['GET'], 'attribute.route');
         $route->setOptions([
             'sirix_routing_attributes.middleware_display' => 'App\Middleware\PackageVersionHeaderMiddleware -> handler::handle',
@@ -152,12 +163,7 @@ final class RouteListServicesTest extends TestCase
     public function testRouteListSorterSortsByPath(): void
     {
         $sorter = new RouteListSorter();
-        $middleware = new class implements MiddlewareInterface {
-            public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
-            {
-                return $handler->handle($request);
-            }
-        };
+        $middleware = $this->createMiddleware();
         $routes = [
             new Route('/b', $middleware, ['GET'], 'b'),
             new Route('/a', $middleware, ['GET'], 'a'),
@@ -172,12 +178,7 @@ final class RouteListServicesTest extends TestCase
     public function testRouteListFormatterUsesAttributeMiddlewareDisplayWhenAvailable(): void
     {
         $formatter = new RouteListFormatter(new RouteMiddlewareDisplayResolver());
-        $middleware = new class implements MiddlewareInterface {
-            public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
-            {
-                return $handler->handle($request);
-            }
-        };
+        $middleware = $this->createMiddleware();
         $route = new Route('/x', $middleware, ['GET'], 'x');
         $route->setOptions([
             'sirix_routing_attributes.middleware_display' => 'mw.one -> handler::handle',
@@ -191,12 +192,7 @@ final class RouteListServicesTest extends TestCase
     public function testRouteListFormatterUsesOriginalMiddlewareClassForNonAttributeRoute(): void
     {
         $formatter = new RouteListFormatter(new RouteMiddlewareDisplayResolver());
-        $middleware = new class implements MiddlewareInterface {
-            public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
-            {
-                return $handler->handle($request);
-            }
-        };
+        $middleware = $this->createMiddleware();
         $route = new Route('/classic-demo', $middleware, ['GET'], 'classic.demo');
 
         $rows = $formatter->formatRows([$route]);
@@ -294,12 +290,7 @@ final class RouteListServicesTest extends TestCase
 
     public function testListRoutesCommandRendersJsonRows(): void
     {
-        $middleware = new class implements MiddlewareInterface {
-            public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
-            {
-                return $handler->handle($request);
-            }
-        };
+        $middleware = $this->createMiddleware();
         $route = new Route('/one', $middleware, ['GET'], 'route.one');
         $route->setOptions([
             RouteMiddlewareDisplayResolver::ROUTE_OPTION_MIDDLEWARE_DISPLAY => 'handler.one::process',
@@ -322,12 +313,7 @@ final class RouteListServicesTest extends TestCase
 
     public function testListRoutesCommandRendersTableRows(): void
     {
-        $middleware = new class implements MiddlewareInterface {
-            public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
-            {
-                return $handler->handle($request);
-            }
-        };
+        $middleware = $this->createMiddleware();
         $route = new Route('/one', $middleware, ['GET'], 'route.one');
 
         $tester = new CommandTester($this->createListRoutesCommand([$route]));
@@ -363,5 +349,15 @@ final class RouteListServicesTest extends TestCase
             new RouteListSorter(),
             new RouteListFormatter($middlewareDisplayResolver)
         );
+    }
+
+    private function createMiddleware(): MiddlewareInterface
+    {
+        return new class implements MiddlewareInterface {
+            public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
+            {
+                return $handler->handle($request);
+            }
+        };
     }
 }

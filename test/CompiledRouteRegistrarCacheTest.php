@@ -5,9 +5,7 @@ declare(strict_types=1);
 namespace SirixTest\Mezzio\Routing\Attributes;
 
 use Mezzio\Router\Route;
-use Mezzio\Router\RouteCollectorInterface;
 use PHPUnit\Framework\TestCase;
-use Psr\Http\Server\MiddlewareInterface;
 use Sirix\Mezzio\Routing\Attributes\Cache\RouteCacheGenerator;
 use Sirix\Mezzio\Routing\Attributes\Cache\RouteCacheLoader;
 use Sirix\Mezzio\Routing\Attributes\Cache\RouteCacheStorage;
@@ -17,6 +15,7 @@ use Sirix\Mezzio\Routing\Attributes\MiddlewarePipelineFactory;
 use Sirix\Mezzio\Routing\Attributes\RouteDefinition;
 use Sirix\Mezzio\Routing\Attributes\ServiceMiddlewareResolver;
 use SirixTest\Mezzio\Routing\Attributes\TestAsset\InMemoryContainer;
+use SirixTest\Mezzio\Routing\Attributes\TestAsset\RecordingRouteCollector;
 
 use function file_get_contents;
 use function file_put_contents;
@@ -24,7 +23,6 @@ use function is_dir;
 use function is_file;
 use function mkdir;
 use function rmdir;
-use function spl_object_id;
 use function sys_get_temp_dir;
 use function uniqid;
 use function unlink;
@@ -59,53 +57,7 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
             new RouteDefinition('/compiled', ['GET'], 'handler.service', 'process', ['mw.service'], 'compiled.route'),
         ]);
 
-        $collector = new class implements RouteCollectorInterface {
-            public int $routeCalls = 0;
-            public ?Route $lastRoute = null;
-
-            public function route(string $path, MiddlewareInterface $middleware, ?array $methods = null, ?string $name = null): Route
-            {
-                ++$this->routeCalls;
-                $this->lastRoute = new Route($path, $middleware, $methods, $name);
-
-                return $this->lastRoute;
-            }
-
-            public function get(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['GET'], $name);
-            }
-
-            public function post(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['POST'], $name);
-            }
-
-            public function put(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['PUT'], $name);
-            }
-
-            public function patch(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['PATCH'], $name);
-            }
-
-            public function delete(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['DELETE'], $name);
-            }
-
-            public function any(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, null, $name);
-            }
-
-            public function getRoutes(): array
-            {
-                return [];
-            }
-        };
+        $collector = new RecordingRouteCollector();
         $pipelineFactory = $this->createPipelineFactory([
             'mw.service' => new TestMiddleware(),
             'handler.service' => new TestMiddleware(),
@@ -124,51 +76,7 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
     public function testRegisterRoutesReturnsFalseWhenCacheFileMissing(): void
     {
         $cache = $this->createCache($this->createCacheFilePath());
-        $collector = new class implements RouteCollectorInterface {
-            public int $routeCalls = 0;
-
-            public function route(string $path, MiddlewareInterface $middleware, ?array $methods = null, ?string $name = null): Route
-            {
-                ++$this->routeCalls;
-
-                return new Route($path, $middleware, $methods, $name);
-            }
-
-            public function get(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['GET'], $name);
-            }
-
-            public function post(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['POST'], $name);
-            }
-
-            public function put(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['PUT'], $name);
-            }
-
-            public function patch(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['PATCH'], $name);
-            }
-
-            public function delete(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['DELETE'], $name);
-            }
-
-            public function any(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, null, $name);
-            }
-
-            public function getRoutes(): array
-            {
-                return [];
-            }
-        };
+        $collector = new RecordingRouteCollector();
         $pipelineFactory = $this->createPipelineFactory([]);
 
         self::assertFalse($cache->registerRoutes($collector, $pipelineFactory));
@@ -186,51 +94,7 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
             new RouteDefinition('/compiled', ['GET'], 'handler.service', 'process', [], 'compiled.route'),
         ]);
 
-        $collector = new class implements RouteCollectorInterface {
-            public int $routeCalls = 0;
-
-            public function route(string $path, MiddlewareInterface $middleware, ?array $methods = null, ?string $name = null): Route
-            {
-                ++$this->routeCalls;
-
-                return new Route($path, $middleware, $methods, $name);
-            }
-
-            public function get(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['GET'], $name);
-            }
-
-            public function post(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['POST'], $name);
-            }
-
-            public function put(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['PUT'], $name);
-            }
-
-            public function patch(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['PATCH'], $name);
-            }
-
-            public function delete(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['DELETE'], $name);
-            }
-
-            public function any(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, null, $name);
-            }
-
-            public function getRoutes(): array
-            {
-                return [];
-            }
-        };
+        $collector = new RecordingRouteCollector();
         $pipelineFactory = $this->createPipelineFactory([
             'handler.service' => new TestMiddleware(),
         ]);
@@ -249,51 +113,7 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
             new RouteDefinition('/compiled-blank-name', ['GET'], 'handler.service', 'process', [], '   '),
         ]);
 
-        $collector = new class implements RouteCollectorInterface {
-            public mixed $lastName = 'not-called';
-
-            public function route(string $path, MiddlewareInterface $middleware, ?array $methods = null, ?string $name = null): Route
-            {
-                $this->lastName = $name;
-
-                return new Route($path, $middleware, $methods, $name);
-            }
-
-            public function get(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['GET'], $name);
-            }
-
-            public function post(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['POST'], $name);
-            }
-
-            public function put(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['PUT'], $name);
-            }
-
-            public function patch(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['PATCH'], $name);
-            }
-
-            public function delete(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['DELETE'], $name);
-            }
-
-            public function any(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, null, $name);
-            }
-
-            public function getRoutes(): array
-            {
-                return [];
-            }
-        };
+        $collector = new RecordingRouteCollector();
 
         self::assertTrue($cache->registerRoutes($collector, $this->createPipelineFactory([
             'handler.service' => new TestMiddleware(),
@@ -312,52 +132,7 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
             new RouteDefinition('/compiled/two', ['GET'], 'handler.service', 'process', ['mw.shared'], 'compiled.two'),
         ]);
 
-        $collector = new class implements RouteCollectorInterface {
-            /** @var list<int> */
-            public array $middlewareIds = [];
-
-            public function route(string $path, MiddlewareInterface $middleware, ?array $methods = null, ?string $name = null): Route
-            {
-                $this->middlewareIds[] = spl_object_id($middleware);
-
-                return new Route($path, $middleware, $methods, $name);
-            }
-
-            public function get(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['GET'], $name);
-            }
-
-            public function post(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['POST'], $name);
-            }
-
-            public function put(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['PUT'], $name);
-            }
-
-            public function patch(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['PATCH'], $name);
-            }
-
-            public function delete(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['DELETE'], $name);
-            }
-
-            public function any(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, null, $name);
-            }
-
-            public function getRoutes(): array
-            {
-                return [];
-            }
-        };
+        $collector = new RecordingRouteCollector();
 
         self::assertTrue($cache->registerRoutes($collector, $this->createPipelineFactory([
             'mw.shared' => new TestMiddleware(),
@@ -377,53 +152,9 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
             new RouteDefinition('/compiled-options', ['GET'], 'handler.service', 'process', [], 'compiled.options.route'),
         ]);
 
-        $collector = new class implements RouteCollectorInterface {
-            public ?Route $lastRoute = null;
-
-            public function route(string $path, MiddlewareInterface $middleware, ?array $methods = null, ?string $name = null): Route
-            {
-                $route = new Route($path, $middleware, $methods, $name);
-                $route->setOptions(['existing_option' => 'keep-me']);
-                $this->lastRoute = $route;
-
-                return $route;
-            }
-
-            public function get(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['GET'], $name);
-            }
-
-            public function post(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['POST'], $name);
-            }
-
-            public function put(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['PUT'], $name);
-            }
-
-            public function patch(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['PATCH'], $name);
-            }
-
-            public function delete(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['DELETE'], $name);
-            }
-
-            public function any(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, null, $name);
-            }
-
-            public function getRoutes(): array
-            {
-                return [];
-            }
-        };
+        $collector = new RecordingRouteCollector(static function(Route $route): void {
+            $route->setOptions(['existing_option' => 'keep-me']);
+        });
 
         $pipelineFactory = $this->createPipelineFactory([
             'handler.service' => new TestMiddleware(),
@@ -457,51 +188,7 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
 
         $cache->save($routes);
 
-        $collector = new class implements RouteCollectorInterface {
-            public int $routeCalls = 0;
-
-            public function route(string $path, MiddlewareInterface $middleware, ?array $methods = null, ?string $name = null): Route
-            {
-                ++$this->routeCalls;
-
-                return new Route($path, $middleware, $methods, $name);
-            }
-
-            public function get(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['GET'], $name);
-            }
-
-            public function post(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['POST'], $name);
-            }
-
-            public function put(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['PUT'], $name);
-            }
-
-            public function patch(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['PATCH'], $name);
-            }
-
-            public function delete(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['DELETE'], $name);
-            }
-
-            public function any(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, null, $name);
-            }
-
-            public function getRoutes(): array
-            {
-                return [];
-            }
-        };
+        $collector = new RecordingRouteCollector();
         $pipelineFactory = $this->createPipelineFactory([
             'mw.shared' => new TestMiddleware(),
             'handler.service' => new TestMiddleware(),
@@ -565,47 +252,7 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
 
         $cache = $this->createCache($cacheFile);
 
-        $collector = new class implements RouteCollectorInterface {
-            public function route(string $path, MiddlewareInterface $middleware, ?array $methods = null, ?string $name = null): Route
-            {
-                return new Route($path, $middleware, $methods, $name);
-            }
-
-            public function get(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['GET'], $name);
-            }
-
-            public function post(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['POST'], $name);
-            }
-
-            public function put(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['PUT'], $name);
-            }
-
-            public function patch(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['PATCH'], $name);
-            }
-
-            public function delete(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['DELETE'], $name);
-            }
-
-            public function any(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, null, $name);
-            }
-
-            public function getRoutes(): array
-            {
-                return [];
-            }
-        };
+        $collector = new RecordingRouteCollector();
         $pipelineFactory = $this->createPipelineFactory([]);
 
         $this->expectException(InvalidConfigurationException::class);
@@ -636,53 +283,7 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
             new RouteDefinition('/compiled-defaults', ['GET'], 'handler.service', 'process', [], 'compiled.defaults.route', ['foo' => 'bar', 'num' => 42]),
         ]);
 
-        $collector = new class implements RouteCollectorInterface {
-            public int $routeCalls = 0;
-            public ?Route $lastRoute = null;
-
-            public function route(string $path, MiddlewareInterface $middleware, ?array $methods = null, ?string $name = null): Route
-            {
-                ++$this->routeCalls;
-                $this->lastRoute = new Route($path, $middleware, $methods, $name);
-
-                return $this->lastRoute;
-            }
-
-            public function get(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['GET'], $name);
-            }
-
-            public function post(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['POST'], $name);
-            }
-
-            public function put(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['PUT'], $name);
-            }
-
-            public function patch(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['PATCH'], $name);
-            }
-
-            public function delete(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['DELETE'], $name);
-            }
-
-            public function any(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, null, $name);
-            }
-
-            public function getRoutes(): array
-            {
-                return [];
-            }
-        };
+        $collector = new RecordingRouteCollector();
         $pipelineFactory = $this->createPipelineFactory([
             'handler.service' => new TestMiddleware(),
         ]);
