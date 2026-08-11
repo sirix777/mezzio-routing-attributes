@@ -39,7 +39,7 @@ class ConfigProviderTest extends TestCase
     public function testProviderReturnsExpectedConfiguration(): void
     {
         $provider = new ConfigProvider();
-        $config = $provider();
+        $config   = $provider();
 
         self::assertArrayHasKey('dependencies', $config);
         self::assertSame($provider->getDependencies(), $config['dependencies']);
@@ -47,7 +47,7 @@ class ConfigProviderTest extends TestCase
 
     public function testDependenciesContainFactoriesAndAliases(): void
     {
-        $provider = new ConfigProvider();
+        $provider     = new ConfigProvider();
         $dependencies = $provider->getDependencies();
 
         self::assertArrayHasKey('factories', $dependencies);
@@ -122,8 +122,8 @@ class ConfigProviderTest extends TestCase
 
     public function testRegistersConsoleAliasWhenLaminasCliAvailableWithoutTooling(): void
     {
-        $provider = new ConfigProvider(new ConsoleRegistrationPolicy(true, false));
-        $config = $provider();
+        $provider     = new ConfigProvider(new ConsoleRegistrationPolicy(true, false));
+        $config       = $provider();
         $dependencies = $provider->getDependencies();
 
         self::assertArrayHasKey('laminas-cli', $config);
@@ -140,8 +140,8 @@ class ConfigProviderTest extends TestCase
 
     public function testRegistersToolingDelegatorWhenToolingAvailable(): void
     {
-        $provider = new ConfigProvider(new ConsoleRegistrationPolicy(true, true));
-        $config = $provider();
+        $provider     = new ConfigProvider(new ConsoleRegistrationPolicy(true, true));
+        $config       = $provider();
         $dependencies = $provider->getDependencies();
 
         self::assertArrayHasKey('laminas-cli', $config);

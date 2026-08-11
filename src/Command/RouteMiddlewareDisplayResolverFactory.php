@@ -12,7 +12,7 @@ final class RouteMiddlewareDisplayResolverFactory
     public function __invoke(ContainerInterface $container): RouteMiddlewareDisplayResolver
     {
         $rootConfig = $container->has('config') ? $container->get('config') : [];
-        $config = RoutingAttributesConfig::fromRootConfig($rootConfig);
+        $config     = RoutingAttributesConfig::fromRootConfig($rootConfig);
 
         return new RouteMiddlewareDisplayResolver($config->classicRoutesMiddlewareDisplay);
     }

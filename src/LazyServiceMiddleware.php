@@ -24,7 +24,7 @@ final class LazyServiceMiddleware implements MiddlewareInterface
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
         if (! $this->resolved instanceof MiddlewareInterface) {
-            $service = $this->container->get($this->serviceName);
+            $service        = $this->container->get($this->serviceName);
             $this->resolved = $this->resolver->resolve($this->serviceName, $service, $this->methodName);
         }
 

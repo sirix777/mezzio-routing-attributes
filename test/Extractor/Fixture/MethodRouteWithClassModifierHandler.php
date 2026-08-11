@@ -10,7 +10,10 @@ use Psr\Http\Server\RequestHandlerInterface;
 use RuntimeException;
 use Sirix\Mezzio\Routing\Attributes\Attribute\Get;
 
-#[TestAttributeModifier(middleware: ['class.modifier'], defaults: ['scope' => 'class', 'classOnly' => true])]
+#[TestAttributeModifier(middleware: ['class.modifier'], defaults: [
+    'scope'     => 'class',
+    'classOnly' => true,
+])]
 final class MethodRouteWithClassModifierHandler implements RequestHandlerInterface
 {
     public function handle(ServerRequestInterface $request): ResponseInterface
@@ -19,7 +22,10 @@ final class MethodRouteWithClassModifierHandler implements RequestHandlerInterfa
     }
 
     #[Get('/method-modifier', name: 'method.modifier', middleware: ['route.middleware'])]
-    #[TestAttributeModifier(middleware: ['method.modifier'], defaults: ['scope' => 'method', 'methodOnly' => 1])]
+    #[TestAttributeModifier(middleware: ['method.modifier'], defaults: [
+        'scope'      => 'method',
+        'methodOnly' => 1,
+    ])]
     public function index(ServerRequestInterface $request): ResponseInterface
     {
         throw new RuntimeException('Not implemented in test fixture.');

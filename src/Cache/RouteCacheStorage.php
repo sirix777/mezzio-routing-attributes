@@ -22,14 +22,14 @@ final readonly class RouteCacheStorage
     {
         $directory = dirname($cacheFile);
         if (! is_dir($directory)) {
-            $mkdirError = null;
+            $mkdirError  = null;
             $mkdirResult = $this->mkdirWithCapturedError($directory, $mkdirError);
             if (! $mkdirResult && ! is_dir($directory)) {
                 return;
             }
         }
 
-        $tmpFile = $cacheFile . '.tmp.' . uniqid('', true);
+        $tmpFile    = $cacheFile . '.tmp.' . uniqid('', true);
         $writeError = null;
         if (false === $this->filePutContentsWithCapturedError($tmpFile, $content, $writeError)) {
             return;
@@ -49,7 +49,7 @@ final readonly class RouteCacheStorage
         }
 
         $requireError = null;
-        $payload = $this->requireWithCapturedError($cacheFile, $requireError);
+        $payload      = $this->requireWithCapturedError($cacheFile, $requireError);
 
         if (null === $requireError && is_array($payload)) {
             return $cacheFile;

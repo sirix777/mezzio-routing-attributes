@@ -8,6 +8,7 @@ use PHPUnit\Framework\TestCase;
 use Sirix\Mezzio\Routing\Attributes\Discovery\DiscoveryClassMapResolver;
 use Sirix\Mezzio\Routing\Attributes\Discovery\NullDiscoveredClassesResolver;
 use Sirix\Mezzio\Routing\Attributes\Factory\DiscoveryClassMapResolverFactory;
+use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\CallableActionController;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\NotMiddleware;
 use SirixTest\Mezzio\Routing\Attributes\TestAsset\InMemoryContainer;
 
@@ -61,7 +62,7 @@ final class DiscoveryClassMapResolverFactoryTest extends TestCase
                 'routing_attributes' => [
                     'discovery' => [
                         'enabled' => true,
-                        'paths' => [$this->tempDir],
+                        'paths'   => [$this->tempDir],
                     ],
                 ],
             ],
@@ -72,19 +73,23 @@ final class DiscoveryClassMapResolverFactoryTest extends TestCase
         self::assertInstanceOf(DiscoveryClassMapResolver::class, $resolver);
     }
 
-    public function testCallableHandlerModeAllowsPlainClassesDuringDiscovery(): void
+    public function testCallableHandlerModeDiscoversOnlyPlainClassesWithMethodRoutes(): void
     {
-        $fixture = __DIR__ . '/../Extractor/Fixture/NotMiddleware.php';
-        copy($fixture, $this->tempDir . '/' . basename($fixture));
+        foreach ([
+            __DIR__ . '/../Extractor/Fixture/NotMiddleware.php',
+            __DIR__ . '/../Extractor/Fixture/CallableActionController.php',
+        ] as $fixture) {
+            copy($fixture, $this->tempDir . '/' . basename($fixture));
+        }
         $container = new InMemoryContainer([
             'config' => [
                 'routing_attributes' => [
-                    'handlers' => [
+                    'handlers'  => [
                         'mode' => 'callable',
                     ],
                     'discovery' => [
                         'enabled' => true,
-                        'paths' => [$this->tempDir],
+                        'paths'   => [$this->tempDir],
                     ],
                 ],
             ],
@@ -92,6 +97,7 @@ final class DiscoveryClassMapResolverFactoryTest extends TestCase
 
         $classes = (new DiscoveryClassMapResolverFactory())($container)->resolve();
 
-        self::assertContains(NotMiddleware::class, $classes);
+        self::assertContains(CallableActionController::class, $classes);
+        self::assertNotContains(NotMiddleware::class, $classes);
     }
 }

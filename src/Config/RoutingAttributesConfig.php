@@ -47,12 +47,12 @@ final readonly class RoutingAttributesConfig
 
         self::assertRemovedRootOptions($routingAttributesConfig);
 
-        $classes = (new ClassesConfigParser())->parse($routingAttributesConfig);
-        $duplicateStrategy = (new DuplicateStrategyConfigParser())->parse($routingAttributesConfig);
-        $handlersMode = (new HandlersConfigParser())->parse($routingAttributesConfig);
+        $classes                        = (new ClassesConfigParser())->parse($routingAttributesConfig);
+        $duplicateStrategy              = (new DuplicateStrategyConfigParser())->parse($routingAttributesConfig);
+        $handlersMode                   = (new HandlersConfigParser())->parse($routingAttributesConfig);
         $classicRoutesMiddlewareDisplay = (new RouteListConfigParser())->parse($routingAttributesConfig);
-        $discovery = (new DiscoveryConfigParser())->parse($routingAttributesConfig);
-        $cache = (new CacheConfigParser())->parse($routingAttributesConfig);
+        $discovery                      = (new DiscoveryConfigParser())->parse($routingAttributesConfig);
+        $cache                          = (new CacheConfigParser())->parse($routingAttributesConfig);
 
         return new self(
             $classes,

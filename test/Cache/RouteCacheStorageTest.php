@@ -46,7 +46,7 @@ final class RouteCacheStorageTest extends TestCase
 
     public function testSaveIgnoresMkdirFailure(): void
     {
-        $baseFile = $this->createPath('mkdir-parent-file');
+        $baseFile      = $this->createPath('mkdir-parent-file');
         $this->paths[] = $baseFile;
         file_put_contents($baseFile, '');
 
@@ -59,7 +59,7 @@ final class RouteCacheStorageTest extends TestCase
 
     public function testSaveIgnoresWriteFailure(): void
     {
-        $directory = $this->createPath('write-disabled-dir');
+        $directory     = $this->createPath('write-disabled-dir');
         $this->paths[] = $directory;
         mkdir($directory, 0o775, true);
         chmod($directory, 0o555);
@@ -73,7 +73,7 @@ final class RouteCacheStorageTest extends TestCase
 
     public function testSaveCleansTemporaryFileWhenRenameFails(): void
     {
-        $cacheFile = $this->createPath('rename-target-dir');
+        $cacheFile     = $this->createPath('rename-target-dir');
         $this->paths[] = $cacheFile;
         mkdir($cacheFile, 0o775, true);
 

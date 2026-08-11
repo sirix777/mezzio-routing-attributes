@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) for the documented `1.x` public API.
 
+## [1.0.2] - 2026-08-11
+
+### Changed
+
+- Compiled-route cache defaults are now validated before cache generation and must be recursively scalar values, `null`, or arrays; unsupported values and recursive arrays are rejected with a configuration error instead of generating an unusable cache artifact.
+- Callable handler methods now validate the type of the downstream handler argument while continuing to allow trailing optional parameters that receive their declared default values.
+- Callable-mode discovery now includes plain classes only when they declare a method-level route attribute; unrelated classes are skipped.
+- Route-list filters now combine active name, path, middleware, and method criteria with AND semantics.
+
+### Fixed
+
+- Malformed compiled route-cache artifacts are treated as cache misses and rebuilt instead of failing application boot.
+- Duplicate-route detection now recognises overlapping HTTP method sets, including `ANY` routes, before registration reaches Mezzio.
+
+### Tests
+
+- Added regression coverage for malformed cache rebuilds, cache-compatible defaults, callable handler signatures, callable-mode discovery, overlapping duplicate routes, and combined route-list filters.
+
 ## [1.0.1] - 2026-05-27
 
 ### Fixed

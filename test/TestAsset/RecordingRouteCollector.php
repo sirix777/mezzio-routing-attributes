@@ -33,7 +33,7 @@ final class RecordingRouteCollector implements RouteCollectorInterface
     {
         ++$this->routeCalls;
         $this->middlewareIds[] = spl_object_id($middleware);
-        $this->lastName = $name;
+        $this->lastName        = $name;
 
         $route = new Route($path, $middleware, $methods, $name);
         if (null !== $this->configureRoute) {
@@ -41,7 +41,7 @@ final class RecordingRouteCollector implements RouteCollectorInterface
         }
 
         $this->lastRoute = $route;
-        $this->routes[] = $route;
+        $this->routes[]  = $route;
 
         return $route;
     }

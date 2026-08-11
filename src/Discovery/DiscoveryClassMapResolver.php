@@ -27,10 +27,10 @@ final readonly class DiscoveryClassMapResolver implements DiscoveredClassesResol
      */
     public function resolve(): array
     {
-        $files = $this->sortFilesByPath($this->fileInventory->collect());
+        $files    = $this->sortFilesByPath($this->fileInventory->collect());
         $classSet = [];
         foreach ($files as $fileEntry) {
-            $file = $fileEntry[0];
+            $file        = $fileEntry[0];
             $fileClasses = $this->resolveFileClasses($file);
             foreach ($this->routableClassFilter->filter($fileClasses) as $className) {
                 $classSet[$className] = true;

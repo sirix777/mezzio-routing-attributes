@@ -14,15 +14,15 @@ final class RoutingAttributesConfigTest extends TestCase
     {
         $config = RoutingAttributesConfig::fromRootConfig([
             'routing_attributes' => [
-                'classes' => ['App\Handler\PingHandler'],
+                'classes'            => ['App\Handler\PingHandler'],
                 'duplicate_strategy' => 'ignore',
-                'cache' => [
+                'cache'              => [
                     'enabled' => true,
-                    'file' => '/tmp/routes.php',
+                    'file'    => '/tmp/routes.php',
                 ],
-                'discovery' => [
+                'discovery'          => [
                     'enabled' => true,
-                    'paths' => ['/app/src/Handler'],
+                    'paths'   => ['/app/src/Handler'],
                 ],
             ],
         ]);
@@ -72,7 +72,7 @@ final class RoutingAttributesConfigTest extends TestCase
         $this->expectException(InvalidConfigurationException::class);
         RoutingAttributesConfig::fromRootConfig([
             'routing_attributes' => [
-                'classes' => [],
+                'classes'                 => [],
                 'lazy_service_resolution' => true,
             ],
         ]);
@@ -84,9 +84,9 @@ final class RoutingAttributesConfigTest extends TestCase
         RoutingAttributesConfig::fromRootConfig([
             'routing_attributes' => [
                 'classes' => [],
-                'cache' => [
-                    'enabled' => true,
-                    'file' => '/tmp/routes.php',
+                'cache'   => [
+                    'enabled'             => true,
+                    'file'                => '/tmp/routes.php',
                     'write_fail_strategy' => 'throw',
                 ],
             ],
@@ -99,10 +99,10 @@ final class RoutingAttributesConfigTest extends TestCase
         RoutingAttributesConfig::fromRootConfig([
             'routing_attributes' => [
                 'classes' => [],
-                'cache' => [
+                'cache'   => [
                     'enabled' => true,
-                    'file' => '/tmp/routes.php',
-                    'strict' => true,
+                    'file'    => '/tmp/routes.php',
+                    'strict'  => true,
                 ],
             ],
         ]);
@@ -114,9 +114,9 @@ final class RoutingAttributesConfigTest extends TestCase
         RoutingAttributesConfig::fromRootConfig([
             'routing_attributes' => [
                 'classes' => [],
-                'cache' => [
+                'cache'   => [
                     'enabled' => true,
-                    'file' => '/tmp/routes.php',
+                    'file'    => '/tmp/routes.php',
                     'backend' => 'invalid',
                 ],
             ],
@@ -129,10 +129,10 @@ final class RoutingAttributesConfigTest extends TestCase
         RoutingAttributesConfig::fromRootConfig([
             'routing_attributes' => [
                 'classes' => [],
-                'cache' => [
+                'cache'   => [
                     'enabled' => true,
-                    'mode' => 'compiled',
-                    'file' => '/tmp/routes.php',
+                    'mode'    => 'compiled',
+                    'file'    => '/tmp/routes.php',
                 ],
             ],
         ]);
@@ -143,10 +143,10 @@ final class RoutingAttributesConfigTest extends TestCase
         $this->expectException(InvalidConfigurationException::class);
         RoutingAttributesConfig::fromRootConfig([
             'routing_attributes' => [
-                'classes' => [],
+                'classes'   => [],
                 'discovery' => [
-                    'enabled' => true,
-                    'paths' => ['/app/src/Handler'],
+                    'enabled'         => true,
+                    'paths'           => ['/app/src/Handler'],
                     'class_map_cache' => [
                         'enabled' => true,
                     ],
@@ -159,7 +159,7 @@ final class RoutingAttributesConfigTest extends TestCase
     {
         $config = RoutingAttributesConfig::fromRootConfig([
             'routing_attributes' => [
-                'classes' => [],
+                'classes'  => [],
                 'handlers' => [
                     'mode' => 'callable',
                 ],
@@ -174,7 +174,7 @@ final class RoutingAttributesConfigTest extends TestCase
         $this->expectException(InvalidConfigurationException::class);
         RoutingAttributesConfig::fromRootConfig([
             'routing_attributes' => [
-                'classes' => [],
+                'classes'  => [],
                 'handlers' => [
                     'mode' => 'invalid',
                 ],
@@ -186,7 +186,7 @@ final class RoutingAttributesConfigTest extends TestCase
     {
         $config = RoutingAttributesConfig::fromRootConfig([
             'routing_attributes' => [
-                'classes' => [],
+                'classes'    => [],
                 'route_list' => [
                     'classic_routes_middleware_display' => 'resolved',
                 ],
@@ -201,7 +201,7 @@ final class RoutingAttributesConfigTest extends TestCase
         $this->expectException(InvalidConfigurationException::class);
         RoutingAttributesConfig::fromRootConfig([
             'routing_attributes' => [
-                'classes' => [],
+                'classes'    => [],
                 'route_list' => 'invalid',
             ],
         ]);
@@ -212,7 +212,7 @@ final class RoutingAttributesConfigTest extends TestCase
         $this->expectException(InvalidConfigurationException::class);
         RoutingAttributesConfig::fromRootConfig([
             'routing_attributes' => [
-                'classes' => [],
+                'classes'    => [],
                 'route_list' => [
                     'classic_routes_middleware_display' => 'invalid',
                 ],
@@ -225,11 +225,11 @@ final class RoutingAttributesConfigTest extends TestCase
         $config = RoutingAttributesConfig::fromRootConfig([
             'routing_attributes' => [
                 'classes' => [],
-                'cache' => [
-                    'enabled' => false,
-                    'mode' => 'invalid-but-ignored',
-                    'backend' => 'invalid-but-ignored',
-                    'strict' => 'invalid-but-ignored',
+                'cache'   => [
+                    'enabled'             => false,
+                    'mode'                => 'invalid-but-ignored',
+                    'backend'             => 'invalid-but-ignored',
+                    'strict'              => 'invalid-but-ignored',
                     'write_fail_strategy' => 'invalid-but-ignored',
                 ],
             ],
@@ -244,9 +244,9 @@ final class RoutingAttributesConfigTest extends TestCase
         $this->expectException(InvalidConfigurationException::class);
         RoutingAttributesConfig::fromRootConfig([
             'routing_attributes' => [
-                'classes' => [],
+                'classes'   => [],
                 'discovery' => [
-                    'enabled' => false,
+                    'enabled'         => false,
                     'class_map_cache' => [
                         'enabled' => false,
                     ],
@@ -259,13 +259,13 @@ final class RoutingAttributesConfigTest extends TestCase
     {
         $config = RoutingAttributesConfig::fromRootConfig([
             'routing_attributes' => [
-                'classes' => [],
+                'classes'   => [],
                 'discovery' => [
-                    'enabled' => true,
-                    'paths' => ['/app/src'],
+                    'enabled'  => true,
+                    'paths'    => ['/app/src'],
                     'strategy' => 'psr4',
-                    'psr4' => [
-                        'mappings' => [
+                    'psr4'     => [
+                        'mappings'          => [
                             '/app/src' => 'App\\',
                         ],
                         'fallback_to_token' => false,
@@ -276,7 +276,9 @@ final class RoutingAttributesConfigTest extends TestCase
 
         self::assertTrue($config->discoveryEnabled);
         self::assertSame('psr4', $config->discoveryStrategy);
-        self::assertSame(['/app/src' => 'App\\'], $config->discoveryPsr4Mappings);
+        self::assertSame([
+            '/app/src' => 'App\\',
+        ], $config->discoveryPsr4Mappings);
         self::assertFalse($config->discoveryPsr4FallbackToToken);
     }
 
@@ -285,10 +287,10 @@ final class RoutingAttributesConfigTest extends TestCase
         $this->expectException(InvalidConfigurationException::class);
         RoutingAttributesConfig::fromRootConfig([
             'routing_attributes' => [
-                'classes' => [],
+                'classes'   => [],
                 'discovery' => [
-                    'enabled' => true,
-                    'paths' => ['/app/src'],
+                    'enabled'  => true,
+                    'paths'    => ['/app/src'],
                     'strategy' => 'invalid',
                 ],
             ],
@@ -300,12 +302,12 @@ final class RoutingAttributesConfigTest extends TestCase
         $this->expectException(InvalidConfigurationException::class);
         RoutingAttributesConfig::fromRootConfig([
             'routing_attributes' => [
-                'classes' => [],
+                'classes'   => [],
                 'discovery' => [
-                    'enabled' => true,
-                    'paths' => ['/app/src'],
+                    'enabled'  => true,
+                    'paths'    => ['/app/src'],
                     'strategy' => 'psr4',
-                    'psr4' => [
+                    'psr4'     => [
                         'mappings' => [],
                     ],
                 ],
@@ -318,11 +320,11 @@ final class RoutingAttributesConfigTest extends TestCase
         $this->expectException(InvalidConfigurationException::class);
         RoutingAttributesConfig::fromRootConfig([
             'routing_attributes' => [
-                'classes' => [],
+                'classes'   => [],
                 'discovery' => [
                     'enabled' => true,
-                    'paths' => ['/app/src'],
-                    'psr4' => [
+                    'paths'   => ['/app/src'],
+                    'psr4'    => [
                         'fallback_to_token' => 'invalid',
                     ],
                 ],
@@ -335,12 +337,12 @@ final class RoutingAttributesConfigTest extends TestCase
         $this->expectException(InvalidConfigurationException::class);
         RoutingAttributesConfig::fromRootConfig([
             'routing_attributes' => [
-                'classes' => [],
+                'classes'   => [],
                 'discovery' => [
-                    'enabled' => true,
-                    'paths' => ['/app/src'],
+                    'enabled'  => true,
+                    'paths'    => ['/app/src'],
                     'strategy' => 'psr4',
-                    'psr4' => [
+                    'psr4'     => [
                         'mappings' => [
                             '' => 'App\\',
                         ],
@@ -355,12 +357,12 @@ final class RoutingAttributesConfigTest extends TestCase
         $this->expectException(InvalidConfigurationException::class);
         RoutingAttributesConfig::fromRootConfig([
             'routing_attributes' => [
-                'classes' => [],
+                'classes'   => [],
                 'discovery' => [
-                    'enabled' => true,
-                    'paths' => ['/app/src'],
+                    'enabled'  => true,
+                    'paths'    => ['/app/src'],
                     'strategy' => 'psr4',
-                    'psr4' => [
+                    'psr4'     => [
                         'mappings' => [
                             '/app/src' => '',
                         ],

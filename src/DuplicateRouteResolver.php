@@ -6,14 +6,12 @@ namespace Sirix\Mezzio\Routing\Attributes;
 
 use Sirix\Mezzio\Routing\Attributes\Exception\DuplicateRouteDefinitionException;
 
-use function array_map;
 use function implode;
-use function sort;
 use function strtoupper;
 
 final readonly class DuplicateRouteResolver
 {
-    public const STRATEGY_THROW = 'throw';
+    public const STRATEGY_THROW  = 'throw';
     public const STRATEGY_IGNORE = 'ignore';
 
     /**
@@ -28,9 +26,9 @@ final readonly class DuplicateRouteResolver
      */
     public function resolve(array $routes): array
     {
-        $filtered = [];
-        $names = [];
-        $signatures = [];
+        $filtered     = [];
+        $names        = [];
+        $routesByPath = [];
 
         foreach ($routes as $route) {
             if (null !== $route->name && isset($names[$route->name])) {
@@ -41,8 +39,7 @@ final readonly class DuplicateRouteResolver
                 continue;
             }
 
-            $signature = $this->createRouteSignature($route);
-            if (isset($signatures[$signature])) {
+            if ($this->hasOverlappingRoute($route, $routesByPath[$route->path] ?? [])) {
                 if (self::STRATEGY_THROW === $this->strategy) {
                     throw DuplicateRouteDefinitionException::duplicatePathAndMethods(
                         $route->path,
@@ -57,23 +54,46 @@ final readonly class DuplicateRouteResolver
                 $names[$route->name] = true;
             }
 
-            $signatures[$signature] = true;
-            $filtered[] = $route;
+            $routesByPath[$route->path][] = $route;
+            $filtered[]                   = $route;
         }
 
         return $filtered;
     }
 
-    private function createRouteSignature(RouteDefinition $route): string
+    /**
+     * @param list<RouteDefinition> $existingRoutes
+     */
+    private function hasOverlappingRoute(RouteDefinition $route, array $existingRoutes): bool
     {
-        if (null === $route->methods) {
-            return $route->path . '|ANY';
+        foreach ($existingRoutes as $existingRoute) {
+            if ($this->methodsOverlap($route->methods, $existingRoute->methods)) {
+                return true;
+            }
         }
 
-        $methods = array_map(strtoupper(...), $route->methods);
-        sort($methods);
+        return false;
+    }
 
-        return $route->path . '|' . implode(',', $methods);
+    /**
+     * @param null|list<non-empty-string> $leftMethods
+     * @param null|list<non-empty-string> $rightMethods
+     */
+    private function methodsOverlap(?array $leftMethods, ?array $rightMethods): bool
+    {
+        if (null === $leftMethods || null === $rightMethods) {
+            return true;
+        }
+
+        foreach ($leftMethods as $leftMethod) {
+            foreach ($rightMethods as $rightMethod) {
+                if (strtoupper($leftMethod) === strtoupper($rightMethod)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     /**
