@@ -37,7 +37,7 @@ final class AttributeRouteExtractorFactoryTest extends TestCase
         ]);
 
         $extractor = (new AttributeRouteExtractorFactory())($container);
-        $routes = $extractor->extract([CallableActionController::class]);
+        $routes    = $extractor->extract([CallableActionController::class]);
 
         self::assertCount(1, $routes);
         self::assertSame('index', $routes[0]->handlerMethod);

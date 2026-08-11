@@ -22,7 +22,7 @@ final class MiddlewarePipelineFactoryTest extends TestCase
     public function testReusesCompiledMiddlewareForSameSignature(): void
     {
         $factory = new MiddlewarePipelineFactory(new InMemoryContainer([
-            'mw.first' => new class implements MiddlewareInterface {
+            'mw.first'        => new class implements MiddlewareInterface {
                 public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
                 {
                     return $handler->handle($request);
@@ -36,7 +36,7 @@ final class MiddlewarePipelineFactoryTest extends TestCase
             },
         ]), new ServiceMiddlewareResolver());
 
-        $first = $factory->createFromCompiled('handler.service', 'process', ['mw.first']);
+        $first  = $factory->createFromCompiled('handler.service', 'process', ['mw.first']);
         $second = $factory->createFromCompiled('handler.service', 'process', ['mw.first']);
 
         self::assertSame($first, $second);
@@ -69,9 +69,9 @@ final class MiddlewarePipelineFactoryTest extends TestCase
                 ++$this->getCalls;
 
                 return match ($id) {
-                    'mw.first' => $this->firstMiddleware,
+                    'mw.first'        => $this->firstMiddleware,
                     'handler.service' => $this->handlerMiddleware,
-                    default => throw new RuntimeException('Unexpected service id: ' . $id),
+                    default           => throw new RuntimeException('Unexpected service id: ' . $id),
                 };
             }
 
@@ -80,12 +80,12 @@ final class MiddlewarePipelineFactoryTest extends TestCase
                 return in_array($id, ['mw.first', 'handler.service'], true);
             }
         };
-        $factory = new MiddlewarePipelineFactory($container, new ServiceMiddlewareResolver());
+        $factory  = new MiddlewarePipelineFactory($container, new ServiceMiddlewareResolver());
         $pipeline = $factory->createFromCompiled('handler.service', 'process', ['mw.first']);
 
         self::assertSame(0, $container->getCalls);
 
-        $request = $this->createMock(ServerRequestInterface::class);
+        $request  = $this->createMock(ServerRequestInterface::class);
         $response = $this->createMock(ResponseInterface::class);
         $terminal = new class($response) implements RequestHandlerInterface {
             public function __construct(private readonly ResponseInterface $response) {}

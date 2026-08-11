@@ -13,14 +13,14 @@ final class ClearRouteCacheCommandFactoryTest extends TestCase
 {
     public function testCreatesCommandFromConfiguration(): void
     {
-        $factory = new ClearRouteCacheCommandFactory();
+        $factory   = new ClearRouteCacheCommandFactory();
         $container = new InMemoryContainer([
             'config' => [
                 'routing_attributes' => [
                     'classes' => [],
-                    'cache' => [
+                    'cache'   => [
                         'enabled' => true,
-                        'file' => '/tmp/mezzio-routing-attributes.php',
+                        'file'    => '/tmp/mezzio-routing-attributes.php',
                     ],
                 ],
             ],

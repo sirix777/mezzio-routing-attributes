@@ -66,7 +66,7 @@ final class ListRoutesCommand extends Command
             $input->getOption('supports-method')
         );
         $routes = $this->routeListSorter->sort($routes, $input->getOption('sort'));
-        $rows = $this->routeListFormatter->formatRows($routes);
+        $rows   = $this->routeListFormatter->formatRows($routes);
 
         if ('json' === strtolower((string) $input->getOption('format'))) {
             $output->writeln(json_encode($rows, JSON_THROW_ON_ERROR), OutputInterface::OUTPUT_RAW);

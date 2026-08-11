@@ -12,7 +12,7 @@ final class ListRoutesCommandDelegator
 {
     public function __invoke(ContainerInterface $container, string $name, callable $callback): object
     {
-        $config = $container->has('config') ? $container->get('config') : [];
+        $config            = $container->has('config') ? $container->get('config') : [];
         $routingAttributes = is_array($config) && isset($config['routing_attributes']) && is_array($config['routing_attributes'])
             ? $config['routing_attributes']
             : [];

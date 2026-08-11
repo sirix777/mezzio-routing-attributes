@@ -40,17 +40,17 @@ final class RuntimePathTest extends TestCase
         $collector = $this->createMock(RouteCollectorInterface::class);
         $extractor = $this->createAttributeRouteExtractor();
         $container = new InMemoryContainer([
-            'config' => [
+            'config'                                  => [
                 'routing_attributes' => [
                     'classes' => [
                         PingHandler::class,
                     ],
                 ],
             ],
-            AttributeRouteExtractorInterface::class => $extractor,
-            PingHandler::class => new PingHandler(),
-            RouteRegistrarCacheInterface::class => new NullRouteRegistrarCache(),
-            DuplicateRouteResolver::class => new DuplicateRouteResolver('throw'),
+            AttributeRouteExtractorInterface::class   => $extractor,
+            PingHandler::class                        => new PingHandler(),
+            RouteRegistrarCacheInterface::class       => new NullRouteRegistrarCache(),
+            DuplicateRouteResolver::class             => new DuplicateRouteResolver('throw'),
             DiscoveredClassesResolverInterface::class => new NullDiscoveredClassesResolver(),
         ]);
         $container->set(
@@ -129,7 +129,7 @@ final class RuntimePathTest extends TestCase
         );
 
         $observedRoutes = [];
-        $collector = $this->createMock(RouteCollectorInterface::class);
+        $collector      = $this->createMock(RouteCollectorInterface::class);
         $collector
             ->expects(self::exactly(2))
             ->method('route')

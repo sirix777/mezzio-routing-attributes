@@ -21,7 +21,7 @@ use function interface_exists;
 final class ConfigProviderConsoleRegistrationTest extends TestCase
 {
     private const TOOLING_CONFIG_LOADER_INTERFACE = ConfigLoaderInterface::class;
-    private const TOOLING_LIST_ROUTES_COMMAND = \Mezzio\Tooling\Routes\ListRoutesCommand::class;
+    private const TOOLING_LIST_ROUTES_COMMAND     = \Mezzio\Tooling\Routes\ListRoutesCommand::class;
 
     #[RunInSeparateProcess]
     public function testDoesNotRegisterConsoleCommandWhenToolingClassesMissing(): void
@@ -34,8 +34,8 @@ final class ConfigProviderConsoleRegistrationTest extends TestCase
             self::markTestSkipped('Tooling classes are installed in this test environment.');
         }
 
-        $provider = new ConfigProvider();
-        $config = $provider();
+        $provider     = new ConfigProvider();
+        $config       = $provider();
         $dependencies = $provider->getDependencies();
 
         if (class_exists(Command::class)) {
@@ -70,8 +70,8 @@ final class ConfigProviderConsoleRegistrationTest extends TestCase
 
         require_once __DIR__ . '/Fixture/Mezzio/Tooling/Routes/ListRoutesCommand.php';
 
-        $provider = new ConfigProvider();
-        $config = $provider();
+        $provider     = new ConfigProvider();
+        $config       = $provider();
         $dependencies = $provider->getDependencies();
 
         self::assertArrayHasKey('laminas-cli', $config);

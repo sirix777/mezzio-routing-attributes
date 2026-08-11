@@ -22,7 +22,7 @@ final class RouteAttributeReader
 
         foreach ($reflection->getAttributes(Route::class, ReflectionAttribute::IS_INSTANCEOF) as $attribute) {
             /** @var Route $route */
-            $route = $attribute->newInstance();
+            $route        = $attribute->newInstance();
             $attributes[] = $route;
         }
 

@@ -38,10 +38,10 @@ final readonly class DiscoveryConfigParser
             throw InvalidConfigurationException::invalidDiscoveryEnabled($discoveryEnabled);
         }
 
-        $normalizedDiscoveryPaths = [];
-        $discoveryStrategy = 'token';
+        $normalizedDiscoveryPaths        = [];
+        $discoveryStrategy               = 'token';
         $normalizedDiscoveryPsr4Mappings = [];
-        $discoveryPsr4FallbackToToken = true;
+        $discoveryPsr4FallbackToToken    = true;
 
         if ($discoveryEnabled) {
             $discoveryPaths = $discoveryConfig['paths'] ?? [];
@@ -100,10 +100,10 @@ final readonly class DiscoveryConfigParser
         }
 
         return [
-            'enabled' => $discoveryEnabled,
-            'paths' => $normalizedDiscoveryPaths,
-            'strategy' => $discoveryStrategy,
-            'psr4Mappings' => $normalizedDiscoveryPsr4Mappings,
+            'enabled'             => $discoveryEnabled,
+            'paths'               => $normalizedDiscoveryPaths,
+            'strategy'            => $discoveryStrategy,
+            'psr4Mappings'        => $normalizedDiscoveryPsr4Mappings,
             'psr4FallbackToToken' => $discoveryPsr4FallbackToToken,
         ];
     }
