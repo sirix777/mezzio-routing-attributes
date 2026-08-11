@@ -25,7 +25,7 @@ final class AttributeRouteProviderFactory
     public function __invoke(ContainerInterface $container): AttributeRouteProvider
     {
         $rootConfig = $container->has('config') ? $container->get('config') : [];
-        $config = RoutingAttributesConfig::fromRootConfig($rootConfig);
+        $config     = RoutingAttributesConfig::fromRootConfig($rootConfig);
 
         $routeRegistrarCache = $container->get(RouteRegistrarCacheInterface::class);
 

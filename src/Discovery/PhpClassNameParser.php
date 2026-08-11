@@ -33,9 +33,9 @@ final class PhpClassNameParser
             return [];
         }
 
-        $tokens = token_get_all($content);
+        $tokens    = token_get_all($content);
         $namespace = '';
-        $classes = [];
+        $classes   = [];
 
         $count = count($tokens);
         for ($index = 0; $index < $count; ++$index) {
@@ -84,7 +84,7 @@ final class PhpClassNameParser
     private function readNamespace(array $tokens, int &$index): string
     {
         $namespace = '';
-        $count = count($tokens);
+        $count     = count($tokens);
 
         for ($cursor = $index + 1; $cursor < $count; ++$cursor) {
             $token = $tokens[$cursor];

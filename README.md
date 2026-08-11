@@ -140,6 +140,7 @@ When `mezzio/mezzio-tooling` is available, the package can decorate the upstream
 - If `discovery.enabled=true`, classes are discovered from `discovery.paths`.
 - If compiled cache is enabled and cache file already exists, discovery is skipped on boot.
 - Prefer discovery for development or cache warmup, not as the main production boot path.
+- In `handlers.mode=callable`, discovery includes plain classes only when they have a method-level route attribute; irrelevant plain classes are skipped. Explicit `classes` entries remain strict and must be PSR-15 handlers unless they define method routes in callable mode.
 - `strategy=token` parses PHP files without requiring PSR-4 path mappings.
 - `strategy=psr4` resolves class names from configured `discovery.psr4.mappings`; when `fallback_to_token=true`, files that cannot be mapped are parsed with the token strategy.
 
@@ -150,6 +151,7 @@ When `mezzio/mezzio-tooling` is available, the package can decorate the upstream
 - Cache writes are best-effort: write failures do not break application boot, but they leave the next boot on the non-compiled path.
 - Cache format is optimized for startup speed and keeps middleware pipeline resolution lazy per service.
 - Ensure the cache directory is writable by the process that warms/rebuilds routes.
+- With compiled cache enabled, route defaults must be recursively scalar, `null`, or arrays. Closures, resources, and objects are rejected before routes are registered. Without compiled cache, defaults remain unrestricted.
 
 ## Cache Clear Command
 
@@ -193,6 +195,25 @@ final class PingHandler implements RequestHandlerInterface
     public function handle(ServerRequestInterface $request): ResponseInterface
     {
         throw new \RuntimeException('Implement your response.');
+    }
+}
+```
+
+### Callable Handler Methods
+
+With `handlers.mode=callable`, a method route may accept the request alone or also receive the downstream handler. The invoker always supplies both arguments, so a declared second parameter (or a variadic parameter that captures it) must accept `RequestHandlerInterface`; untyped, `mixed`, `object`, and compatible union/intersection types are supported. Further declared parameters are allowed only when optional and receive their default values.
+
+```php
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
+use Psr\Http\Server\RequestHandlerInterface;
+
+final class ReportAction
+{
+    #[Get('/report')]
+    public function index(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
+    {
+        return $handler->handle($request);
     }
 }
 ```
@@ -309,6 +330,7 @@ Notes:
 - method-level defaults override class-level defaults on the same key;
 - middleware from modifiers is appended after middleware declared in `Route`/`Get` attributes.
 - defaults are passed to the Mezzio `Route::setOptions()` and can be used by the underlying router (like FastRoute) to fill missing optional placeholders.
+- when compiled cache is enabled, defaults are limited to cache-compatible values described in [Compiled Cache Behavior](#compiled-cache-behavior).
 
 ## Benchmarks
 

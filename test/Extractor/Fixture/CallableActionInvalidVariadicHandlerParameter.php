@@ -9,12 +9,12 @@ use Psr\Http\Message\ServerRequestInterface;
 use RuntimeException;
 use Sirix\Mezzio\Routing\Attributes\Attribute\Get;
 
-final class CallableActionController
+final class CallableActionInvalidVariadicHandlerParameter
 {
-    #[Get('/callable-action', name: 'callable.action')]
-    public function index(ServerRequestInterface $request): ResponseInterface
+    #[Get('/invalid-variadic-handler-parameter', name: 'callable.invalid-variadic-handler-parameter')]
+    public function index(ServerRequestInterface ...$arguments): ResponseInterface
     {
-        unset($request);
+        unset($arguments);
 
         throw new RuntimeException('Not implemented in test fixture.');
     }

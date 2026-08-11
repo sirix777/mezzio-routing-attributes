@@ -59,7 +59,7 @@ final class RouteCacheLoaderTest extends TestCase
 
     public function testLoadReusesPreviouslyLoadedArtifact(): void
     {
-        $cacheFile = $this->createCacheFilePath();
+        $cacheFile          = $this->createCacheFilePath();
         $this->cacheFiles[] = $cacheFile;
 
         file_put_contents(
@@ -78,7 +78,7 @@ final class RouteCacheLoaderTest extends TestCase
 
         $loader = new RouteCacheLoader();
 
-        $firstPayload = $loader->load($cacheFile);
+        $firstPayload  = $loader->load($cacheFile);
         $secondPayload = $loader->load($cacheFile);
 
         self::assertSame(1, $GLOBALS['sirix_route_cache_loader_require_count']);
@@ -94,7 +94,7 @@ final class RouteCacheLoaderTest extends TestCase
 
     public function testLoadThrowsWhenTopLevelValueIsNotArray(): void
     {
-        $cacheFile = $this->createCacheFilePath();
+        $cacheFile          = $this->createCacheFilePath();
         $this->cacheFiles[] = $cacheFile;
         file_put_contents(
             $cacheFile,
@@ -114,7 +114,7 @@ final class RouteCacheLoaderTest extends TestCase
 
     public function testLoadThrowsWhenRegisterKeyIsMissing(): void
     {
-        $cacheFile = $this->createCacheFilePath();
+        $cacheFile          = $this->createCacheFilePath();
         $this->cacheFiles[] = $cacheFile;
         file_put_contents(
             $cacheFile,
@@ -136,7 +136,7 @@ final class RouteCacheLoaderTest extends TestCase
 
     public function testLoadThrowsWhenRequireFails(): void
     {
-        $cacheFile = $this->createCacheFilePath();
+        $cacheFile          = $this->createCacheFilePath();
         $this->cacheFiles[] = $cacheFile;
         file_put_contents(
             $cacheFile,

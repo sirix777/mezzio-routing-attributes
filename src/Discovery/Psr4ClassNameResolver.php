@@ -26,7 +26,7 @@ final class Psr4ClassNameResolver
     public function __construct(array $mappings)
     {
         foreach ($mappings as $basePath => $baseNamespace) {
-            $normalizedPath = $this->normalizePath($basePath);
+            $normalizedPath      = $this->normalizePath($basePath);
             $normalizedNamespace = $this->normalizeNamespace($baseNamespace);
             if ('' === $normalizedPath) {
                 continue;

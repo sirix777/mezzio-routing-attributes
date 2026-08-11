@@ -6,6 +6,7 @@ namespace Sirix\Mezzio\Routing\Attributes\Exception;
 
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Psr\Http\Server\RequestHandlerInterface;
 
 use function sprintf;
 
@@ -55,7 +56,8 @@ final class InvalidRouteDefinitionException extends InvalidConfigurationExceptio
     public static function invalidMethodSignature(string $className, string $methodName): self
     {
         return new self(sprintf(
-            'Route method "%s::%s" must accept exactly one request argument (%s) or be variadic-compatible with one request argument.',
+            'Route method "%s::%s" must accept a request argument (%s), optionally followed by a handler argument, '
+            . 'or be variadic-compatible with both arguments.',
             $className,
             $methodName,
             ServerRequestInterface::class
@@ -70,6 +72,17 @@ final class InvalidRouteDefinitionException extends InvalidConfigurationExceptio
             $methodName,
             $parameterName,
             ServerRequestInterface::class
+        ));
+    }
+
+    public static function invalidMethodHandlerParameterType(string $className, string $methodName, string $parameterName): self
+    {
+        return new self(sprintf(
+            'Route method "%s::%s" has incompatible handler parameter "$%s"; the second argument or variadic capture must accept %s.',
+            $className,
+            $methodName,
+            $parameterName,
+            RequestHandlerInterface::class
         ));
     }
 

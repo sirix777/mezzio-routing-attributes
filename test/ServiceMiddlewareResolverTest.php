@@ -26,7 +26,7 @@ final class ServiceMiddlewareResolverTest extends TestCase
     public function testReturnsServiceDirectlyIfItIsMiddlewareAndMethodIsProcess(): void
     {
         $service = $this->createMock(MiddlewareInterface::class);
-        $result = $this->resolver->resolve('service', $service, 'process');
+        $result  = $this->resolver->resolve('service', $service, 'process');
 
         self::assertSame($service, $result);
     }
@@ -34,7 +34,7 @@ final class ServiceMiddlewareResolverTest extends TestCase
     public function testReturnsRequestHandlerMiddlewareIfServiceIsRequestHandlerAndMethodIsHandle(): void
     {
         $service = $this->createMock(RequestHandlerInterface::class);
-        $result = $this->resolver->resolve('service', $service, 'handle');
+        $result  = $this->resolver->resolve('service', $service, 'handle');
 
         self::assertInstanceOf(RequestHandlerMiddleware::class, $result);
     }
@@ -42,7 +42,7 @@ final class ServiceMiddlewareResolverTest extends TestCase
     public function testReturnsMethodInvokerMiddlewareForRegularClassIfMethodIsProcess(): void
     {
         $response = $this->createMock(ResponseInterface::class);
-        $service = new class($response) {
+        $service  = new class($response) {
             public function __construct(private readonly ResponseInterface $response) {}
 
             public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
@@ -59,7 +59,7 @@ final class ServiceMiddlewareResolverTest extends TestCase
     public function testReturnsMethodInvokerMiddlewareIfServiceIsMiddlewareButMethodIsNotProcess(): void
     {
         $response = $this->createMock(ResponseInterface::class);
-        $service = new class($response) implements MiddlewareInterface {
+        $service  = new class($response) implements MiddlewareInterface {
             public function __construct(private readonly ResponseInterface $response) {}
 
             public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
@@ -78,8 +78,8 @@ final class ServiceMiddlewareResolverTest extends TestCase
         self::assertInstanceOf(MethodInvokerMiddleware::class, $result);
 
         // Verification of execution:
-        $request = $this->createMock(ServerRequestInterface::class);
-        $handler = $this->createMock(RequestHandlerInterface::class);
+        $request  = $this->createMock(ServerRequestInterface::class);
+        $handler  = $this->createMock(RequestHandlerInterface::class);
         $response = $this->createMock(ResponseInterface::class);
         $handler->expects(self::once())->method('handle')->with($request)->willReturn($response);
 

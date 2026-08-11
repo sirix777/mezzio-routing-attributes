@@ -30,8 +30,8 @@ final readonly class AttributeRouteExtractor implements AttributeRouteExtractorI
             $this->classEligibilityValidator->assertClassExists($className, $index);
 
             /** @var class-string<object> $className */
-            $reflection = new ReflectionClass($className);
-            $classRoutes = $this->routeAttributeReader->forReflection($reflection);
+            $reflection   = new ReflectionClass($className);
+            $classRoutes  = $this->routeAttributeReader->forReflection($reflection);
             $methodRoutes = [];
 
             /** @var list<array{method: ReflectionMethod, attributes: list<Route>}> $methodsWithRouteAttributes */
@@ -44,7 +44,7 @@ final readonly class AttributeRouteExtractor implements AttributeRouteExtractorI
                 }
 
                 $methodsWithRouteAttributes[] = [
-                    'method' => $method,
+                    'method'     => $method,
                     'attributes' => $methodAttributes,
                 ];
             }

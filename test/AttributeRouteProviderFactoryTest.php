@@ -55,7 +55,7 @@ final class AttributeRouteProviderFactoryTest extends TestCase
     {
         $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
         $container = $this->createContainerWithMiddlewarePipeline([
-            'config' => [
+            'config'                                => [
                 'routing_attributes' => [
                     'classes' => [
                         'Foo\Bar\Baz',
@@ -86,7 +86,7 @@ final class AttributeRouteProviderFactoryTest extends TestCase
     {
         $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
         $container = new InMemoryContainer([
-            'config' => [
+            'config'                                => [
                 'routing_attributes' => [
                     'classes' => 'not-an-array',
                 ],
@@ -103,9 +103,9 @@ final class AttributeRouteProviderFactoryTest extends TestCase
     {
         $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
         $container = $this->createContainerWithMiddlewarePipeline([
-            'config' => [
+            'config'                                => [
                 'routing_attributes' => [
-                    'classes' => [
+                    'classes'            => [
                         'Foo\Bar\Baz',
                     ],
                     'duplicate_strategy' => 'ignore',
@@ -123,9 +123,9 @@ final class AttributeRouteProviderFactoryTest extends TestCase
     {
         $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
         $container = new InMemoryContainer([
-            'config' => [
+            'config'                                => [
                 'routing_attributes' => [
-                    'classes' => [
+                    'classes'            => [
                         'Foo\Bar\Baz',
                     ],
                     'duplicate_strategy' => 'invalid',
@@ -143,9 +143,9 @@ final class AttributeRouteProviderFactoryTest extends TestCase
     {
         $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
         $container = new InMemoryContainer([
-            'config' => [
+            'config'                                => [
                 'routing_attributes' => [
-                    'classes' => [
+                    'classes'                 => [
                         'Foo\Bar\Baz',
                     ],
                     'lazy_service_resolution' => true,
@@ -163,14 +163,14 @@ final class AttributeRouteProviderFactoryTest extends TestCase
     {
         $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
         $container = $this->createContainerWithMiddlewarePipeline([
-            'config' => [
+            'config'                                => [
                 'routing_attributes' => [
                     'classes' => [
                         'Foo\Bar\Baz',
                     ],
-                    'cache' => [
+                    'cache'   => [
                         'enabled' => true,
-                        'file' => '/tmp/mezzio-routing-attributes.php',
+                        'file'    => '/tmp/mezzio-routing-attributes.php',
                     ],
                 ],
             ],
@@ -186,14 +186,14 @@ final class AttributeRouteProviderFactoryTest extends TestCase
     {
         $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
         $container = new InMemoryContainer([
-            'config' => [
+            'config'                                => [
                 'routing_attributes' => [
                     'classes' => [
                         'Foo\Bar\Baz',
                     ],
-                    'cache' => [
+                    'cache'   => [
                         'enabled' => true,
-                        'file' => '/tmp/mezzio-routing-attributes-serialized.cache',
+                        'file'    => '/tmp/mezzio-routing-attributes-serialized.cache',
                         'backend' => 'serialize',
                     ],
                 ],
@@ -210,15 +210,15 @@ final class AttributeRouteProviderFactoryTest extends TestCase
     {
         $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
         $container = new InMemoryContainer([
-            'config' => [
+            'config'                                => [
                 'routing_attributes' => [
                     'classes' => [
                         'Foo\Bar\Baz',
                     ],
-                    'cache' => [
+                    'cache'   => [
                         'enabled' => true,
-                        'mode' => 'compiled',
-                        'file' => '/tmp/mezzio-routing-attributes-compiled.php',
+                        'mode'    => 'compiled',
+                        'file'    => '/tmp/mezzio-routing-attributes-compiled.php',
                     ],
                 ],
             ],
@@ -234,12 +234,12 @@ final class AttributeRouteProviderFactoryTest extends TestCase
     {
         $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
         $container = new InMemoryContainer([
-            'config' => [
+            'config'                                => [
                 'routing_attributes' => [
                     'classes' => [
                         'Foo\Bar\Baz',
                     ],
-                    'cache' => 'invalid',
+                    'cache'   => 'invalid',
                 ],
             ],
             AttributeRouteExtractorInterface::class => $extractor,
@@ -254,14 +254,14 @@ final class AttributeRouteProviderFactoryTest extends TestCase
     {
         $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
         $container = new InMemoryContainer([
-            'config' => [
+            'config'                                => [
                 'routing_attributes' => [
                     'classes' => [
                         'Foo\Bar\Baz',
                     ],
-                    'cache' => [
+                    'cache'   => [
                         'enabled' => 'yes',
-                        'file' => '/tmp/mezzio-routing-attributes.php',
+                        'file'    => '/tmp/mezzio-routing-attributes.php',
                     ],
                 ],
             ],
@@ -277,12 +277,12 @@ final class AttributeRouteProviderFactoryTest extends TestCase
     {
         $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
         $container = new InMemoryContainer([
-            'config' => [
+            'config'                                => [
                 'routing_attributes' => [
                     'classes' => [
                         'Foo\Bar\Baz',
                     ],
-                    'cache' => [
+                    'cache'   => [
                         'enabled' => true,
                     ],
                 ],
@@ -299,15 +299,15 @@ final class AttributeRouteProviderFactoryTest extends TestCase
     {
         $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
         $container = new InMemoryContainer([
-            'config' => [
+            'config'                                => [
                 'routing_attributes' => [
                     'classes' => [
                         'Foo\Bar\Baz',
                     ],
-                    'cache' => [
+                    'cache'   => [
                         'enabled' => true,
-                        'file' => '/tmp/mezzio-routing-attributes.php',
-                        'strict' => true,
+                        'file'    => '/tmp/mezzio-routing-attributes.php',
+                        'strict'  => true,
                     ],
                 ],
             ],
@@ -323,14 +323,14 @@ final class AttributeRouteProviderFactoryTest extends TestCase
     {
         $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
         $container = new InMemoryContainer([
-            'config' => [
+            'config'                                => [
                 'routing_attributes' => [
                     'classes' => [
                         'Foo\Bar\Baz',
                     ],
-                    'cache' => [
-                        'enabled' => true,
-                        'file' => '/tmp/mezzio-routing-attributes.php',
+                    'cache'   => [
+                        'enabled'             => true,
+                        'file'                => '/tmp/mezzio-routing-attributes.php',
                         'write_fail_strategy' => 'throw',
                     ],
                 ],
@@ -347,14 +347,14 @@ final class AttributeRouteProviderFactoryTest extends TestCase
     {
         $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
         $container = new InMemoryContainer([
-            'config' => [
+            'config'                                => [
                 'routing_attributes' => [
                     'classes' => [
                         'Foo\Bar\Baz',
                     ],
-                    'cache' => [
+                    'cache'   => [
                         'enabled' => true,
-                        'file' => '/tmp/mezzio-routing-attributes.php',
+                        'file'    => '/tmp/mezzio-routing-attributes.php',
                         'backend' => 'invalid',
                     ],
                 ],
@@ -371,15 +371,15 @@ final class AttributeRouteProviderFactoryTest extends TestCase
     {
         $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
         $container = new InMemoryContainer([
-            'config' => [
+            'config'                                => [
                 'routing_attributes' => [
                     'classes' => [
                         'Foo\Bar\Baz',
                     ],
-                    'cache' => [
+                    'cache'   => [
                         'enabled' => true,
-                        'mode' => 'runtime',
-                        'file' => '/tmp/mezzio-routing-attributes.php',
+                        'mode'    => 'runtime',
+                        'file'    => '/tmp/mezzio-routing-attributes.php',
                     ],
                 ],
             ],
@@ -393,19 +393,19 @@ final class AttributeRouteProviderFactoryTest extends TestCase
 
     public function testAllowsDiscoveryConfigurationWhenEnabled(): void
     {
-        $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
+        $extractor             = $this->createMock(AttributeRouteExtractorInterface::class);
         $resolverFromContainer = $this->createDiscoveryResolver();
-        $container = $this->createContainerWithMiddlewarePipeline([
-            'config' => [
+        $container             = $this->createContainerWithMiddlewarePipeline([
+            'config'                                  => [
                 'routing_attributes' => [
-                    'classes' => [],
+                    'classes'   => [],
                     'discovery' => [
                         'enabled' => true,
-                        'paths' => [$this->discoveryPath],
+                        'paths'   => [$this->discoveryPath],
                     ],
                 ],
             ],
-            AttributeRouteExtractorInterface::class => $extractor,
+            AttributeRouteExtractorInterface::class   => $extractor,
             DiscoveredClassesResolverInterface::class => $resolverFromContainer,
         ]);
 
@@ -416,7 +416,7 @@ final class AttributeRouteProviderFactoryTest extends TestCase
 
     public function testSkipsDiscoveryResolutionWhenCompiledCacheFileExists(): void
     {
-        $cacheFile = sys_get_temp_dir() . '/routing-attributes-discovery-skip-' . uniqid('', true) . '.php';
+        $cacheFile             = sys_get_temp_dir() . '/routing-attributes-discovery-skip-' . uniqid('', true) . '.php';
         $this->filesToDelete[] = $cacheFile;
         file_put_contents(
             $cacheFile,
@@ -431,16 +431,16 @@ final class AttributeRouteProviderFactoryTest extends TestCase
 
         $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
         $container = $this->createContainerWithMiddlewarePipeline([
-            'config' => [
+            'config'                                => [
                 'routing_attributes' => [
-                    'classes' => [],
-                    'cache' => [
+                    'classes'   => [],
+                    'cache'     => [
                         'enabled' => true,
-                        'file' => $cacheFile,
+                        'file'    => $cacheFile,
                     ],
                     'discovery' => [
                         'enabled' => true,
-                        'paths' => [$this->discoveryPath],
+                        'paths'   => [$this->discoveryPath],
                     ],
                 ],
             ],
@@ -454,25 +454,25 @@ final class AttributeRouteProviderFactoryTest extends TestCase
 
     public function testRunsDiscoveryResolutionWhenCompiledCacheFileIsMissing(): void
     {
-        $cacheFile = sys_get_temp_dir() . '/routing-attributes-discovery-run-' . uniqid('', true) . '.php';
-        $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
+        $cacheFile             = sys_get_temp_dir() . '/routing-attributes-discovery-run-' . uniqid('', true) . '.php';
+        $extractor             = $this->createMock(AttributeRouteExtractorInterface::class);
         $resolverFromContainer = $this->createDiscoveryResolver();
 
         $container = $this->createContainerWithMiddlewarePipeline([
-            'config' => [
+            'config'                                  => [
                 'routing_attributes' => [
-                    'classes' => [],
-                    'cache' => [
+                    'classes'   => [],
+                    'cache'     => [
                         'enabled' => true,
-                        'file' => $cacheFile,
+                        'file'    => $cacheFile,
                     ],
                     'discovery' => [
                         'enabled' => true,
-                        'paths' => [$this->discoveryPath],
+                        'paths'   => [$this->discoveryPath],
                     ],
                 ],
             ],
-            AttributeRouteExtractorInterface::class => $extractor,
+            AttributeRouteExtractorInterface::class   => $extractor,
             DiscoveredClassesResolverInterface::class => $resolverFromContainer,
         ]);
 
@@ -483,28 +483,28 @@ final class AttributeRouteProviderFactoryTest extends TestCase
 
     public function testRunsDiscoveryResolutionWhenCompiledCacheFileExistsButIsInvalid(): void
     {
-        $cacheFile = sys_get_temp_dir() . '/routing-attributes-discovery-invalid-' . uniqid('', true) . '.php';
+        $cacheFile             = sys_get_temp_dir() . '/routing-attributes-discovery-invalid-' . uniqid('', true) . '.php';
         $this->filesToDelete[] = $cacheFile;
         file_put_contents($cacheFile, "<?php\n\ndeclare(strict_types=1);\n\nreturn ['broken' => true];\n");
 
-        $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
+        $extractor             = $this->createMock(AttributeRouteExtractorInterface::class);
         $resolverFromContainer = $this->createDiscoveryResolver();
 
         $container = $this->createContainerWithMiddlewarePipeline([
-            'config' => [
+            'config'                                  => [
                 'routing_attributes' => [
-                    'classes' => [],
-                    'cache' => [
+                    'classes'   => [],
+                    'cache'     => [
                         'enabled' => true,
-                        'file' => $cacheFile,
+                        'file'    => $cacheFile,
                     ],
                     'discovery' => [
                         'enabled' => true,
-                        'paths' => [$this->discoveryPath],
+                        'paths'   => [$this->discoveryPath],
                     ],
                 ],
             ],
-            AttributeRouteExtractorInterface::class => $extractor,
+            AttributeRouteExtractorInterface::class   => $extractor,
             DiscoveredClassesResolverInterface::class => $resolverFromContainer,
         ]);
 
@@ -517,9 +517,9 @@ final class AttributeRouteProviderFactoryTest extends TestCase
     {
         $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
         $container = new InMemoryContainer([
-            'config' => [
+            'config'                                => [
                 'routing_attributes' => [
-                    'classes' => [],
+                    'classes'   => [],
                     'discovery' => 'invalid',
                 ],
             ],
@@ -535,12 +535,12 @@ final class AttributeRouteProviderFactoryTest extends TestCase
     {
         $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
         $container = new InMemoryContainer([
-            'config' => [
+            'config'                                => [
                 'routing_attributes' => [
-                    'classes' => [],
+                    'classes'   => [],
                     'discovery' => [
                         'enabled' => true,
-                        'paths' => [''],
+                        'paths'   => [''],
                     ],
                 ],
             ],
@@ -556,12 +556,12 @@ final class AttributeRouteProviderFactoryTest extends TestCase
     {
         $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
         $container = new InMemoryContainer([
-            'config' => [
+            'config'                                => [
                 'routing_attributes' => [
-                    'classes' => [],
+                    'classes'   => [],
                     'discovery' => [
-                        'enabled' => true,
-                        'paths' => [$this->discoveryPath],
+                        'enabled'         => true,
+                        'paths'           => [$this->discoveryPath],
                         'class_map_cache' => [
                             'validate' => 'yes',
                         ],
@@ -580,12 +580,12 @@ final class AttributeRouteProviderFactoryTest extends TestCase
     {
         $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
         $container = new InMemoryContainer([
-            'config' => [
+            'config'                                => [
                 'routing_attributes' => [
-                    'classes' => [],
+                    'classes'   => [],
                     'discovery' => [
-                        'enabled' => true,
-                        'paths' => [$this->discoveryPath],
+                        'enabled'         => true,
+                        'paths'           => [$this->discoveryPath],
                         'class_map_cache' => [
                             'write_fail_strategy' => 'invalid',
                         ],
@@ -621,8 +621,8 @@ final class AttributeRouteProviderFactoryTest extends TestCase
     private function defaultServices(): array
     {
         return [
-            RouteRegistrarCacheInterface::class => new NullRouteRegistrarCache(),
-            DuplicateRouteResolver::class => new DuplicateRouteResolver('throw'),
+            RouteRegistrarCacheInterface::class       => new NullRouteRegistrarCache(),
+            DuplicateRouteResolver::class             => new DuplicateRouteResolver('throw'),
             DiscoveredClassesResolverInterface::class => new NullDiscoveredClassesResolver(),
         ];
     }
@@ -633,7 +633,7 @@ final class AttributeRouteProviderFactoryTest extends TestCase
     private function createContainerWithMiddlewarePipeline(array $extraServices = []): InMemoryContainer
     {
         $baseServices = array_merge($this->defaultServices(), $extraServices);
-        $container = new InMemoryContainer($baseServices);
+        $container    = new InMemoryContainer($baseServices);
         $container->set(
             MiddlewarePipelineFactory::class,
             new MiddlewarePipelineFactory($container, new ServiceMiddlewareResolver())

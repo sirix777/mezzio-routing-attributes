@@ -61,7 +61,7 @@ final readonly class CacheConfigParser
 
         return [
             'enabled' => $cacheEnabled,
-            'file' => $cacheFile,
+            'file'    => $cacheFile,
         ];
     }
 }

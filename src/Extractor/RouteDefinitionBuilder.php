@@ -86,7 +86,7 @@ final readonly class RouteDefinitionBuilder
         ?array $preloadedAttributes = null,
         ?array $preloadedClassModifiers = null
     ): array {
-        $routes = [];
+        $routes     = [];
         $attributes = $preloadedAttributes ?? $this->attributeReader->forReflection($reflection);
         if ($reflection instanceof ReflectionMethod && [] !== $attributes) {
             $this->methodSignatureValidator->validate($reflection, $className);
@@ -149,7 +149,7 @@ final readonly class RouteDefinitionBuilder
     private function collectModifiers(ReflectionClass|ReflectionMethod $reflection, string $className): array
     {
         $middleware = [];
-        $defaults = [];
+        $defaults   = [];
 
         foreach ($reflection->getAttributes(RouteAttributeModifierInterface::class, ReflectionAttribute::IS_INSTANCEOF) as $attribute) {
             $instance = $attribute->newInstance();

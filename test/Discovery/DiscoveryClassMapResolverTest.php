@@ -71,7 +71,9 @@ final class DiscoveryClassMapResolverTest extends TestCase
     {
         $mappingNamespace = 'SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\\';
 
-        $result = $this->createResolver('psr4', [$this->tempDir => $mappingNamespace])->resolve();
+        $result = $this->createResolver('psr4', [
+            $this->tempDir => $mappingNamespace,
+        ])->resolve();
 
         self::assertContains(PingHandler::class, $result);
         self::assertContains(PingRequestHandler::class, $result);
@@ -80,7 +82,9 @@ final class DiscoveryClassMapResolverTest extends TestCase
 
     public function testFallsBackToTokenWhenPsr4CannotResolve(): void
     {
-        $result = $this->createResolver('psr4', [$this->tempDir => 'Invalid Namespace'], true)->resolve();
+        $result = $this->createResolver('psr4', [
+            $this->tempDir => 'Invalid Namespace',
+        ], true)->resolve();
 
         self::assertContains(PingHandler::class, $result);
         self::assertContains(PingRequestHandler::class, $result);
@@ -88,7 +92,9 @@ final class DiscoveryClassMapResolverTest extends TestCase
 
     public function testSkipsFileWhenPsr4CannotResolveAndFallbackDisabled(): void
     {
-        $result = $this->createResolver('psr4', [$this->tempDir => 'Invalid Namespace'], false)->resolve();
+        $result = $this->createResolver('psr4', [
+            $this->tempDir => 'Invalid Namespace',
+        ], false)->resolve();
 
         self::assertSame([], $result);
     }

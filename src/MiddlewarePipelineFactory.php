@@ -35,7 +35,7 @@ final class MiddlewarePipelineFactory
         );
 
         return [
-            'middleware' => $middleware,
+            'middleware'        => $middleware,
             'middlewareDisplay' => $this->buildMiddlewareDisplay(
                 $route->handlerService,
                 $route->handlerMethod,

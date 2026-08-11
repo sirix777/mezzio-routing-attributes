@@ -26,8 +26,12 @@ use Sirix\Mezzio\Routing\Attributes\Extractor\AttributeRouteExtractorInterface;
 use Sirix\Mezzio\Routing\Attributes\MiddlewarePipelineFactory;
 use Sirix\Mezzio\Routing\Attributes\RouteDefinition;
 use Sirix\Mezzio\Routing\Attributes\ServiceMiddlewareResolver;
+use SirixTest\Mezzio\Routing\Attributes\TestAsset\InMemoryContainer;
+use SirixTest\Mezzio\Routing\Attributes\TestAsset\RecordingRouteCollector;
 
 use function file_exists;
+use function file_get_contents;
+use function file_put_contents;
 use function sys_get_temp_dir;
 use function uniqid;
 use function unlink;
@@ -132,9 +136,9 @@ final class AttributeRouteProviderTest extends TestCase
 
     public function testPreservesExistingRouteOptionsWhenSettingMiddlewareDisplay(): void
     {
-        $container = $this->createMock(ContainerInterface::class);
-        $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
-        $collector = $this->createMock(RouteCollectorInterface::class);
+        $container       = $this->createMock(ContainerInterface::class);
+        $extractor       = $this->createMock(AttributeRouteExtractorInterface::class);
+        $collector       = $this->createMock(RouteCollectorInterface::class);
         $registeredRoute = null;
 
         $extractor
@@ -156,7 +160,9 @@ final class AttributeRouteProviderTest extends TestCase
                 ?string $name
             ) use (&$registeredRoute): Route {
                 $registeredRoute = new Route('/options', $middleware, ['GET'], 'options.route');
-                $registeredRoute->setOptions(['existing_option' => 'keep-me']);
+                $registeredRoute->setOptions([
+                    'existing_option' => 'keep-me',
+                ]);
 
                 return $registeredRoute;
             })
@@ -175,10 +181,10 @@ final class AttributeRouteProviderTest extends TestCase
 
     public function testBuildsPipelineForMultipleRouteMiddlewares(): void
     {
-        $container = $this->createMock(ContainerInterface::class);
-        $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
-        $collector = $this->createMock(RouteCollectorInterface::class);
-        $response = $this->createMock(ResponseInterface::class);
+        $container    = $this->createMock(ContainerInterface::class);
+        $extractor    = $this->createMock(AttributeRouteExtractorInterface::class);
+        $collector    = $this->createMock(RouteCollectorInterface::class);
+        $response     = $this->createMock(ResponseInterface::class);
         $finalHandler = new class($response) implements RequestHandlerInterface {
             public function __construct(private readonly ResponseInterface $response) {}
 
@@ -188,7 +194,7 @@ final class AttributeRouteProviderTest extends TestCase
             }
         };
         $request = $this->createMock(ServerRequestInterface::class);
-        $first = new class implements MiddlewareInterface {
+        $first   = new class implements MiddlewareInterface {
             public bool $called = false;
 
             public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
@@ -260,10 +266,10 @@ final class AttributeRouteProviderTest extends TestCase
 
     public function testLazyServiceResolutionDefersContainerLookupUntilRouteExecution(): void
     {
-        $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
-        $collector = $this->createMock(RouteCollectorInterface::class);
-        $request = $this->createMock(ServerRequestInterface::class);
-        $response = $this->createMock(ResponseInterface::class);
+        $extractor       = $this->createMock(AttributeRouteExtractorInterface::class);
+        $collector       = $this->createMock(RouteCollectorInterface::class);
+        $request         = $this->createMock(ServerRequestInterface::class);
+        $response        = $this->createMock(ResponseInterface::class);
         $fallbackHandler = new class($response) implements RequestHandlerInterface {
             public function __construct(private readonly ResponseInterface $response) {}
 
@@ -410,9 +416,9 @@ final class AttributeRouteProviderTest extends TestCase
 
     public function testThrowsWhenContainerServiceTypeIsInvalid(): void
     {
-        $container = $this->createMock(ContainerInterface::class);
-        $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
-        $collector = $this->createMock(RouteCollectorInterface::class);
+        $container            = $this->createMock(ContainerInterface::class);
+        $extractor            = $this->createMock(AttributeRouteExtractorInterface::class);
+        $collector            = $this->createMock(RouteCollectorInterface::class);
         $registeredMiddleware = null;
 
         $extractor
@@ -459,11 +465,11 @@ final class AttributeRouteProviderTest extends TestCase
 
     public function testThrowsWhenHandlerMethodDoesNotExist(): void
     {
-        $container = $this->createMock(ContainerInterface::class);
-        $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
-        $collector = $this->createMock(RouteCollectorInterface::class);
+        $container            = $this->createMock(ContainerInterface::class);
+        $extractor            = $this->createMock(AttributeRouteExtractorInterface::class);
+        $collector            = $this->createMock(RouteCollectorInterface::class);
         $registeredMiddleware = null;
-        $handler = new class implements RequestHandlerInterface {
+        $handler              = new class implements RequestHandlerInterface {
             public function handle(ServerRequestInterface $request): ResponseInterface
             {
                 throw new RuntimeException('Not used in this test.');
@@ -514,10 +520,10 @@ final class AttributeRouteProviderTest extends TestCase
 
     public function testThrowsWhenTerminalMethodReturnsNonResponse(): void
     {
-        $container = $this->createMock(ContainerInterface::class);
-        $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
-        $collector = $this->createMock(RouteCollectorInterface::class);
-        $request = $this->createMock(ServerRequestInterface::class);
+        $container       = $this->createMock(ContainerInterface::class);
+        $extractor       = $this->createMock(AttributeRouteExtractorInterface::class);
+        $collector       = $this->createMock(RouteCollectorInterface::class);
+        $request         = $this->createMock(ServerRequestInterface::class);
         $fallbackHandler = new class implements RequestHandlerInterface {
             public function handle(ServerRequestInterface $request): ResponseInterface
             {
@@ -570,11 +576,11 @@ final class AttributeRouteProviderTest extends TestCase
 
     public function testInvokesPublicMethodOnPlainServiceClass(): void
     {
-        $container = $this->createMock(ContainerInterface::class);
-        $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
-        $collector = $this->createMock(RouteCollectorInterface::class);
-        $request = $this->createMock(ServerRequestInterface::class);
-        $response = $this->createMock(ResponseInterface::class);
+        $container       = $this->createMock(ContainerInterface::class);
+        $extractor       = $this->createMock(AttributeRouteExtractorInterface::class);
+        $collector       = $this->createMock(RouteCollectorInterface::class);
+        $request         = $this->createMock(ServerRequestInterface::class);
+        $response        = $this->createMock(ResponseInterface::class);
         $fallbackHandler = new class implements RequestHandlerInterface {
             public function handle(ServerRequestInterface $request): ResponseInterface
             {
@@ -627,9 +633,9 @@ final class AttributeRouteProviderTest extends TestCase
 
     public function testAppliesRouteDefaultsToRouteOptions(): void
     {
-        $container = $this->createMock(ContainerInterface::class);
-        $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
-        $collector = $this->createMock(RouteCollectorInterface::class);
+        $container       = $this->createMock(ContainerInterface::class);
+        $extractor       = $this->createMock(AttributeRouteExtractorInterface::class);
+        $collector       = $this->createMock(RouteCollectorInterface::class);
         $registeredRoute = null;
 
         $extractor
@@ -637,7 +643,10 @@ final class AttributeRouteProviderTest extends TestCase
             ->method('extract')
             ->with([TestMiddleware::class])
             ->willReturn([
-                new RouteDefinition('/defaults', ['GET'], TestMiddleware::class, 'process', [], 'defaults.route', ['foo' => 'bar', 'baz' => 123]),
+                new RouteDefinition('/defaults', ['GET'], TestMiddleware::class, 'process', [], 'defaults.route', [
+                    'foo' => 'bar',
+                    'baz' => 123,
+                ]),
             ])
         ;
 
@@ -670,12 +679,12 @@ final class AttributeRouteProviderTest extends TestCase
 
     public function testUsesCompiledCacheFileWhenAvailable(): void
     {
-        $container = $this->createMock(ContainerInterface::class);
-        $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
-        $collector = $this->createMock(RouteCollectorInterface::class);
-        $cacheFile = $this->createCacheFilePath();
+        $container          = $this->createMock(ContainerInterface::class);
+        $extractor          = $this->createMock(AttributeRouteExtractorInterface::class);
+        $collector          = $this->createMock(RouteCollectorInterface::class);
+        $cacheFile          = $this->createCacheFilePath();
         $this->cacheFiles[] = $cacheFile;
-        $compiledCache = $this->createCompiledCache($cacheFile);
+        $compiledCache      = $this->createCompiledCache($cacheFile);
         $compiledCache->save([
             new RouteDefinition('/compiled', ['GET'], 'compiled.service', 'process', [], 'compiled.route'),
         ]);
@@ -715,6 +724,39 @@ final class AttributeRouteProviderTest extends TestCase
             $compiledCache
         );
         $provider->registerRoutes($collector);
+    }
+
+    public function testRebuildsMalformedCompiledCacheBeforeRegisteringRoutes(): void
+    {
+        $cacheFile          = $this->createCacheFilePath();
+        $this->cacheFiles[] = $cacheFile;
+        file_put_contents($cacheFile, "<?php\n\nreturn ['broken' => true];\n");
+
+        $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
+        $extractor
+            ->expects(self::once())
+            ->method('extract')
+            ->with([TestMiddleware::class])
+            ->willReturn([
+                new RouteDefinition('/rebuilt', ['GET'], 'handler.service', 'process', [], 'rebuilt.route'),
+            ])
+        ;
+
+        $provider = $this->createProvider(
+            new InMemoryContainer([
+                'handler.service' => new TestMiddleware(),
+            ]),
+            $extractor,
+            [TestMiddleware::class],
+            AttributeRouteProvider::DUPLICATE_STRATEGY_THROW,
+            $this->createCompiledCache($cacheFile)
+        );
+        $collector = new RecordingRouteCollector();
+
+        $provider->registerRoutes($collector);
+
+        self::assertSame(1, $collector->routeCalls);
+        self::assertStringContainsString("'register'", (string) file_get_contents($cacheFile));
     }
 
     /**

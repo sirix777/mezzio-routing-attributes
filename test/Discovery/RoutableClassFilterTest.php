@@ -6,6 +6,7 @@ namespace SirixTest\Mezzio\Routing\Attributes\Discovery;
 
 use PHPUnit\Framework\TestCase;
 use Sirix\Mezzio\Routing\Attributes\Discovery\RoutableClassFilter;
+use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\CallableActionController;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\NotMiddleware;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\PingHandler;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\PingRequestHandler;
@@ -18,6 +19,7 @@ final class RoutableClassFilterTest extends TestCase
             PingHandler::class,
             PingRequestHandler::class,
             NotMiddleware::class,
+            CallableActionController::class,
         ]);
 
         self::assertSame([
@@ -26,18 +28,19 @@ final class RoutableClassFilterTest extends TestCase
         ], $result);
     }
 
-    public function testAllowsAnyClassWhenEnabled(): void
+    public function testAllowsOnlyPlainClassesWithMethodRouteAttributesWhenEnabled(): void
     {
         $result = (new RoutableClassFilter(true))->filter([
             PingHandler::class,
             PingRequestHandler::class,
             NotMiddleware::class,
+            CallableActionController::class,
         ]);
 
         self::assertSame([
             PingHandler::class,
             PingRequestHandler::class,
-            NotMiddleware::class,
+            CallableActionController::class,
         ], $result);
     }
 }

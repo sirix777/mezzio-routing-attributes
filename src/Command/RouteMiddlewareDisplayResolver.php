@@ -16,7 +16,7 @@ final readonly class RouteMiddlewareDisplayResolver
 {
     public const CLASSIC_ROUTES_MIDDLEWARE_DISPLAY_UPSTREAM = 'upstream';
     public const CLASSIC_ROUTES_MIDDLEWARE_DISPLAY_RESOLVED = 'resolved';
-    public const ROUTE_OPTION_MIDDLEWARE_DISPLAY = 'sirix_routing_attributes.middleware_display';
+    public const ROUTE_OPTION_MIDDLEWARE_DISPLAY            = 'sirix_routing_attributes.middleware_display';
 
     /**
      * @param self::CLASSIC_ROUTES_MIDDLEWARE_DISPLAY_RESOLVED|self::CLASSIC_ROUTES_MIDDLEWARE_DISPLAY_UPSTREAM $classicRoutesMiddlewareDisplay
@@ -68,8 +68,8 @@ final readonly class RouteMiddlewareDisplayResolver
 
         try {
             $reflection = new ReflectionObject($middleware);
-            $property = $reflection->getProperty('middlewareName');
-            $value = $property->getValue($middleware);
+            $property   = $reflection->getProperty('middlewareName');
+            $value      = $property->getValue($middleware);
 
             return is_string($value) && '' !== $value ? $value : null;
         } catch (ReflectionException) {

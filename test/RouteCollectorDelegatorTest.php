@@ -25,8 +25,8 @@ final class RouteCollectorDelegatorTest extends TestCase
     public function testRegistersRoutesViaAttributeProvider(): void
     {
         $middlewareContainer = $this->createMock(ContainerInterface::class);
-        $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
-        $collector = $this->createMock(RouteCollectorInterface::class);
+        $extractor           = $this->createMock(AttributeRouteExtractorInterface::class);
+        $collector           = $this->createMock(RouteCollectorInterface::class);
 
         $extractor
             ->expects(self::once())

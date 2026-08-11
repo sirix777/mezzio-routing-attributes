@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace SirixTest\Mezzio\Routing\Attributes\Extractor;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Sirix\Mezzio\Routing\Attributes\Exception\InvalidMiddlewareClassException;
 use Sirix\Mezzio\Routing\Attributes\Exception\InvalidRouteDefinitionException;
@@ -14,11 +15,16 @@ use Sirix\Mezzio\Routing\Attributes\Extractor\RouteAttributeReader;
 use Sirix\Mezzio\Routing\Attributes\Extractor\RouteDataNormalizer;
 use Sirix\Mezzio\Routing\Attributes\Extractor\RouteDefinitionBuilder;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\CallableActionController;
+use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\CallableActionInvalidHandlerParameter;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\CallableActionInvalidIntersectionParameter;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\CallableActionInvalidReturnType;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\CallableActionInvalidSignature;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\CallableActionInvalidUnionReturnType;
+use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\CallableActionInvalidVariadicHandlerParameter;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\CallableActionPrivateMethod;
+use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\CallableActionUnionHandlerParameter;
+use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\CallableActionVariadicHandlerParameter;
+use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\CallableActionWithTrailingOptionalParameter;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\CountingAttributeModifier;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\MethodRouteWithClassModifierHandler;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\MultiMethodRouteWithClassModifierHandler;
@@ -34,7 +40,7 @@ final class AttributeRouteExtractorTest extends TestCase
     public function testExtractsClassLevelRouteAttributes(): void
     {
         $extractor = $this->createExtractor();
-        $routes = $extractor->extract([PingHandler::class]);
+        $routes    = $extractor->extract([PingHandler::class]);
 
         self::assertCount(2, $routes);
 
@@ -83,7 +89,7 @@ final class AttributeRouteExtractorTest extends TestCase
     public function testExtractsRequestHandlerRouteAttributes(): void
     {
         $extractor = $this->createExtractor();
-        $routes = $extractor->extract([PingRequestHandler::class]);
+        $routes    = $extractor->extract([PingRequestHandler::class]);
 
         self::assertCount(1, $routes);
         self::assertSame('/ping-handler', $routes[0]->path);
@@ -97,7 +103,7 @@ final class AttributeRouteExtractorTest extends TestCase
     public function testExtractsConfiguredMiddlewareStackFromAttribute(): void
     {
         $extractor = $this->createExtractor();
-        $routes = $extractor->extract([StackedHandler::class]);
+        $routes    = $extractor->extract([StackedHandler::class]);
 
         self::assertCount(1, $routes);
         self::assertSame('/stacked', $routes[0]->path);
@@ -113,7 +119,7 @@ final class AttributeRouteExtractorTest extends TestCase
     public function testAppliesClassAndMethodModifierAttributesToMethodRoutes(): void
     {
         $extractor = $this->createExtractor();
-        $routes = $extractor->extract([MethodRouteWithClassModifierHandler::class]);
+        $routes    = $extractor->extract([MethodRouteWithClassModifierHandler::class]);
 
         self::assertCount(1, $routes);
         self::assertSame('/method-modifier', $routes[0]->path);
@@ -136,20 +142,24 @@ final class AttributeRouteExtractorTest extends TestCase
         CountingAttributeModifier::$instances = 0;
 
         $extractor = $this->createExtractor();
-        $routes = $extractor->extract([MultiMethodRouteWithClassModifierHandler::class]);
+        $routes    = $extractor->extract([MultiMethodRouteWithClassModifierHandler::class]);
 
         self::assertCount(2, $routes);
         self::assertSame(1, CountingAttributeModifier::$instances);
         self::assertSame(['counting.modifier'], $routes[0]->middlewareServices);
         self::assertSame(['counting.modifier'], $routes[1]->middlewareServices);
-        self::assertSame(['counting' => true], $routes[0]->defaults);
-        self::assertSame(['counting' => true], $routes[1]->defaults);
+        self::assertSame([
+            'counting' => true,
+        ], $routes[0]->defaults);
+        self::assertSame([
+            'counting' => true,
+        ], $routes[1]->defaults);
     }
 
     public function testAllowsCallableActionClassInCallableMode(): void
     {
         $extractor = $this->createExtractor(true);
-        $routes = $extractor->extract([CallableActionController::class]);
+        $routes    = $extractor->extract([CallableActionController::class]);
 
         self::assertCount(1, $routes);
         self::assertSame('/callable-action', $routes[0]->path);
@@ -215,6 +225,54 @@ final class AttributeRouteExtractorTest extends TestCase
         $this->expectExceptionMessage('incompatible first parameter');
 
         $extractor->extract([CallableActionInvalidIntersectionParameter::class]);
+    }
+
+    public function testAllowsCallableActionWithTrailingOptionalParameter(): void
+    {
+        $routes = $this->createExtractor(true)->extract([CallableActionWithTrailingOptionalParameter::class]);
+
+        self::assertCount(1, $routes);
+        self::assertSame(CallableActionWithTrailingOptionalParameter::class, $routes[0]->handlerService);
+    }
+
+    #[DataProvider('validCallableHandlerParameterClasses')]
+    public function testAllowsCallableActionWithCompatibleHandlerParameter(string $className): void
+    {
+        $routes = $this->createExtractor(true)->extract([$className]);
+
+        self::assertCount(1, $routes);
+        self::assertSame($className, $routes[0]->handlerService);
+    }
+
+    /**
+     * @return iterable<string, array{class-string}>
+     */
+    public static function validCallableHandlerParameterClasses(): iterable
+    {
+        yield 'union handler parameter' => [CallableActionUnionHandlerParameter::class];
+
+        yield 'variadic handler parameter' => [CallableActionVariadicHandlerParameter::class];
+    }
+
+    #[DataProvider('invalidCallableHandlerParameterClasses')]
+    public function testThrowsForCallableActionWithIncompatibleHandlerParameter(string $className): void
+    {
+        $extractor = $this->createExtractor(true);
+
+        $this->expectException(InvalidRouteDefinitionException::class);
+        $this->expectExceptionMessage('incompatible handler parameter');
+
+        $extractor->extract([$className]);
+    }
+
+    /**
+     * @return iterable<string, array{class-string}>
+     */
+    public static function invalidCallableHandlerParameterClasses(): iterable
+    {
+        yield 'optional scalar handler parameter' => [CallableActionInvalidHandlerParameter::class];
+
+        yield 'variadic request-only parameter' => [CallableActionInvalidVariadicHandlerParameter::class];
     }
 
     private function createExtractor(bool $allowCallable = false): AttributeRouteExtractor

@@ -13,7 +13,7 @@ use function trim;
 
 final readonly class AttributeRouteProvider
 {
-    public const DUPLICATE_STRATEGY_THROW = DuplicateRouteResolver::STRATEGY_THROW;
+    public const DUPLICATE_STRATEGY_THROW  = DuplicateRouteResolver::STRATEGY_THROW;
     public const DUPLICATE_STRATEGY_IGNORE = DuplicateRouteResolver::STRATEGY_IGNORE;
 
     /**
@@ -37,14 +37,14 @@ final readonly class AttributeRouteProvider
         $this->routeRegistrarCache->save($routes);
 
         foreach ($routes as $route) {
-            $pipeline = $this->middlewarePipelineFactory->create($route);
+            $pipeline        = $this->middlewarePipelineFactory->create($route);
             $registeredRoute = $collector->route(
                 $route->path,
                 $pipeline['middleware'],
                 $route->methods,
                 $this->normalizeRouteName($route->name)
             );
-            $options = $registeredRoute->getOptions();
+            $options                                                                  = $registeredRoute->getOptions();
             $options[RouteMiddlewareDisplayResolver::ROUTE_OPTION_MIDDLEWARE_DISPLAY] = $pipeline['middlewareDisplay'];
             if ([] !== $route->defaults) {
                 $options = [...$options, ...$route->defaults];

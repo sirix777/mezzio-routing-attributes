@@ -6,15 +6,16 @@ namespace SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture;
 
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Psr\Http\Server\RequestHandlerInterface;
 use RuntimeException;
 use Sirix\Mezzio\Routing\Attributes\Attribute\Get;
 
-final class CallableActionController
+final class CallableActionVariadicHandlerParameter
 {
-    #[Get('/callable-action', name: 'callable.action')]
-    public function index(ServerRequestInterface $request): ResponseInterface
+    #[Get('/variadic-handler-parameter', name: 'callable.variadic-handler-parameter')]
+    public function index(RequestHandlerInterface|ServerRequestInterface ...$arguments): ResponseInterface
     {
-        unset($request);
+        unset($arguments);
 
         throw new RuntimeException('Not implemented in test fixture.');
     }

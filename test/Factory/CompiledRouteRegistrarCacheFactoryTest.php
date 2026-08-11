@@ -33,7 +33,7 @@ final class CompiledRouteRegistrarCacheFactoryTest extends TestCase
                 'routing_attributes' => [
                     'cache' => [
                         'enabled' => true,
-                        'file' => 'data/cache/routes.php',
+                        'file'    => 'data/cache/routes.php',
                     ],
                 ],
             ],

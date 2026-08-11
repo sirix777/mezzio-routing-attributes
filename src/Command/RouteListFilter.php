@@ -36,30 +36,23 @@ final readonly class RouteListFilter
             $routes,
             function(Route $route) use ($name, $path, $middleware, $method): bool {
                 if (is_string($name) && '' !== $name) {
-                    if ($route->getName() === $name) {
-                        return true;
+                    if (! $this->matches($route->getName(), $name)) {
+                        return false;
                     }
-
-                    return $this->matches($route->getName(), $name);
                 }
 
                 if (is_string($path) && '' !== $path) {
-                    if ($route->getPath() === $path) {
-                        return true;
+                    if (! $this->matches($route->getPath(), $path)) {
+                        return false;
                     }
-
-                    return $this->matches($route->getPath(), $path);
                 }
 
                 if (is_string($middleware) && '' !== $middleware) {
                     $middlewareClass = $this->middlewareDisplayResolver->resolveForFilter($route);
 
-                    return $middlewareClass === $middleware
-                        || false !== stripos($middlewareClass, $middleware)
-                        || (bool) preg_match(
-                            sprintf('/%s/', $this->escapeNamespaceSeparatorForRegex($middleware)),
-                            $middlewareClass
-                        );
+                    if (false === stripos($middlewareClass, $middleware)) {
+                        return false;
+                    }
                 }
 
                 if (is_string($method) && '' !== $method) {
@@ -67,7 +60,9 @@ final readonly class RouteListFilter
                         return true;
                     }
 
-                    return in_array(strtoupper($method), $route->getAllowedMethods() ?? [], true);
+                    if (! in_array(strtoupper($method), $route->getAllowedMethods() ?? [], true)) {
+                        return false;
+                    }
                 }
 
                 return true;
@@ -81,10 +76,5 @@ final readonly class RouteListFilter
             sprintf('/^%s/', preg_quote($search, '/')),
             $subject,
         );
-    }
-
-    private function escapeNamespaceSeparatorForRegex(string $toMatch): string
-    {
-        return preg_quote($toMatch, '/');
     }
 }

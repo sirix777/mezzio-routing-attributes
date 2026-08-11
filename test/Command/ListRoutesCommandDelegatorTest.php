@@ -16,7 +16,7 @@ final class ListRoutesCommandDelegatorTest extends TestCase
 
     public function testReturnsOriginalCommandWhenOverrideDisabled(): void
     {
-        $original = new stdClass();
+        $original  = new stdClass();
         $container = new InMemoryContainer([
             'config' => [
                 'routing_attributes' => [
@@ -36,10 +36,10 @@ final class ListRoutesCommandDelegatorTest extends TestCase
 
     public function testReturnsAttributeAwareCommandWhenOverrideEnabled(): void
     {
-        $original = new stdClass();
+        $original    = new stdClass();
         $replacement = new stdClass();
-        $container = new InMemoryContainer([
-            'config' => [
+        $container   = new InMemoryContainer([
+            'config'                 => [
                 'routing_attributes' => [
                     'override_mezzio_routes_list_command' => true,
                 ],

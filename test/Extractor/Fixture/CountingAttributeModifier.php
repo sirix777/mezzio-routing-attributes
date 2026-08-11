@@ -24,6 +24,8 @@ final class CountingAttributeModifier implements RouteAttributeModifierInterface
 
     public function getDefaults(): array
     {
-        return ['counting' => true];
+        return [
+            'counting' => true,
+        ];
     }
 }

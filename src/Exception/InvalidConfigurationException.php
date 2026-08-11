@@ -224,6 +224,25 @@ class InvalidConfigurationException extends InvalidArgumentException
         ));
     }
 
+    public static function invalidCacheDefault(string $path, string $key, string $valueType): self
+    {
+        return new self(sprintf(
+            'Route default "%s" for path "%s" cannot be compiled: %s is not recursively scalar, null, or array.',
+            $key,
+            $path,
+            $valueType
+        ));
+    }
+
+    public static function recursiveCacheDefault(string $path, string $key): self
+    {
+        return new self(sprintf(
+            'Route default "%s" for path "%s" cannot be compiled because it contains a recursive array reference.',
+            $key,
+            $path
+        ));
+    }
+
     public static function invalidRouteCollectorCallbackReturn(mixed $collector): self
     {
         return new self(sprintf(

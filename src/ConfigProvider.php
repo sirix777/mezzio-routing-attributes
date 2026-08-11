@@ -35,7 +35,7 @@ final readonly class ConfigProvider
     public function __invoke(): array
     {
         $consolePolicy = $this->consoleRegistrationPolicy();
-        $config = [
+        $config        = [
             'dependencies' => $this->getDependencies(),
         ];
 
@@ -54,19 +54,19 @@ final readonly class ConfigProvider
     public function getDependencies(): array
     {
         $consolePolicy = $this->consoleRegistrationPolicy();
-        $dependencies = [
-            'factories' => [
-                AttributeRouteProvider::class => AttributeRouteProviderFactory::class,
-                AttributeRouteExtractor::class => AttributeRouteExtractorFactory::class,
+        $dependencies  = [
+            'factories'  => [
+                AttributeRouteProvider::class             => AttributeRouteProviderFactory::class,
+                AttributeRouteExtractor::class            => AttributeRouteExtractorFactory::class,
                 DiscoveredClassesResolverInterface::class => DiscoveryClassMapResolverFactory::class,
-                MiddlewarePipelineFactory::class => MiddlewarePipelineFactoryFactory::class,
-                DuplicateRouteResolver::class => DuplicateRouteResolverFactory::class,
-                RouteRegistrarCacheInterface::class => CompiledRouteRegistrarCacheFactory::class,
+                MiddlewarePipelineFactory::class          => MiddlewarePipelineFactoryFactory::class,
+                DuplicateRouteResolver::class             => DuplicateRouteResolverFactory::class,
+                RouteRegistrarCacheInterface::class       => CompiledRouteRegistrarCacheFactory::class,
             ],
             'invokables' => [
                 ServiceMiddlewareResolver::class => ServiceMiddlewareResolver::class,
             ],
-            'aliases' => [
+            'aliases'    => [
                 AttributeRouteExtractorInterface::class => AttributeRouteExtractor::class,
             ],
             'delegators' => [
@@ -77,8 +77,8 @@ final readonly class ConfigProvider
         ];
 
         if ($consolePolicy->canRegisterConsoleConfig()) {
-            $dependencies['factories'][ListRoutesCommand::class] = ListRoutesCommandFactory::class;
-            $dependencies['factories'][ClearRouteCacheCommand::class] = ClearRouteCacheCommandFactory::class;
+            $dependencies['factories'][ListRoutesCommand::class]              = ListRoutesCommandFactory::class;
+            $dependencies['factories'][ClearRouteCacheCommand::class]         = ClearRouteCacheCommandFactory::class;
             $dependencies['factories'][RouteMiddlewareDisplayResolver::class] = RouteMiddlewareDisplayResolverFactory::class;
             if ($consolePolicy->shouldRegisterToolingDelegator()) {
                 $dependencies['delegators'][self::TOOLING_LIST_ROUTES_COMMAND] = [

@@ -56,7 +56,7 @@ final class ListRoutesCommandFactoryTest extends TestCase
 
             public function route(string $path, MiddlewareInterface $middleware, ?array $methods = null, ?string $name = null): Route
             {
-                $route = new Route($path, $middleware, $methods, $name);
+                $route          = new Route($path, $middleware, $methods, $name);
                 $this->routes[] = $route;
 
                 return $route;
@@ -118,16 +118,16 @@ final class ListRoutesCommandFactoryTest extends TestCase
             public function get(string $id): mixed
             {
                 return match ($id) {
-                    RouteCollector::class => $this->collector,
+                    RouteCollector::class                 => $this->collector,
                     RouteMiddlewareDisplayResolver::class => new RouteMiddlewareDisplayResolver('resolved'),
-                    'Mezzio\Application' => $this->application,
-                    'Mezzio\MiddlewareFactory' => new stdClass(),
-                    'config' => [
+                    'Mezzio\Application'                  => $this->application,
+                    'Mezzio\MiddlewareFactory'            => new stdClass(),
+                    'config'                              => [
                         'routing_attributes' => [
                             'classes' => [],
                         ],
                     ],
-                    default => throw new RuntimeException('Unknown service: ' . $id),
+                    default                               => throw new RuntimeException('Unknown service: ' . $id),
                 };
             }
 
@@ -139,7 +139,7 @@ final class ListRoutesCommandFactoryTest extends TestCase
                     'Mezzio\Application',
                     'Mezzio\MiddlewareFactory',
                     'config' => true,
-                    default => false,
+                    default  => false,
                 };
             }
         };
@@ -153,7 +153,9 @@ final class ListRoutesCommandFactoryTest extends TestCase
             self::assertInstanceOf(ListRoutesCommand::class, $command);
 
             $tester = new CommandTester($command);
-            self::assertSame(0, $tester->execute(['--format' => 'json']));
+            self::assertSame(0, $tester->execute([
+                '--format' => 'json',
+            ]));
             self::assertStringContainsString('classic.route', $tester->getDisplay());
             self::assertStringContainsString('/classic', $tester->getDisplay());
         } finally {

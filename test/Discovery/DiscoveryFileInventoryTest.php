@@ -47,10 +47,10 @@ final class DiscoveryFileInventoryTest extends TestCase
     public function testCollectReturnsOnlyPhpFiles(): void
     {
         /** @var non-empty-string $path */
-        $path = $this->tempDir;
+        $path      = $this->tempDir;
         $inventory = new DiscoveryFileInventory([$path]);
-        $result = $inventory->collect();
-        $paths = [];
+        $result    = $inventory->collect();
+        $paths     = [];
         foreach ($result as [$file]) {
             $paths[] = $file;
         }

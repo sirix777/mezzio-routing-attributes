@@ -66,9 +66,9 @@ final class RouteListServicesTest extends TestCase
 
     public function testRouteListFilterFiltersByMethod(): void
     {
-        $filter = new RouteListFilter(new RouteMiddlewareDisplayResolver());
+        $filter     = new RouteListFilter(new RouteMiddlewareDisplayResolver());
         $middleware = $this->createMiddleware();
-        $routes = [
+        $routes     = [
             new Route('/users', $middleware, ['GET'], 'users.list'),
             new Route('/users', $middleware, ['POST'], 'users.create'),
             new Route('/health', $middleware, ['GET'], 'health'),
@@ -82,7 +82,7 @@ final class RouteListServicesTest extends TestCase
 
     public function testRouteListFilterReturnsEmptyWhenMethodDoesNotMatch(): void
     {
-        $filter = new RouteListFilter(new RouteMiddlewareDisplayResolver());
+        $filter     = new RouteListFilter(new RouteMiddlewareDisplayResolver());
         $middleware = $this->createMiddleware();
 
         $filtered = $filter->filter([
@@ -92,9 +92,23 @@ final class RouteListServicesTest extends TestCase
         self::assertSame([], $filtered);
     }
 
+    public function testRouteListFilterCombinesActiveFiltersWithAndSemantics(): void
+    {
+        $filter     = new RouteListFilter(new RouteMiddlewareDisplayResolver());
+        $middleware = $this->createMiddleware();
+
+        $filtered = $filter->filter([
+            new Route('/users', $middleware, ['GET'], 'users.list'),
+            new Route('/users', $middleware, ['POST'], 'users.create'),
+        ], 'users', false, false, 'POST');
+
+        self::assertCount(1, $filtered);
+        self::assertSame('users.create', $filtered[0]->getName());
+    }
+
     public function testRouteListFilterTreatsNameSearchAsLiteralPrefix(): void
     {
-        $filter = new RouteListFilter(new RouteMiddlewareDisplayResolver());
+        $filter     = new RouteListFilter(new RouteMiddlewareDisplayResolver());
         $middleware = $this->createMiddleware();
 
         $filtered = $filter->filter([
@@ -107,7 +121,7 @@ final class RouteListServicesTest extends TestCase
 
     public function testRouteListFilterTreatsPathSearchAsLiteralPrefix(): void
     {
-        $filter = new RouteListFilter(new RouteMiddlewareDisplayResolver());
+        $filter     = new RouteListFilter(new RouteMiddlewareDisplayResolver());
         $middleware = $this->createMiddleware();
 
         $filtered = $filter->filter([
@@ -120,9 +134,9 @@ final class RouteListServicesTest extends TestCase
 
     public function testRouteListFilterUsesAttributeMiddlewareDisplayForAttributeRoute(): void
     {
-        $filter = new RouteListFilter(new RouteMiddlewareDisplayResolver());
+        $filter     = new RouteListFilter(new RouteMiddlewareDisplayResolver());
         $middleware = $this->createMiddleware();
-        $route = new Route('/attribute', $middleware, ['GET'], 'attribute.route');
+        $route      = new Route('/attribute', $middleware, ['GET'], 'attribute.route');
         $route->setOptions([
             'sirix_routing_attributes.middleware_display' => 'App\Middleware\PackageVersionHeaderMiddleware -> handler::handle',
         ]);
@@ -162,9 +176,9 @@ final class RouteListServicesTest extends TestCase
 
     public function testRouteListSorterSortsByPath(): void
     {
-        $sorter = new RouteListSorter();
+        $sorter     = new RouteListSorter();
         $middleware = $this->createMiddleware();
-        $routes = [
+        $routes     = [
             new Route('/b', $middleware, ['GET'], 'b'),
             new Route('/a', $middleware, ['GET'], 'a'),
         ];
@@ -177,9 +191,9 @@ final class RouteListServicesTest extends TestCase
 
     public function testRouteListFormatterUsesAttributeMiddlewareDisplayWhenAvailable(): void
     {
-        $formatter = new RouteListFormatter(new RouteMiddlewareDisplayResolver());
+        $formatter  = new RouteListFormatter(new RouteMiddlewareDisplayResolver());
         $middleware = $this->createMiddleware();
-        $route = new Route('/x', $middleware, ['GET'], 'x');
+        $route      = new Route('/x', $middleware, ['GET'], 'x');
         $route->setOptions([
             'sirix_routing_attributes.middleware_display' => 'mw.one -> handler::handle',
         ]);
@@ -191,9 +205,9 @@ final class RouteListServicesTest extends TestCase
 
     public function testRouteListFormatterUsesOriginalMiddlewareClassForNonAttributeRoute(): void
     {
-        $formatter = new RouteListFormatter(new RouteMiddlewareDisplayResolver());
+        $formatter  = new RouteListFormatter(new RouteMiddlewareDisplayResolver());
         $middleware = $this->createMiddleware();
-        $route = new Route('/classic-demo', $middleware, ['GET'], 'classic.demo');
+        $route      = new Route('/classic-demo', $middleware, ['GET'], 'classic.demo');
 
         $rows = $formatter->formatRows([$route]);
 
@@ -234,7 +248,7 @@ final class RouteListServicesTest extends TestCase
             )
         );
         $middlewareName = 'App\Handler\PrivateClassicHandler';
-        $route = new Route(
+        $route          = new Route(
             '/classic-private',
             new class($middlewareName) implements MiddlewareInterface {
                 public function __construct(private readonly string $middlewareName) {}
@@ -259,10 +273,10 @@ final class RouteListServicesTest extends TestCase
 
     public function testRouteListFormatterUsesMiddlewareDisplayOptionForLazyAttributeRoute(): void
     {
-        $container = new InMemoryContainer([]);
-        $factory = new MiddlewarePipelineFactory($container, new ServiceMiddlewareResolver());
+        $container  = new InMemoryContainer([]);
+        $factory    = new MiddlewarePipelineFactory($container, new ServiceMiddlewareResolver());
         $middleware = $factory->createFromCompiled('handler.service', 'process', ['mw.first']);
-        $route = new Route('/lazy', $middleware, ['GET'], 'lazy.route');
+        $route      = new Route('/lazy', $middleware, ['GET'], 'lazy.route');
         $route->setOptions([
             RouteMiddlewareDisplayResolver::ROUTE_OPTION_MIDDLEWARE_DISPLAY => 'mw.first -> handler.service::process',
         ]);
@@ -291,21 +305,23 @@ final class RouteListServicesTest extends TestCase
     public function testListRoutesCommandRendersJsonRows(): void
     {
         $middleware = $this->createMiddleware();
-        $route = new Route('/one', $middleware, ['GET'], 'route.one');
+        $route      = new Route('/one', $middleware, ['GET'], 'route.one');
         $route->setOptions([
             RouteMiddlewareDisplayResolver::ROUTE_OPTION_MIDDLEWARE_DISPLAY => 'handler.one::process',
         ]);
 
         $tester = new CommandTester($this->createListRoutesCommand([$route]));
 
-        self::assertSame(0, $tester->execute(['--format' => 'json']));
+        self::assertSame(0, $tester->execute([
+            '--format' => 'json',
+        ]));
 
         $rows = json_decode($tester->getDisplay(), true, 512, JSON_THROW_ON_ERROR);
         self::assertSame([
             [
-                'name' => 'route.one',
-                'path' => '/one',
-                'methods' => 'GET',
+                'name'       => 'route.one',
+                'path'       => '/one',
+                'methods'    => 'GET',
                 'middleware' => 'handler.one::process',
             ],
         ], $rows);
@@ -314,7 +330,7 @@ final class RouteListServicesTest extends TestCase
     public function testListRoutesCommandRendersTableRows(): void
     {
         $middleware = $this->createMiddleware();
-        $route = new Route('/one', $middleware, ['GET'], 'route.one');
+        $route      = new Route('/one', $middleware, ['GET'], 'route.one');
 
         $tester = new CommandTester($this->createListRoutesCommand([$route]));
 

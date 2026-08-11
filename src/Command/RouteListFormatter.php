@@ -23,9 +23,9 @@ final readonly class RouteListFormatter
 
         foreach ($routes as $route) {
             $rows[] = [
-                'name' => $route->getName(),
-                'path' => $route->getPath(),
-                'methods' => implode(',', $route->getAllowedMethods() ?? []),
+                'name'       => $route->getName(),
+                'path'       => $route->getPath(),
+                'methods'    => implode(',', $route->getAllowedMethods() ?? []),
                 'middleware' => $this->getMiddlewareDisplay($route),
             ];
         }

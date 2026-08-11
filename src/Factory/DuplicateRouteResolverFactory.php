@@ -13,7 +13,7 @@ final class DuplicateRouteResolverFactory
     public function __invoke(ContainerInterface $container): DuplicateRouteResolver
     {
         $rootConfig = $container->has('config') ? $container->get('config') : [];
-        $config = RoutingAttributesConfig::fromRootConfig($rootConfig);
+        $config     = RoutingAttributesConfig::fromRootConfig($rootConfig);
 
         return $this->createFromStrategy($config->duplicateStrategy);
     }

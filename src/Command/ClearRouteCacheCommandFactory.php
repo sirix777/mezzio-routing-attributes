@@ -12,7 +12,7 @@ final class ClearRouteCacheCommandFactory
     public function __invoke(ContainerInterface $container): ClearRouteCacheCommand
     {
         $rootConfig = $container->has('config') ? $container->get('config') : [];
-        $config = RoutingAttributesConfig::fromRootConfig($rootConfig);
+        $config     = RoutingAttributesConfig::fromRootConfig($rootConfig);
 
         return new ClearRouteCacheCommand($config->cacheFile);
     }
