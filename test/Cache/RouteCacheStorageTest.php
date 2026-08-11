@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace SirixTest\Mezzio\Routing\Attributes\Cache;
 
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 use Sirix\Mezzio\Routing\Attributes\Cache\RouteCacheStorage;
 
 use function chmod;
@@ -81,24 +82,19 @@ final class RouteCacheStorageTest extends TestCase
         $this->paths[] = $directory;
         mkdir($directory, 0o775, true);
         $cacheFile = $directory . '/' . str_repeat('x', 8192);
-        $logger    = new class {
-            /** @var list<array{message: string, context: array<string, mixed>}> */
-            public array $records = [];
-
-            /** @param array<string, mixed> $context */
-            public function error(string $message, array $context): void
-            {
-                $this->records[] = [
-                    'message' => $message,
-                    'context' => $context,
-                ];
-            }
-        };
+        $logger    = $this->createMock(LoggerInterface::class);
+        $logger
+            ->expects(self::once())
+            ->method('error')
+            ->with(
+                'Unable to write compiled route cache artifact.',
+                self::callback(static fn (array $context): bool => 'replace_artifact' === $context['operation'])
+            )
+        ;
 
         self::assertFalse((new RouteCacheStorage($logger))->save($cacheFile, '<?php return [];'));
 
         self::assertSame([], glob($directory . '/.routing-attributes-*') ?: []);
-        self::assertSame('replace_artifact', $logger->records[0]['context']['operation']);
     }
 
     public function testSaveRejectsSymlinkTargetWithoutChangingItsDestination(): void
@@ -120,24 +116,18 @@ final class RouteCacheStorageTest extends TestCase
         $cacheFile     = $this->createPath('unsafe-target-directory');
         $this->paths[] = $cacheFile;
         mkdir($cacheFile, 0o775, true);
-        $logger = new class {
-            /** @var list<array{message: string, context: array<string, mixed>}> */
-            public array $records = [];
-
-            /** @param array<string, mixed> $context */
-            public function error(string $message, array $context): void
-            {
-                $this->records[] = [
-                    'message' => $message,
-                    'context' => $context,
-                ];
-            }
-        };
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger
+            ->expects(self::once())
+            ->method('error')
+            ->with(
+                'Unable to write compiled route cache artifact.',
+                self::callback(static fn (array $context): bool => 'validate_target' === $context['operation']
+                    && $cacheFile === $context['cache_file'])
+            )
+        ;
 
         self::assertFalse((new RouteCacheStorage($logger))->save($cacheFile, '<?php return [];'));
-        self::assertSame('Unable to write compiled route cache artifact.', $logger->records[0]['message']);
-        self::assertSame('validate_target', $logger->records[0]['context']['operation']);
-        self::assertSame($cacheFile, $logger->records[0]['context']['cache_file']);
     }
 
     private function createPath(string $prefix): string

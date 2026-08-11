@@ -7,6 +7,7 @@ namespace Sirix\Mezzio\Routing\Attributes\Factory;
 use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\ContainerInterface;
 use Psr\Container\NotFoundExceptionInterface;
+use Psr\Log\LoggerInterface;
 use Sirix\Mezzio\Routing\Attributes\Cache\NullRouteRegistrarCache;
 use Sirix\Mezzio\Routing\Attributes\Cache\RouteCacheGenerator;
 use Sirix\Mezzio\Routing\Attributes\Cache\RouteCacheLoader;
@@ -16,13 +17,8 @@ use Sirix\Mezzio\Routing\Attributes\CompiledRouteRegistrarCache;
 use Sirix\Mezzio\Routing\Attributes\Config\RoutingAttributesConfig;
 use Throwable;
 
-use function interface_exists;
-use function is_object;
-
 final class CompiledRouteRegistrarCacheFactory
 {
-    private const PSR_LOGGER_INTERFACE = 'Psr\Log\LoggerInterface';
-
     /**
      * @throws ContainerExceptionInterface
      * @throws NotFoundExceptionInterface
@@ -42,7 +38,7 @@ final class CompiledRouteRegistrarCacheFactory
     public function createFromCacheFile(
         ?string $cacheFile,
         string $configFingerprint = '',
-        ?object $logger = null
+        ?LoggerInterface $logger = null
     ): RouteRegistrarCacheInterface {
         if (null === $cacheFile) {
             return new NullRouteRegistrarCache();
@@ -57,18 +53,18 @@ final class CompiledRouteRegistrarCacheFactory
         );
     }
 
-    private function resolveOptionalLogger(ContainerInterface $container): ?object
+    private function resolveOptionalLogger(ContainerInterface $container): ?LoggerInterface
     {
-        if (! interface_exists(self::PSR_LOGGER_INTERFACE) || ! $container->has(self::PSR_LOGGER_INTERFACE)) {
+        if (! $container->has(LoggerInterface::class)) {
             return null;
         }
 
         try {
-            $logger = $container->get(self::PSR_LOGGER_INTERFACE);
+            $logger = $container->get(LoggerInterface::class);
         } catch (Throwable) {
             return null;
         }
 
-        return is_object($logger) ? $logger : null;
+        return $logger instanceof LoggerInterface ? $logger : null;
     }
 }

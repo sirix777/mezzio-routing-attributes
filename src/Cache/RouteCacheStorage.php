@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Sirix\Mezzio\Routing\Attributes\Cache;
 
+use Psr\Log\LoggerInterface;
 use Throwable;
 
 use function dirname;
@@ -12,7 +13,6 @@ use function file_put_contents;
 use function is_dir;
 use function is_link;
 use function lstat;
-use function method_exists;
 use function mkdir;
 use function rename;
 use function restore_error_handler;
@@ -23,7 +23,7 @@ use function unlink;
 
 final readonly class RouteCacheStorage
 {
-    public function __construct(private ?object $logger = null) {}
+    public function __construct(private ?LoggerInterface $logger = null) {}
 
     public function save(string $cacheFile, string $content): bool
     {
@@ -101,7 +101,7 @@ final readonly class RouteCacheStorage
 
     private function reportFailure(string $operation, string $cacheFile, ?string $error): void
     {
-        if (null === $this->logger || ! method_exists($this->logger, 'error')) {
+        if (! $this->logger instanceof LoggerInterface) {
             return;
         }
 
