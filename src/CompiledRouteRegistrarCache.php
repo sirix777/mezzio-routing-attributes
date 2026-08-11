@@ -29,7 +29,12 @@ final readonly class CompiledRouteRegistrarCache implements RouteRegistrarCacheI
             return false;
         }
 
-        $artifact = $this->cacheLoader->load($this->cacheFile);
+        try {
+            $artifact = $this->cacheLoader->load($this->cacheFile);
+        } catch (Throwable) {
+            return false;
+        }
+
         if (null === $artifact) {
             return false;
         }

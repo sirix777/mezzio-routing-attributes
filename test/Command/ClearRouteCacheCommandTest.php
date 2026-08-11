@@ -30,12 +30,12 @@ final class ClearRouteCacheCommandTest extends TestCase
 
     public function testDeletesConfiguredCacheFile(): void
     {
-        $cacheFile = sys_get_temp_dir() . '/routing-attributes-cache-clear-' . uniqid('', true) . '.php';
+        $cacheFile          = sys_get_temp_dir() . '/routing-attributes-cache-clear-' . uniqid('', true) . '.php';
         $this->cacheFiles[] = $cacheFile;
         file_put_contents($cacheFile, '<?php return [];');
 
         $command = new ClearRouteCacheCommand($cacheFile);
-        $tester = new CommandTester($command);
+        $tester  = new CommandTester($command);
 
         self::assertSame(0, $tester->execute([]));
         self::assertFalse(is_file($cacheFile));
@@ -45,8 +45,8 @@ final class ClearRouteCacheCommandTest extends TestCase
     public function testReturnsSuccessWhenFileDoesNotExist(): void
     {
         $cacheFile = sys_get_temp_dir() . '/routing-attributes-cache-clear-missing-' . uniqid('', true) . '.php';
-        $command = new ClearRouteCacheCommand($cacheFile);
-        $tester = new CommandTester($command);
+        $command   = new ClearRouteCacheCommand($cacheFile);
+        $tester    = new CommandTester($command);
 
         self::assertSame(0, $tester->execute([]));
         self::assertStringContainsString('does not exist', $tester->getDisplay());
@@ -54,17 +54,19 @@ final class ClearRouteCacheCommandTest extends TestCase
 
     public function testAllowsFileOverrideOption(): void
     {
-        $configuredFile = sys_get_temp_dir() . '/routing-attributes-cache-clear-configured-' . uniqid('', true) . '.php';
-        $overrideFile = sys_get_temp_dir() . '/routing-attributes-cache-clear-override-' . uniqid('', true) . '.php';
+        $configuredFile     = sys_get_temp_dir() . '/routing-attributes-cache-clear-configured-' . uniqid('', true) . '.php';
+        $overrideFile       = sys_get_temp_dir() . '/routing-attributes-cache-clear-override-' . uniqid('', true) . '.php';
         $this->cacheFiles[] = $configuredFile;
         $this->cacheFiles[] = $overrideFile;
         file_put_contents($configuredFile, '<?php return [];');
         file_put_contents($overrideFile, '<?php return [];');
 
         $command = new ClearRouteCacheCommand($configuredFile);
-        $tester = new CommandTester($command);
+        $tester  = new CommandTester($command);
 
-        self::assertSame(0, $tester->execute(['--file' => $overrideFile]));
+        self::assertSame(0, $tester->execute([
+            '--file' => $overrideFile,
+        ]));
         self::assertTrue(is_file($configuredFile));
         self::assertFalse(is_file($overrideFile));
     }
@@ -72,7 +74,7 @@ final class ClearRouteCacheCommandTest extends TestCase
     public function testFailsWhenCacheFileIsNotConfigured(): void
     {
         $command = new ClearRouteCacheCommand(null);
-        $tester = new CommandTester($command);
+        $tester  = new CommandTester($command);
 
         self::assertSame(1, $tester->execute([]));
         self::assertStringContainsString('not configured', $tester->getDisplay());

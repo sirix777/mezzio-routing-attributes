@@ -6,6 +6,7 @@ namespace Sirix\Mezzio\Routing\Attributes\Extractor;
 
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Psr\Http\Server\RequestHandlerInterface;
 use ReflectionIntersectionType;
 use ReflectionMethod;
 use ReflectionNamedType;
@@ -25,7 +26,10 @@ final readonly class MethodSignatureValidator
 
         $parameters = $method->getParameters();
         if (! $method->isVariadic()) {
-            if (0 === $method->getNumberOfParameters() || $method->getNumberOfRequiredParameters() > 1) {
+            if (
+                0 === $method->getNumberOfParameters()
+                || $method->getNumberOfRequiredParameters() > 2
+            ) {
                 throw InvalidRouteDefinitionException::invalidMethodSignature($className, $method->getName());
             }
         } elseif ($method->getNumberOfRequiredParameters() > 1) {
@@ -41,6 +45,22 @@ final readonly class MethodSignatureValidator
                     $firstParameter->getName()
                 );
             }
+
+            if ($firstParameter->isVariadic() && ! $this->supportsRequestHandlerType($firstParameter->getType())) {
+                throw InvalidRouteDefinitionException::invalidMethodHandlerParameterType(
+                    $className,
+                    $method->getName(),
+                    $firstParameter->getName()
+                );
+            }
+        }
+
+        if (isset($parameters[1]) && ! $this->supportsRequestHandlerType($parameters[1]->getType())) {
+            throw InvalidRouteDefinitionException::invalidMethodHandlerParameterType(
+                $className,
+                $method->getName(),
+                $parameters[1]->getName()
+            );
         }
 
         if (! $this->supportsResponseReturnType($method->getReturnType())) {
@@ -50,13 +70,23 @@ final readonly class MethodSignatureValidator
 
     private function supportsServerRequestType(?ReflectionType $type): bool
     {
+        return $this->supportsParameterType($type, ServerRequestInterface::class);
+    }
+
+    private function supportsRequestHandlerType(?ReflectionType $type): bool
+    {
+        return $this->supportsParameterType($type, RequestHandlerInterface::class);
+    }
+
+    private function supportsParameterType(?ReflectionType $type, string $expectedType): bool
+    {
         if (! $type instanceof ReflectionType) {
             return true;
         }
 
         if ($type instanceof ReflectionUnionType) {
             foreach ($type->getTypes() as $part) {
-                if ($this->supportsServerRequestType($part)) {
+                if ($this->supportsParameterType($part, $expectedType)) {
                     return true;
                 }
             }
@@ -66,7 +96,7 @@ final readonly class MethodSignatureValidator
 
         if ($type instanceof ReflectionIntersectionType) {
             foreach ($type->getTypes() as $part) {
-                if (! $part instanceof ReflectionNamedType || ! $this->supportsServerRequestNamedType($part)) {
+                if (! $part instanceof ReflectionNamedType || ! $this->supportsParameterNamedType($part, $expectedType)) {
                     return false;
                 }
             }
@@ -78,7 +108,7 @@ final readonly class MethodSignatureValidator
             return false;
         }
 
-        return $this->supportsServerRequestNamedType($type);
+        return $this->supportsParameterNamedType($type, $expectedType);
     }
 
     private function supportsResponseReturnType(?ReflectionType $type): bool
@@ -131,7 +161,7 @@ final readonly class MethodSignatureValidator
         return $this->isResponseCompatibleNamedType($type);
     }
 
-    private function supportsServerRequestNamedType(ReflectionNamedType $type): bool
+    private function supportsParameterNamedType(ReflectionNamedType $type, string $expectedType): bool
     {
         if ('mixed' === $type->getName() || 'object' === $type->getName()) {
             return true;
@@ -141,7 +171,7 @@ final readonly class MethodSignatureValidator
             return false;
         }
 
-        return is_a(ServerRequestInterface::class, $type->getName(), true);
+        return is_a($expectedType, $type->getName(), true);
     }
 
     private function isResponseCompatibleNamedType(ReflectionNamedType $type): bool

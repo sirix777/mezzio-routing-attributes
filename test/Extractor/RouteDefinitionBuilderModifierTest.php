@@ -18,14 +18,14 @@ final class RouteDefinitionBuilderModifierTest extends TestCase
     public function testCollectsMiddlewareAndDefaultsFromModifierAttributes(): void
     {
         $attributeReader = new RouteAttributeReader();
-        $builder = new RouteDefinitionBuilder(
+        $builder         = new RouteDefinitionBuilder(
             $attributeReader,
             new MethodSignatureValidator(),
             new RouteDataNormalizer()
         );
 
         /** @var ReflectionClass<object> $reflection */
-        $reflection = new ReflectionClass(ModifierHandler::class);
+        $reflection  = new ReflectionClass(ModifierHandler::class);
         $definitions = $builder->buildForClass($reflection, ModifierHandler::class);
 
         self::assertCount(1, $definitions);
@@ -34,6 +34,8 @@ final class RouteDefinitionBuilderModifierTest extends TestCase
         self::assertInstanceOf(RouteDefinition::class, $route);
         self::assertSame('/modifier', $route->path);
         self::assertSame(['modifier.middleware'], $route->middlewareServices);
-        self::assertSame(['modifier_key' => 'modifier_value'], $route->defaults);
+        self::assertSame([
+            'modifier_key' => 'modifier_value',
+        ], $route->defaults);
     }
 }

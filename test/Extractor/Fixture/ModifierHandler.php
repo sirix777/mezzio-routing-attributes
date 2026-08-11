@@ -13,7 +13,9 @@ use Sirix\Mezzio\Routing\Attributes\Attribute\Route;
 #[Route(path: '/modifier', name: 'modifier.route')]
 #[TestAttributeModifier(
     middleware: ['modifier.middleware'],
-    defaults: ['modifier_key' => 'modifier_value']
+    defaults: [
+        'modifier_key' => 'modifier_value',
+    ]
 )]
 final class ModifierHandler implements RequestHandlerInterface
 {
