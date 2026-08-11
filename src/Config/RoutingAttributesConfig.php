@@ -7,7 +7,9 @@ namespace Sirix\Mezzio\Routing\Attributes\Config;
 use Sirix\Mezzio\Routing\Attributes\Exception\InvalidConfigurationException;
 
 use function array_key_exists;
+use function hash;
 use function is_array;
+use function serialize;
 
 final readonly class RoutingAttributesConfig
 {
@@ -27,6 +29,7 @@ final readonly class RoutingAttributesConfig
         public string $classicRoutesMiddlewareDisplay,
         public bool $cacheEnabled,
         public ?string $cacheFile,
+        public ?string $cacheRelease,
         public bool $discoveryEnabled,
         public array $discoveryPaths,
         public string $discoveryStrategy,
@@ -61,12 +64,35 @@ final readonly class RoutingAttributesConfig
             $classicRoutesMiddlewareDisplay,
             $cache['enabled'],
             $cache['file'],
+            $cache['release'],
             $discovery['enabled'],
             $discovery['paths'],
             $discovery['strategy'],
             $discovery['psr4Mappings'],
             $discovery['psr4FallbackToToken']
         );
+    }
+
+    /**
+     * A deterministic representation of configuration that can change generated routes.
+     *
+     * Cache location and route-list presentation settings are intentionally omitted: they
+     * do not change the generated registrar. Lists retain their configured order because
+     * route extraction and duplicate resolution are order-sensitive.
+     */
+    public function cacheFingerprint(): string
+    {
+        return hash('sha256', serialize([
+            'classes'                          => $this->classes,
+            'duplicate_strategy'               => $this->duplicateStrategy,
+            'handlers_mode'                    => $this->handlersMode,
+            'discovery_enabled'                => $this->discoveryEnabled,
+            'discovery_paths'                  => $this->discoveryPaths,
+            'discovery_strategy'               => $this->discoveryStrategy,
+            'discovery_psr4_mappings'          => $this->discoveryPsr4Mappings,
+            'discovery_psr4_fallback_to_token' => $this->discoveryPsr4FallbackToToken,
+            'cache_release'                    => $this->cacheRelease,
+        ]));
     }
 
     /**

@@ -14,9 +14,15 @@ use Sirix\Mezzio\Routing\Attributes\Cache\RouteCacheStorage;
 use Sirix\Mezzio\Routing\Attributes\Cache\RouteRegistrarCacheInterface;
 use Sirix\Mezzio\Routing\Attributes\CompiledRouteRegistrarCache;
 use Sirix\Mezzio\Routing\Attributes\Config\RoutingAttributesConfig;
+use Throwable;
+
+use function interface_exists;
+use function is_object;
 
 final class CompiledRouteRegistrarCacheFactory
 {
+    private const PSR_LOGGER_INTERFACE = 'Psr\Log\LoggerInterface';
+
     /**
      * @throws ContainerExceptionInterface
      * @throws NotFoundExceptionInterface
@@ -26,11 +32,18 @@ final class CompiledRouteRegistrarCacheFactory
         $rootConfig = $container->has('config') ? $container->get('config') : [];
         $config     = RoutingAttributesConfig::fromRootConfig($rootConfig);
 
-        return $this->createFromCacheFile($config->cacheFile);
+        return $this->createFromCacheFile(
+            $config->cacheFile,
+            $config->cacheFingerprint(),
+            $this->resolveOptionalLogger($container)
+        );
     }
 
-    public function createFromCacheFile(?string $cacheFile): RouteRegistrarCacheInterface
-    {
+    public function createFromCacheFile(
+        ?string $cacheFile,
+        string $configFingerprint = '',
+        ?object $logger = null
+    ): RouteRegistrarCacheInterface {
         if (null === $cacheFile) {
             return new NullRouteRegistrarCache();
         }
@@ -38,8 +51,24 @@ final class CompiledRouteRegistrarCacheFactory
         return new CompiledRouteRegistrarCache(
             $cacheFile,
             new RouteCacheGenerator(),
-            new RouteCacheStorage(),
-            new RouteCacheLoader()
+            new RouteCacheStorage($logger),
+            new RouteCacheLoader(),
+            $configFingerprint
         );
+    }
+
+    private function resolveOptionalLogger(ContainerInterface $container): ?object
+    {
+        if (! interface_exists(self::PSR_LOGGER_INTERFACE) || ! $container->has(self::PSR_LOGGER_INTERFACE)) {
+            return null;
+        }
+
+        try {
+            $logger = $container->get(self::PSR_LOGGER_INTERFACE);
+        } catch (Throwable) {
+            return null;
+        }
+
+        return is_object($logger) ? $logger : null;
     }
 }

@@ -10,6 +10,7 @@ use Sirix\Mezzio\Routing\Attributes\Cache\RouteCacheGenerator;
 use Sirix\Mezzio\Routing\Attributes\Cache\RouteCacheLoader;
 use Sirix\Mezzio\Routing\Attributes\Cache\RouteCacheStorage;
 use Sirix\Mezzio\Routing\Attributes\CompiledRouteRegistrarCache;
+use Sirix\Mezzio\Routing\Attributes\Config\RoutingAttributesConfig;
 use Sirix\Mezzio\Routing\Attributes\Exception\InvalidConfigurationException;
 use Sirix\Mezzio\Routing\Attributes\MiddlewarePipelineFactory;
 use Sirix\Mezzio\Routing\Attributes\RouteDefinition;
@@ -108,6 +109,43 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
 
         self::assertTrue($reader->registerRoutes($collector, $pipelineFactory));
         self::assertSame(1, $collector->routeCalls);
+    }
+
+    public function testTreatsArtifactFromPreviousDeploymentReleaseAsCacheMiss(): void
+    {
+        $cacheFile          = $this->createCacheFilePath();
+        $this->cacheFiles[] = $cacheFile;
+        $firstRelease       = RoutingAttributesConfig::fromRootConfig([
+            'routing_attributes' => [
+                'classes' => ['App\Handler\RouteBearingClass'],
+                'cache'   => [
+                    'enabled' => true,
+                    'file'    => $cacheFile,
+                    'release' => 'first-release',
+                ],
+            ],
+        ]);
+        $secondRelease      = RoutingAttributesConfig::fromRootConfig([
+            'routing_attributes' => [
+                'classes' => ['App\Handler\RouteBearingClass'],
+                'cache'   => [
+                    'enabled' => true,
+                    'file'    => $cacheFile,
+                    'release' => 'second-release',
+                ],
+            ],
+        ]);
+        $writer             = $this->createCache($cacheFile, $firstRelease->cacheFingerprint());
+        $reader             = $this->createCache($cacheFile, $secondRelease->cacheFingerprint());
+
+        self::assertTrue($writer->save([
+            new RouteDefinition('/compiled', ['GET'], 'handler.service', 'process', [], 'compiled.route'),
+        ]));
+
+        $collector = new RecordingRouteCollector();
+
+        self::assertFalse($reader->registerRoutes($collector, $this->createPipelineFactory([])));
+        self::assertSame(0, $collector->routeCalls);
     }
 
     public function testCompiledCacheNormalizesBlankRouteName(): void
@@ -373,13 +411,14 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
         self::assertStringContainsString('shared.alias.route', $generated);
     }
 
-    private function createCache(string $cacheFile): CompiledRouteRegistrarCache
+    private function createCache(string $cacheFile, string $configFingerprint = ''): CompiledRouteRegistrarCache
     {
         return new CompiledRouteRegistrarCache(
             $cacheFile,
             new RouteCacheGenerator(),
             new RouteCacheStorage(),
-            new RouteCacheLoader()
+            new RouteCacheLoader(),
+            $configFingerprint
         );
     }
 

@@ -7,9 +7,12 @@ namespace Sirix\Mezzio\Routing\Attributes\Cache;
 use Sirix\Mezzio\Routing\Attributes\Exception\InvalidConfigurationException;
 use Throwable;
 
+use function hash_equals;
 use function is_array;
 use function is_callable;
-use function is_file;
+use function is_link;
+use function is_string;
+use function lstat;
 use function restore_error_handler;
 use function set_error_handler;
 
@@ -18,15 +21,16 @@ final readonly class RouteCacheLoader
     /**
      * @return null|array{register: callable}
      */
-    public function load(string $cacheFile): ?array
+    public function load(string $cacheFile, string $expectedFingerprint = ''): ?array
     {
         static $loadedArtifacts = [];
 
-        if (isset($loadedArtifacts[$cacheFile])) {
-            return $loadedArtifacts[$cacheFile]['payload'];
+        $cacheKey = $cacheFile . "\0" . $expectedFingerprint;
+        if (isset($loadedArtifacts[$cacheKey])) {
+            return $loadedArtifacts[$cacheKey]['payload'];
         }
 
-        if (! is_file($cacheFile)) {
+        if (! $this->isSafeArtifact($cacheFile)) {
             return null;
         }
 
@@ -42,6 +46,18 @@ final readonly class RouteCacheLoader
             $this->invalidPayload('Top-level value must be an array.' . $this->formatReason($requireError));
         }
 
+        if (($payload['format_version'] ?? null) !== RouteCacheGenerator::FORMAT_VERSION) {
+            return null;
+        }
+
+        if (
+            ! isset($payload['config_fingerprint'])
+            || ! is_string($payload['config_fingerprint'])
+            || ! hash_equals($expectedFingerprint, $payload['config_fingerprint'])
+        ) {
+            return null;
+        }
+
         if (! isset($payload['register']) || ! is_callable($payload['register'])) {
             $this->invalidPayload('Compiled cache payload must contain callable key "register".');
         }
@@ -50,16 +66,20 @@ final readonly class RouteCacheLoader
             'register' => $payload['register'],
         ];
 
-        $loadedArtifacts[$cacheFile] = [
+        $loadedArtifacts[$cacheKey] = [
             'payload' => $artifact,
         ];
 
         return $artifact;
     }
 
-    public function validate(mixed $payload): bool
+    public function validate(mixed $payload, string $expectedFingerprint = ''): bool
     {
         return is_array($payload)
+            && ($payload['format_version'] ?? null) === RouteCacheGenerator::FORMAT_VERSION
+            && isset($payload['config_fingerprint'])
+            && is_string($payload['config_fingerprint'])
+            && hash_equals($expectedFingerprint, $payload['config_fingerprint'])
             && isset($payload['register'])
             && is_callable($payload['register']);
     }
@@ -78,6 +98,27 @@ final readonly class RouteCacheLoader
         } finally {
             restore_error_handler();
         }
+    }
+
+    private function isSafeArtifact(string $cacheFile): bool
+    {
+        if (is_link($cacheFile)) {
+            return false;
+        }
+
+        $lstatError = null;
+        $stat       = $this->lstatWithCapturedError($cacheFile, $lstatError);
+        if (false === $stat) {
+            return false;
+        }
+
+        return (($stat['mode'] ?? 0) & 0o170000) === 0o100000;
+    }
+
+    /** @return array<string, int>|false */
+    private function lstatWithCapturedError(string $file, ?string &$error): array|false
+    {
+        return $this->withCapturedError(fn () => lstat($file), $error);
     }
 
     private function requireWithCapturedError(string $file, ?string &$error): mixed

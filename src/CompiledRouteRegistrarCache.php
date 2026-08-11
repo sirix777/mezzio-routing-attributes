@@ -20,7 +20,8 @@ final readonly class CompiledRouteRegistrarCache implements RouteRegistrarCacheI
         private string $cacheFile,
         private RouteCacheGenerator $cacheGenerator,
         private RouteCacheStorage $cacheStorage,
-        private RouteCacheLoader $cacheLoader
+        private RouteCacheLoader $cacheLoader,
+        private string $configFingerprint = ''
     ) {}
 
     public function registerRoutes(RouteCollectorInterface $collector, MiddlewarePipelineFactory $pipelineFactory): bool
@@ -30,7 +31,7 @@ final readonly class CompiledRouteRegistrarCache implements RouteRegistrarCacheI
         }
 
         try {
-            $artifact = $this->cacheLoader->load($this->cacheFile);
+            $artifact = $this->cacheLoader->load($this->cacheFile, $this->configFingerprint);
         } catch (Throwable) {
             return false;
         }
@@ -56,7 +57,7 @@ final readonly class CompiledRouteRegistrarCache implements RouteRegistrarCacheI
         }
 
         try {
-            return null !== $this->cacheLoader->load($this->cacheFile);
+            return null !== $this->cacheLoader->load($this->cacheFile, $this->configFingerprint);
         } catch (Throwable) {
             return false;
         }
@@ -65,9 +66,10 @@ final readonly class CompiledRouteRegistrarCache implements RouteRegistrarCacheI
     /**
      * @param list<RouteDefinition> $routes
      */
-    public function save(array $routes): void
+    public function save(array $routes): bool
     {
-        $content = $this->cacheGenerator->generate($routes);
-        $this->cacheStorage->save($this->cacheFile, $content);
+        $content = $this->cacheGenerator->generate($routes, $this->configFingerprint);
+
+        return $this->cacheStorage->save($this->cacheFile, $content);
     }
 }
