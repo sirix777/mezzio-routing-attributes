@@ -101,12 +101,8 @@ final readonly class RouteCacheStorage
 
     private function reportFailure(string $operation, string $cacheFile, ?string $error): void
     {
-        if (! $this->logger instanceof LoggerInterface) {
-            return;
-        }
-
         try {
-            $this->logger->error('Unable to write compiled route cache artifact.', [
+            $this->logger?->error('Unable to write compiled route cache artifact.', [
                 'operation'  => $operation,
                 'cache_file' => $cacheFile,
                 'error'      => $error ?? 'Unknown filesystem error.',
