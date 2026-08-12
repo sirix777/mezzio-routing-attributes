@@ -7,10 +7,12 @@ namespace SirixTest\Mezzio\Routing\Attributes\Discovery;
 use PHPUnit\Framework\TestCase;
 use Sirix\Mezzio\Routing\Attributes\Discovery\DiscoveryFileInventory;
 
+use function array_map;
 use function file_put_contents;
 use function is_dir;
 use function mkdir;
 use function rmdir;
+use function str_replace;
 use function sys_get_temp_dir;
 use function uniqid;
 use function unlink;
@@ -54,6 +56,11 @@ final class DiscoveryFileInventoryTest extends TestCase
         foreach ($result as [$file]) {
             $paths[] = $file;
         }
+
+        $paths = array_map(
+            static fn (string $file): string => str_replace('\\', '/', $file),
+            $paths
+        );
 
         self::assertContains($this->tempDir . '/A.php', $paths);
         self::assertContains($this->tempDir . '/Nested/B.php', $paths);

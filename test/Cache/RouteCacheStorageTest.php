@@ -64,6 +64,10 @@ final class RouteCacheStorageTest extends TestCase
 
     public function testSaveIgnoresWriteFailure(): void
     {
+        if ('Windows' === PHP_OS_FAMILY) {
+            self::markTestSkipped('Windows does not enforce POSIX directory mode bits.');
+        }
+
         $directory     = $this->createPath('write-disabled-dir');
         $this->paths[] = $directory;
         mkdir($directory, 0o775, true);
