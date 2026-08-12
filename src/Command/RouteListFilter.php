@@ -10,9 +10,7 @@ use function array_filter;
 use function array_values;
 use function in_array;
 use function is_string;
-use function preg_match;
-use function preg_quote;
-use function sprintf;
+use function str_starts_with;
 use function stripos;
 use function strtoupper;
 
@@ -48,7 +46,7 @@ final readonly class RouteListFilter
                 }
 
                 if (is_string($middleware) && '' !== $middleware) {
-                    $middlewareClass = $this->middlewareDisplayResolver->resolveForFilter($route);
+                    $middlewareClass = $this->middlewareDisplayResolver->resolve($route);
 
                     if (false === stripos($middlewareClass, $middleware)) {
                         return false;
@@ -72,9 +70,6 @@ final readonly class RouteListFilter
 
     private function matches(string $subject, string $search): bool
     {
-        return (bool) preg_match(
-            sprintf('/^%s/', preg_quote($search, '/')),
-            $subject,
-        );
+        return str_starts_with($subject, $search);
     }
 }

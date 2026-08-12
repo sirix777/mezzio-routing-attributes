@@ -23,17 +23,7 @@ final readonly class RouteMiddlewareDisplayResolver
      */
     public function __construct(private string $classicRoutesMiddlewareDisplay = self::CLASSIC_ROUTES_MIDDLEWARE_DISPLAY_UPSTREAM) {}
 
-    public function resolveForDisplay(Route $route): string
-    {
-        return $this->resolveMiddlewareDisplay($route);
-    }
-
-    public function resolveForFilter(Route $route): string
-    {
-        return $this->resolveMiddlewareDisplay($route);
-    }
-
-    private function resolveMiddlewareDisplay(Route $route): string
+    public function resolve(Route $route): string
     {
         $attributeDisplay = $route->getOptions()[self::ROUTE_OPTION_MIDDLEWARE_DISPLAY] ?? null;
         if (is_string($attributeDisplay) && '' !== $attributeDisplay) {

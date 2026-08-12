@@ -13,6 +13,15 @@ use function serialize;
 
 final readonly class RoutingAttributesConfig
 {
+    public const DUPLICATE_STRATEGY_THROW                   = 'throw';
+    public const DUPLICATE_STRATEGY_IGNORE                  = 'ignore';
+    public const HANDLERS_MODE_PSR15                        = 'psr15';
+    public const HANDLERS_MODE_CALLABLE                     = 'callable';
+    public const CLASSIC_ROUTES_MIDDLEWARE_DISPLAY_UPSTREAM = 'upstream';
+    public const CLASSIC_ROUTES_MIDDLEWARE_DISPLAY_RESOLVED = 'resolved';
+    public const DISCOVERY_STRATEGY_TOKEN                   = 'token';
+    public const DISCOVERY_STRATEGY_PSR4                    = 'psr4';
+
     /**
      * @param list<non-empty-string>                    $classes
      * @param 'ignore'|'throw'                          $duplicateStrategy
@@ -26,6 +35,7 @@ final readonly class RoutingAttributesConfig
         public array $classes,
         public string $duplicateStrategy,
         public string $handlersMode,
+        public bool $overrideMezzioRoutesListCommand,
         public string $classicRoutesMiddlewareDisplay,
         public bool $cacheEnabled,
         public ?string $cacheFile,
@@ -50,26 +60,28 @@ final readonly class RoutingAttributesConfig
 
         self::assertRemovedRootOptions($routingAttributesConfig);
 
-        $classes                        = (new ClassesConfigParser())->parse($routingAttributesConfig);
-        $duplicateStrategy              = (new DuplicateStrategyConfigParser())->parse($routingAttributesConfig);
-        $handlersMode                   = (new HandlersConfigParser())->parse($routingAttributesConfig);
-        $classicRoutesMiddlewareDisplay = (new RouteListConfigParser())->parse($routingAttributesConfig);
-        $discovery                      = (new DiscoveryConfigParser())->parse($routingAttributesConfig);
-        $cache                          = (new CacheConfigParser())->parse($routingAttributesConfig);
+        $classes                         = (new ClassesConfigParser())->parse($routingAttributesConfig);
+        $duplicateStrategy               = (new DuplicateStrategyConfigParser())->parse($routingAttributesConfig);
+        $handlersMode                    = (new HandlersConfigParser())->parse($routingAttributesConfig);
+        $overrideMezzioRoutesListCommand = (new OverrideMezzioRoutesListCommandConfigParser())->parse($routingAttributesConfig);
+        $classicRoutesMiddlewareDisplay  = (new RouteListConfigParser())->parse($routingAttributesConfig);
+        $discovery                       = (new DiscoveryConfigParser())->parse($routingAttributesConfig);
+        $cache                           = (new CacheConfigParser())->parse($routingAttributesConfig);
 
         return new self(
-            $classes,
-            $duplicateStrategy,
-            $handlersMode,
-            $classicRoutesMiddlewareDisplay,
-            $cache['enabled'],
-            $cache['file'],
-            $cache['release'],
-            $discovery['enabled'],
-            $discovery['paths'],
-            $discovery['strategy'],
-            $discovery['psr4Mappings'],
-            $discovery['psr4FallbackToToken']
+            classes: $classes,
+            duplicateStrategy: $duplicateStrategy,
+            handlersMode: $handlersMode,
+            overrideMezzioRoutesListCommand: $overrideMezzioRoutesListCommand,
+            classicRoutesMiddlewareDisplay: $classicRoutesMiddlewareDisplay,
+            cacheEnabled: $cache['enabled'],
+            cacheFile: $cache['file'],
+            cacheRelease: $cache['release'],
+            discoveryEnabled: $discovery['enabled'],
+            discoveryPaths: $discovery['paths'],
+            discoveryStrategy: $discovery['strategy'],
+            discoveryPsr4Mappings: $discovery['psr4Mappings'],
+            discoveryPsr4FallbackToToken: $discovery['psr4FallbackToToken']
         );
     }
 

@@ -24,7 +24,7 @@ Measures the raw performance of `AttributeRouteProvider::registerRoutes()` — t
 
 ### What It Measures
 
-Each iteration creates a fresh container with all required services, builds an `AttributeRouteProvider` via `AttributeRouteProviderFactory`, and calls `registerRoutes()`. The benchmark records:
+Each iteration creates a fresh container with all required services, builds an `AttributeRouteProvider` via `AttributeRouteProviderFactory`, and calls `registerRoutes()`. Warm-cache iterations run in separate PHP processes, so the measured interval includes loading the artifact with `require` and cannot reuse `RouteCacheLoader`'s process-static cache. The benchmark records:
 
 | Metric | Description |
 |--------|-------------|
@@ -39,8 +39,8 @@ Each iteration creates a fresh container with all required services, builds an `
 | `warm_cache_hit_manual` | **Primary regression signal.** Route cache file exists and is valid. Measures the fast-path where routes are loaded from cache, not extracted. | Explicit class list (`[PingHandler::class]`), cache enabled |
 | `no_cache_manual` | Baseline reference. No cache, routes extracted every time. Lower-bound for registration overhead. | Explicit class list, cache disabled |
 | `cold_cache_rebuild_manual` | Cache miss. Cache file is deleted before each iteration, forcing full extraction + cache write. Captures the cost of first-time registration. | Explicit class list, cache enabled, file deleted each iteration |
-| `warm_cache_hit_discovery_token` | Discovery mode with token-based class scanning + cache hit. Tests the discovery pipeline overhead. | Empty class list, discovery enabled (token strategy), cache enabled |
-| `warm_cache_hit_discovery_psr4` | Discovery mode with PSR-4 class resolution + cache hit. Tests PSR-4 mapping overhead. | Empty class list, discovery enabled (PSR-4 strategy), cache enabled |
+| `warm_cache_hit_discovery_token` | Cache hit with token discovery configuration. Discovery is skipped on a valid hit. | Empty class list, discovery enabled (token strategy), cache enabled |
+| `warm_cache_hit_discovery_psr4` | Cache hit with PSR-4 discovery configuration. Discovery is skipped on a valid hit. | Empty class list, discovery enabled (PSR-4 strategy), cache enabled |
 
 ### How It Works
 
@@ -54,7 +54,7 @@ Each iteration creates a fresh container with all required services, builds an `
 
 2. **Warmup:** Before measuring, the benchmark runs one warm-up iteration to populate the cache file.
 
-3. **Measurement:** 100 iterations per scenario. Each iteration:
+3. **Measurement:** 20 iterations per scenario by default. Each cache-hit, no-cache, and cold-rebuild iteration runs in a fresh PHP process. Every iteration:
    - Calls `gc_collect_cycles()` to minimize GC interference
    - Records `memory_get_usage()` before
    - Resets peak memory tracking
@@ -63,7 +63,7 @@ Each iteration creates a fresh container with all required services, builds an `
 
 4. **Aggregation:** Results are summarized as median, avg, min, max for timing; avg/median/max for memory.
 
-5. **Baseline comparison:** If `benchmarks/baseline.json` exists, the benchmark compares the `warm_cache_hit_manual` median against the baseline. Regression budget is **<= 5%**.
+5. **Baseline comparison:** The benchmark compares the `warm_cache_hit_manual` median only with a baseline recorded using the same fresh-process artifact-loading methodology. A regression beyond the **<= 5%** budget exits non-zero.
 
 ### Output
 
@@ -81,7 +81,7 @@ within_budget = regression_percent <= 5.0
 - **Positive** regression within budget (<= 5%) is acceptable
 - **Positive** regression exceeding budget signals a performance problem
 
-### Current Results
+### Historical Results (v1 artifact; not comparable with v2)
 
 > PHP `8.2.30` | 100 iterations | Manual: 2 routes (PingHandler) | Discovery: 4 routes from 5 fixture classes
 
@@ -93,11 +93,7 @@ within_budget = regression_percent <= 5.0
 | `warm_cache_hit_discovery_token` | 0.0034 | 0.0035 | 0.0031 | 0.0084 | 3.1406 | 3.1406 | 3.1406 | 4.00 |
 | `warm_cache_hit_discovery_psr4` | 0.0034 | 0.0036 | 0.0031 | 0.0070 | 3.1406 | 3.1406 | 3.1406 | 4.00 |
 
-**Observations:**
-- Cache hit (`warm_cache_hit_manual`) is ~4x faster than no-cache (`no_cache_manual`) — 0.0015 ms vs 0.0059 ms
-- Cold cache rebuild is the slowest scenario (~0.044 ms) due to extraction + file write overhead
-- Discovery scenarios are slightly slower than manual cache hit (0.0034 ms vs 0.0015 ms) because the cache artifact includes discovery logic
-- Discovery scenarios correctly find 4 routes from 5 fixture classes
+These figures use the former in-process methodology, which could reuse `RouteCacheLoader`'s process-static artifact. They are retained only as a v1 historical record. Collect a fresh baseline for the current artifact format before drawing performance conclusions.
 
 ---
 
@@ -111,12 +107,12 @@ Determines the **minimum route count** at which the compiled route cache becomes
 
 ### What It Measures
 
-For each route count, the benchmark runs two configurations:
+For each route count, the benchmark compares the single production artifact format with uncached extraction.
 
 | Configuration | Description |
 |---------------|-------------|
 | `no-cache` | Routes extracted fresh every time, no cache file |
-| `compiled` | Routes loaded from a pre-warmed compiled PHP cache file |
+| `compiled` | Routes loaded from a pre-warmed production PHP artifact |
 
 For each configuration it records:
 
@@ -131,21 +127,24 @@ For each configuration it records:
 The benchmark tests these route counts:
 
 ```
-10, 25, 50, 100, 200, 400, 800, 1600, 2400, 3200, 4800, 6400, 9600, 12800
+10, 16, 17, 25, 50, 100, 200, 400, 800, 1600, 2400, 3200, 4800, 6400, 9600, 12800
 ```
 
 ### How It Works
 
-1. **SyntheticExtractor:** Instead of real PHP attributes, the benchmark uses a `SyntheticExtractor` that generates `RouteDefinition` objects directly. This isolates the cache/registration overhead from the attribute parsing overhead.
+1. **Generated attribute corpus:** For every route count, the benchmark creates a temporary corpus with real repeatable `#[Route]` attributes. The default `mixed` profile places half the routes on one handler and the remainder on separate handlers. `shared` puts every route on one handler; `unique` gives each route a separate handler. The no-cache sample loads the corpus during the measured interval and runs production extraction; the cache-hit sample loads the pre-warmed artifact for the same corpus.
 
 2. **For each route count:**
-   - Run `no-cache` scenario (20 iterations, cache disabled)
-   - Run `compiled` scenario (20 iterations, cache enabled, file pre-warmed once before measuring)
+   - Run `no-cache` scenario (20 iterations, cache disabled; each sample uses a fresh PHP process)
+   - Pre-warm the production artifact in an isolated process.
+   - Run `compiled` (20 iterations by default; every warm-cache sample uses a fresh PHP process and includes artifact loading).
    - Calculate speedup: `((no_cache_median - cache_hit_median) / no_cache_median) * 100`
+
+   Each sample verifies after timing that its collector received exactly the requested route count. A malformed artifact therefore cannot look fast by registering fewer routes.
 
 3. **Cache-win detection:** The benchmark tracks the first route count where `cache_hit_median <= no_cache_median`. This is the "break-even" point.
 
-4. **Cleanup:** All temporary cache files are deleted after measurement.
+4. **Cleanup and isolation:** The harness creates a random private `0700` directory beneath the system temp directory. Generated PHP corpus, cache files, and the `0600` JSON class manifest used by child samples stay inside it and are deleted after measurement. The manifest avoids passing thousands of class names through `proc_open()` arguments, so `unique` and `mixed` profiles work at the default maximum corpus size without relying on the host argument-length limit.
 
 ### Output
 
@@ -155,22 +154,42 @@ Console table with columns:
 |--------|-------------|
 | `Routes` | Number of routes |
 | `no-cache median ms` | Median time without cache |
-| `compiled median ms` | Median time with cache |
+| `compiled median ms` | Median time with the production artifact |
 | `compiled speedup %` | Positive = cache is faster, negative = cache is slower |
 | `no-cache median peak KB` | Peak memory without cache |
-| `compiled median peak KB` | Peak memory with cache |
+| `compiled median peak KB` | Peak memory with the production artifact |
 | `no-cache median usage delta KB` | Retained memory without cache |
-| `compiled median usage delta KB` | Retained memory with cache |
+| `compiled median usage delta KB` | Retained memory with the production artifact |
 
 ### Interpreting Results
 
 - **Speedup % > 0**: Cache is faster than no-cache at this route count
 - **Speedup % < 0**: Cache is slower (overhead exceeds benefit)
-- **First cache-win point**: The minimum route count where caching becomes beneficial
+- **First cache-win point**: The minimum measured route count where the production artifact becomes beneficial
 
-Typical results show that compiled cache reduces both registration time and route-definition allocation once the cache file is warmed.
+Select a corpus profile with `BENCHMARK_PROFILE`:
 
-### Current Results
+```bash
+BENCHMARK_PROFILE=shared php benchmarks/route-cache-threshold-benchmark.php
+BENCHMARK_PROFILE=unique php benchmarks/route-cache-threshold-benchmark.php
+BENCHMARK_PROFILE=mixed php benchmarks/route-cache-threshold-benchmark.php
+```
+
+`mixed` is the default. Use `BENCHMARK_ROUTE_COUNTS` and `BENCHMARK_ITERATIONS` to narrow or stabilize a run. This regression benchmark covers the one supported artifact format; it does not make layout-selection or threshold claims.
+
+### Current reference measurements
+
+Local alternating fresh-process run, PHP `8.2.32`, 41 samples. These figures are recorded for comparison on this environment; they are not a checked-in blocking baseline.
+
+| Corpus | Routes | Current result |
+|---|---:|---|
+| `shared` | 12,800 | compiled `30.6591 ms`, no-cache `62.4985 ms`, speedup `50.94%` |
+| `mixed` | 3,200 | compiled `11.5022 ms`, no-cache `28.5560 ms`, speedup `59.72%` |
+| `unique` | 3,200 | compiled `13.3335 ms`, no-cache `40.4937 ms`, speedup `67.07%` |
+
+The shared scalar registration primitive keeps cold and compiled semantics aligned. Its isolated previous 12,800-route comparison versus inlined loops was `+7.8%` on cold registration and `8.47 ms` → `9.56 ms` (`+12.9%`) for compiled registration, with memory difference below 1 KB. This is an accepted trade-off until a fixed CI host and a representative application corpus justify a tighter budget.
+
+### Historical results
 
 > PHP `8.2.30` | 20 iterations per point | Cache backend: compiled
 
@@ -191,12 +210,7 @@ Typical results show that compiled cache reduces both registration time and rout
 | 9600 | 15.9075 | 5.9559 | 62.56 | 10038.2109 | 7010.8047 | 8277.7891 | 7010.5938 |
 | 12800 | 21.5622 | 8.5712 | 60.25 | 13213.2109 | 9260.8047 | 10952.7891 | 9260.5938 |
 
-**First measured cache-win point (compiled):** `10` routes.
-
-**Observations:**
-- Compiled cache wins from the first measured point (`10` routes) in this synthetic benchmark.
-- Speedup remains around 60-76% across the measured range.
-- Compiled cache also reduces peak and retained memory because it bypasses `RouteDefinition` extraction/allocation for every boot.
+These figures use a former artifact and in-process loader cache. They are retained only as historical context, not as a threshold or format-selection recommendation; rerun the current benchmark on the target host.
 
 ---
 
@@ -249,7 +263,8 @@ Both benchmarks use a minimal container that mirrors the real Mezzio container. 
 | Service | Implementation | Why |
 |---------|---------------|-----|
 | `config` | Array with `routing_attributes` section | Drives all behavior |
-| `AttributeRouteExtractorInterface` | Real `AttributeRouteExtractor` (or `SyntheticExtractor`) | Extracts routes from classes |
+| `RoutingAttributesConfig` | Parsed shared configuration service | Mirrors `ConfigProvider` wiring |
+| `AttributeRouteExtractorInterface` | Real `AttributeRouteExtractor` | Extracts routes from classes |
 | `RouteRegistrarCacheInterface` | `CompiledRouteRegistrarCacheFactory` output | Mirrors package cache wiring |
 | `DuplicateRouteResolver` | `DuplicateRouteResolverFactory` output | Handles duplicate route detection |
 | `MiddlewarePipelineFactory` | `MiddlewarePipelineFactoryFactory` output | Builds middleware pipelines for routes |

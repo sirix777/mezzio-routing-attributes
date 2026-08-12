@@ -39,7 +39,7 @@ final readonly class DiscoveryConfigParser
         }
 
         $normalizedDiscoveryPaths        = [];
-        $discoveryStrategy               = 'token';
+        $discoveryStrategy               = RoutingAttributesConfig::DISCOVERY_STRATEGY_TOKEN;
         $normalizedDiscoveryPsr4Mappings = [];
         $discoveryPsr4FallbackToToken    = true;
 
@@ -58,8 +58,11 @@ final readonly class DiscoveryConfigParser
             /** @var list<non-empty-string> $normalizedDiscoveryPaths */
             $normalizedDiscoveryPaths = array_values($discoveryPaths);
 
-            $discoveryStrategy = $discoveryConfig['strategy'] ?? 'token';
-            if (! in_array($discoveryStrategy, ['token', 'psr4'], true)) {
+            $discoveryStrategy = $discoveryConfig['strategy'] ?? RoutingAttributesConfig::DISCOVERY_STRATEGY_TOKEN;
+            if (! in_array($discoveryStrategy, [
+                RoutingAttributesConfig::DISCOVERY_STRATEGY_TOKEN,
+                RoutingAttributesConfig::DISCOVERY_STRATEGY_PSR4,
+            ], true)) {
                 throw InvalidConfigurationException::invalidDiscoveryStrategy($discoveryStrategy);
             }
 
@@ -90,7 +93,7 @@ final readonly class DiscoveryConfigParser
                 $normalizedDiscoveryPsr4Mappings[$basePath] = $namespace;
             }
 
-            if ('psr4' === $discoveryStrategy && [] === $normalizedDiscoveryPsr4Mappings) {
+            if (RoutingAttributesConfig::DISCOVERY_STRATEGY_PSR4 === $discoveryStrategy && [] === $normalizedDiscoveryPsr4Mappings) {
                 throw InvalidConfigurationException::missingDiscoveryPsr4Mappings();
             }
         }

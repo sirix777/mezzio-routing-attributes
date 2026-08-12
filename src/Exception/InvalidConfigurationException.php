@@ -88,6 +88,14 @@ class InvalidConfigurationException extends InvalidArgumentException
         ));
     }
 
+    public static function invalidMezzioRoutesListCommandOverride(mixed $override): self
+    {
+        return new self(sprintf(
+            'Configuration key "routing_attributes.override_mezzio_routes_list_command" must be a boolean; received %s.',
+            get_debug_type($override)
+        ));
+    }
+
     public static function invalidCacheType(mixed $cacheConfig): self
     {
         return new self(sprintf(

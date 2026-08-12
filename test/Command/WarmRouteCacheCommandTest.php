@@ -82,7 +82,7 @@ final class WarmRouteCacheCommandTest extends TestCase
 
         self::assertSame(0, $tester->execute([]));
         self::assertStringContainsString('Route cache warmed', $tester->getDisplay());
-        self::assertStringContainsString("'format_version' => 1", (string) file_get_contents($this->cacheFile));
+        self::assertStringContainsString("'format_version' => 2", (string) file_get_contents($this->cacheFile));
         self::assertStringContainsString($config->cacheFingerprint(), (string) file_get_contents($this->cacheFile));
     }
 

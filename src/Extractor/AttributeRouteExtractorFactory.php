@@ -11,8 +11,7 @@ final class AttributeRouteExtractorFactory
 {
     public function __invoke(ContainerInterface $container): AttributeRouteExtractor
     {
-        $rootConfig = $container->has('config') ? $container->get('config') : [];
-        $config     = RoutingAttributesConfig::fromRootConfig($rootConfig);
+        $config     = $container->get(RoutingAttributesConfig::class);
         $reader     = new RouteAttributeReader();
 
         return new AttributeRouteExtractor(

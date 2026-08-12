@@ -50,19 +50,6 @@ final readonly class CompiledRouteRegistrarCache implements RouteRegistrarCacheI
         return true;
     }
 
-    public function hasUsableArtifact(): bool
-    {
-        if (! is_file($this->cacheFile)) {
-            return false;
-        }
-
-        try {
-            return null !== $this->cacheLoader->load($this->cacheFile, $this->configFingerprint);
-        } catch (Throwable) {
-            return false;
-        }
-    }
-
     /**
      * @param list<RouteDefinition> $routes
      */

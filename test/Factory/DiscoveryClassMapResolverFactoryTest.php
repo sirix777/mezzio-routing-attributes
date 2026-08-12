@@ -48,7 +48,9 @@ final class DiscoveryClassMapResolverFactoryTest extends TestCase
 
     public function testInvokeReturnsNullResolverWhenDiscoveryIsDisabled(): void
     {
-        $container = new InMemoryContainer([]);
+        $container = new InMemoryContainer([
+            'config' => [],
+        ]);
 
         $resolver = (new DiscoveryClassMapResolverFactory())($container);
 

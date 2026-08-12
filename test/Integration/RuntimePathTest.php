@@ -14,6 +14,7 @@ use Sirix\Mezzio\Routing\Attributes\AttributeRouteProvider;
 use Sirix\Mezzio\Routing\Attributes\AttributeRouteProviderFactory;
 use Sirix\Mezzio\Routing\Attributes\Cache\NullRouteRegistrarCache;
 use Sirix\Mezzio\Routing\Attributes\Cache\RouteRegistrarCacheInterface;
+use Sirix\Mezzio\Routing\Attributes\Config\RoutingAttributesConfig;
 use Sirix\Mezzio\Routing\Attributes\ConfigProvider;
 use Sirix\Mezzio\Routing\Attributes\Discovery\DiscoveredClassesResolverInterface;
 use Sirix\Mezzio\Routing\Attributes\Discovery\NullDiscoveredClassesResolver;
@@ -109,11 +110,13 @@ final class RuntimePathTest extends TestCase
             }
         };
 
-        $container->set('config', [
+        $rootConfig = [
             'routing_attributes' => [
                 'classes' => [PingHandler::class],
             ],
-        ]);
+        ];
+        $container->set('config', $rootConfig);
+        $container->set(RoutingAttributesConfig::class, RoutingAttributesConfig::fromRootConfig($rootConfig));
         $container->set(AttributeRouteExtractorInterface::class, $this->createAttributeRouteExtractor());
         $container->set(PingHandler::class, new PingHandler());
         $container->set(RouteRegistrarCacheInterface::class, new NullRouteRegistrarCache());

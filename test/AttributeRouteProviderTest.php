@@ -19,6 +19,7 @@ use Sirix\Mezzio\Routing\Attributes\Cache\RouteCacheGenerator;
 use Sirix\Mezzio\Routing\Attributes\Cache\RouteCacheLoader;
 use Sirix\Mezzio\Routing\Attributes\Cache\RouteCacheStorage;
 use Sirix\Mezzio\Routing\Attributes\CompiledRouteRegistrarCache;
+use Sirix\Mezzio\Routing\Attributes\Discovery\DiscoveredClassesResolverInterface;
 use Sirix\Mezzio\Routing\Attributes\DuplicateRouteResolver;
 use Sirix\Mezzio\Routing\Attributes\Exception\DuplicateRouteDefinitionException;
 use Sirix\Mezzio\Routing\Attributes\Exception\InvalidServiceDefinitionException;
@@ -724,6 +725,140 @@ final class AttributeRouteProviderTest extends TestCase
             $compiledCache
         );
         $provider->registerRoutes($collector);
+    }
+
+    public function testSkipsDiscoveryOnValidCompiledCacheHit(): void
+    {
+        $cacheFile          = $this->createCacheFilePath();
+        $this->cacheFiles[] = $cacheFile;
+        $cache              = $this->createCompiledCache($cacheFile);
+        self::assertTrue($cache->save([
+            new RouteDefinition('/compiled', ['GET'], 'compiled.service', 'process', [], 'compiled.route'),
+        ]));
+
+        $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
+        $extractor->expects(self::never())->method('extract');
+        $discovery = $this->createMock(DiscoveredClassesResolverInterface::class);
+        $discovery->expects(self::never())->method('resolve');
+
+        $provider = new AttributeRouteProvider(
+            $extractor,
+            [],
+            new DuplicateRouteResolver(),
+            new MiddlewarePipelineFactory(new InMemoryContainer([]), new ServiceMiddlewareResolver()),
+            $cache,
+            $discovery
+        );
+
+        $provider->registerRoutes(new RecordingRouteCollector());
+    }
+
+    public function testRegistersCachedRoutesWithColdPathSemantics(): void
+    {
+        $cacheFile          = $this->createCacheFilePath();
+        $this->cacheFiles[] = $cacheFile;
+        $cache              = $this->createCompiledCache($cacheFile);
+        self::assertTrue($cache->save([
+            new RouteDefinition('/compiled-options', ['GET'], 'handler.service', 'process', ['mw.service'], '   ', [
+                'configured_option' => 'from-defaults',
+            ]),
+        ]));
+
+        $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
+        $extractor->expects(self::never())->method('extract');
+        $collector = new RecordingRouteCollector(static function(Route $route): void {
+            $route->setOptions([
+                'existing_option' => 'keep-me',
+            ]);
+        });
+        $provider = new AttributeRouteProvider(
+            $extractor,
+            [],
+            new DuplicateRouteResolver(),
+            new MiddlewarePipelineFactory(new InMemoryContainer([]), new ServiceMiddlewareResolver()),
+            $cache
+        );
+
+        $provider->registerRoutes($collector);
+
+        self::assertNull($collector->lastName);
+        self::assertSame('keep-me', $collector->lastRoute?->getOptions()['existing_option'] ?? null);
+        self::assertSame('from-defaults', $collector->lastRoute?->getOptions()['configured_option'] ?? null);
+        self::assertSame(
+            'mw.service -> handler.service::process',
+            $collector->lastRoute?->getOptions()['sirix_routing_attributes.middleware_display'] ?? null
+        );
+    }
+
+    public function testDiscoversClassesOnlyAfterCacheMiss(): void
+    {
+        $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
+        $extractor
+            ->expects(self::once())
+            ->method('extract')
+            ->with([TestMiddleware::class])
+            ->willReturn([
+                new RouteDefinition('/discovered', ['GET'], TestMiddleware::class, 'process', [], 'discovered.route'),
+            ])
+        ;
+        $discovery = $this->createMock(DiscoveredClassesResolverInterface::class);
+        $discovery
+            ->expects(self::once())
+            ->method('resolve')
+            ->willReturn([TestMiddleware::class])
+        ;
+
+        $provider = new AttributeRouteProvider(
+            $extractor,
+            [],
+            new DuplicateRouteResolver(),
+            new MiddlewarePipelineFactory(new InMemoryContainer([]), new ServiceMiddlewareResolver()),
+            new NullRouteRegistrarCache(),
+            $discovery
+        );
+
+        $collector = new RecordingRouteCollector();
+        $provider->registerRoutes($collector);
+
+        self::assertSame(1, $collector->routeCalls);
+    }
+
+    public function testDiscoversClassesAfterInvalidCompiledCacheMiss(): void
+    {
+        $cacheFile          = $this->createCacheFilePath();
+        $this->cacheFiles[] = $cacheFile;
+        file_put_contents($cacheFile, "<?php\n\nreturn ['broken' => true];\n");
+
+        $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
+        $extractor
+            ->expects(self::once())
+            ->method('extract')
+            ->with([TestMiddleware::class])
+            ->willReturn([
+                new RouteDefinition('/rebuilt-discovery', ['GET'], TestMiddleware::class, 'process', [], 'rebuilt.discovery.route'),
+            ])
+        ;
+        $discovery = $this->createMock(DiscoveredClassesResolverInterface::class);
+        $discovery
+            ->expects(self::once())
+            ->method('resolve')
+            ->willReturn([TestMiddleware::class])
+        ;
+
+        $provider = new AttributeRouteProvider(
+            $extractor,
+            [],
+            new DuplicateRouteResolver(),
+            new MiddlewarePipelineFactory(new InMemoryContainer([]), new ServiceMiddlewareResolver()),
+            $this->createCompiledCache($cacheFile),
+            $discovery
+        );
+
+        $collector = new RecordingRouteCollector();
+        $provider->registerRoutes($collector);
+
+        self::assertSame(1, $collector->routeCalls);
+        self::assertStringContainsString("'format_version' => 2", (string) file_get_contents($cacheFile));
     }
 
     public function testRebuildsMalformedCompiledCacheBeforeRegisteringRoutes(): void

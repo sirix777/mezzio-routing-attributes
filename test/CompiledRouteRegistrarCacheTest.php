@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace SirixTest\Mezzio\Routing\Attributes;
 
-use Mezzio\Router\Route;
 use PHPUnit\Framework\TestCase;
 use Sirix\Mezzio\Routing\Attributes\Cache\RouteCacheGenerator;
 use Sirix\Mezzio\Routing\Attributes\Cache\RouteCacheLoader;
@@ -14,12 +13,14 @@ use Sirix\Mezzio\Routing\Attributes\Config\RoutingAttributesConfig;
 use Sirix\Mezzio\Routing\Attributes\Exception\InvalidConfigurationException;
 use Sirix\Mezzio\Routing\Attributes\MiddlewarePipelineFactory;
 use Sirix\Mezzio\Routing\Attributes\RouteDefinition;
+use Sirix\Mezzio\Routing\Attributes\RouteRegistrar;
 use Sirix\Mezzio\Routing\Attributes\ServiceMiddlewareResolver;
 use SirixTest\Mezzio\Routing\Attributes\TestAsset\CacheDefaultWithSetState;
 use SirixTest\Mezzio\Routing\Attributes\TestAsset\InMemoryContainer;
 use SirixTest\Mezzio\Routing\Attributes\TestAsset\RecordingRouteCollector;
 use stdClass;
 
+use function array_unique;
 use function fclose;
 use function file_get_contents;
 use function file_put_contents;
@@ -29,6 +30,7 @@ use function is_file;
 use function mkdir;
 use function rmdir;
 use function sprintf;
+use function substr_count;
 use function sys_get_temp_dir;
 use function uniqid;
 use function unlink;
@@ -63,32 +65,20 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
             new RouteDefinition('/compiled', ['GET'], 'handler.service', 'process', ['mw.service'], 'compiled.route'),
         ]);
 
-        $collector       = new RecordingRouteCollector();
-        $pipelineFactory = $this->createPipelineFactory([
-            'mw.service'      => new TestMiddleware(),
-            'handler.service' => new TestMiddleware(),
-        ]);
+        $collector = $this->registerRoutes($cache);
 
-        self::assertTrue($cache->registerRoutes($collector, $pipelineFactory));
         self::assertSame(1, $collector->routeCalls);
-        self::assertInstanceOf(Route::class, $collector->lastRoute);
-        self::assertSame(
-            [
-                'sirix_routing_attributes.middleware_display' => 'mw.service -> handler.service::process',
-            ],
-            $collector->lastRoute->getOptions()
-        );
+        self::assertSame('/compiled', $collector->routes[0]->getPath());
+        self::assertSame(['GET'], $collector->routes[0]->getAllowedMethods());
+        self::assertSame('compiled.route', $collector->routes[0]->getName());
         self::assertStringContainsString('compiled.route', (string) file_get_contents($cacheFile));
     }
 
     public function testRegisterRoutesReturnsFalseWhenCacheFileMissing(): void
     {
-        $cache           = $this->createCache($this->createCacheFilePath());
-        $collector       = new RecordingRouteCollector();
-        $pipelineFactory = $this->createPipelineFactory([]);
+        $cache = $this->createCache($this->createCacheFilePath());
 
-        self::assertFalse($cache->registerRoutes($collector, $pipelineFactory));
-        self::assertSame(0, $collector->routeCalls);
+        self::assertFalse($cache->registerRoutes(new RecordingRouteCollector(), $this->pipelineFactory()));
     }
 
     public function testRegisterRoutesIgnoresMetaDifferences(): void
@@ -102,13 +92,7 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
             new RouteDefinition('/compiled', ['GET'], 'handler.service', 'process', [], 'compiled.route'),
         ]);
 
-        $collector       = new RecordingRouteCollector();
-        $pipelineFactory = $this->createPipelineFactory([
-            'handler.service' => new TestMiddleware(),
-        ]);
-
-        self::assertTrue($reader->registerRoutes($collector, $pipelineFactory));
-        self::assertSame(1, $collector->routeCalls);
+        self::assertSame(1, $this->registerRoutes($reader)->routeCalls);
     }
 
     public function testTreatsArtifactFromPreviousDeploymentReleaseAsCacheMiss(): void
@@ -142,13 +126,10 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
             new RouteDefinition('/compiled', ['GET'], 'handler.service', 'process', [], 'compiled.route'),
         ]));
 
-        $collector = new RecordingRouteCollector();
-
-        self::assertFalse($reader->registerRoutes($collector, $this->createPipelineFactory([])));
-        self::assertSame(0, $collector->routeCalls);
+        self::assertFalse($reader->registerRoutes(new RecordingRouteCollector(), $this->pipelineFactory()));
     }
 
-    public function testCompiledCacheNormalizesBlankRouteName(): void
+    public function testCompiledCacheUsesSharedNameNormalization(): void
     {
         $cacheFile          = $this->createCacheFilePath();
         $this->cacheFiles[] = $cacheFile;
@@ -158,15 +139,12 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
             new RouteDefinition('/compiled-blank-name', ['GET'], 'handler.service', 'process', [], '   '),
         ]);
 
-        $collector = new RecordingRouteCollector();
+        $collector = $this->registerRoutes($cache);
 
-        self::assertTrue($cache->registerRoutes($collector, $this->createPipelineFactory([
-            'handler.service' => new TestMiddleware(),
-        ])));
         self::assertNull($collector->lastName);
     }
 
-    public function testCompiledCacheReusesMiddlewareForDuplicateSignatures(): void
+    public function testCompiledCacheRegistersAllRoutes(): void
     {
         $cacheFile          = $this->createCacheFilePath();
         $this->cacheFiles[] = $cacheFile;
@@ -177,45 +155,28 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
             new RouteDefinition('/compiled/two', ['GET'], 'handler.service', 'process', ['mw.shared'], 'compiled.two'),
         ]);
 
-        $collector = new RecordingRouteCollector();
-
-        self::assertTrue($cache->registerRoutes($collector, $this->createPipelineFactory([
-            'mw.shared'       => new TestMiddleware(),
-            'handler.service' => new TestMiddleware(),
-        ])));
-        self::assertCount(2, $collector->middlewareIds);
-        self::assertSame($collector->middlewareIds[0], $collector->middlewareIds[1]);
+        self::assertSame(2, $this->registerRoutes($cache)->routeCalls);
     }
 
-    public function testPreservesExistingRouteOptionsWhenRegisteringFromCompiledCache(): void
+    public function testRegistersUsingCollectorAndPipelineFactory(): void
     {
         $cacheFile          = $this->createCacheFilePath();
         $this->cacheFiles[] = $cacheFile;
         $cache              = $this->createCache($cacheFile);
+        self::assertTrue($cache->save([
+            new RouteDefinition('/legacy', ['GET'], 'handler.service', 'process', [], 'legacy.route'),
+        ]));
 
-        $cache->save([
-            new RouteDefinition('/compiled-options', ['GET'], 'handler.service', 'process', [], 'compiled.options.route'),
-        ]);
+        $collector = new RecordingRouteCollector();
 
-        $collector = new RecordingRouteCollector(static function(Route $route): void {
-            $route->setOptions([
-                'existing_option' => 'keep-me',
-            ]);
-        });
-
-        $pipelineFactory = $this->createPipelineFactory([
-            'handler.service' => new TestMiddleware(),
-        ]);
-        self::assertTrue($cache->registerRoutes($collector, $pipelineFactory));
-        self::assertInstanceOf(Route::class, $collector->lastRoute);
-        self::assertSame('keep-me', $collector->lastRoute->getOptions()['existing_option'] ?? null);
-        self::assertSame(
-            'handler.service::process',
-            $collector->lastRoute->getOptions()['sirix_routing_attributes.middleware_display'] ?? null
-        );
+        self::assertTrue($cache->registerRoutes(
+            $collector,
+            $this->pipelineFactory()
+        ));
+        self::assertSame(1, $collector->routeCalls);
     }
 
-    public function testRegisterRoutesWorksForLargeRouteSetWithChunkedArtifact(): void
+    public function testRegisterRoutesWorksForLargeRouteSet(): void
     {
         $cacheFile          = $this->createCacheFilePath();
         $this->cacheFiles[] = $cacheFile;
@@ -235,49 +196,32 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
 
         $cache->save($routes);
 
-        $collector       = new RecordingRouteCollector();
-        $pipelineFactory = $this->createPipelineFactory([
-            'mw.shared'       => new TestMiddleware(),
-            'handler.service' => new TestMiddleware(),
-        ]);
-
-        self::assertTrue($cache->registerRoutes($collector, $pipelineFactory));
+        $collector = $this->registerRoutes($cache);
         self::assertSame(1200, $collector->routeCalls);
-        self::assertStringContainsString('$compiledMiddlewares', (string) file_get_contents($cacheFile));
+        self::assertSame('/bulk/1', $collector->routes[0]->getPath());
+        self::assertSame('/bulk/1200', $collector->routes[1199]->getPath());
+        self::assertCount(1, array_unique($collector->middlewareIds));
+        self::assertSinglePreparedRowsArtifact((string) file_get_contents($cacheFile));
     }
 
-    public function testCompiledCacheUsesInlineArtifactAtInlineLimit(): void
+    public function testCompiledCacheUsesSinglePreparedRowsArtifact(): void
     {
         $cacheFile          = $this->createCacheFilePath();
         $this->cacheFiles[] = $cacheFile;
         $cache              = $this->createCache($cacheFile);
 
         $routes = [];
-        for ($i = 1; $i <= 256; ++$i) {
-            $routes[] = new RouteDefinition('/inline/' . $i, ['GET'], 'handler.service', 'process', [], 'inline.route.' . $i);
+        for ($i = 1; $i <= 17; ++$i) {
+            $routes[] = new RouteDefinition('/prepared/' . $i, ['GET'], 'handler.service', 'process', ['mw.shared'], 'prepared.route.' . $i);
         }
 
         $cache->save($routes);
 
         $content = (string) file_get_contents($cacheFile);
-        self::assertStringContainsString('$compiledMiddlewares', $content);
-        self::assertStringNotContainsString('$routeChunks', $content);
-    }
-
-    public function testCompiledCacheUsesChunkedArtifactAboveInlineLimit(): void
-    {
-        $cacheFile          = $this->createCacheFilePath();
-        $this->cacheFiles[] = $cacheFile;
-        $cache              = $this->createCache($cacheFile);
-
-        $routes = [];
-        for ($i = 1; $i <= 257; ++$i) {
-            $routes[] = new RouteDefinition('/chunked/' . $i, ['GET'], 'handler.service', 'process', [], 'chunked.route.' . $i);
-        }
-
-        $cache->save($routes);
-
-        self::assertStringContainsString('$routeChunks', (string) file_get_contents($cacheFile));
+        $this->assertSinglePreparedRowsArtifact($content);
+        self::assertSame(1, substr_count($content, 'createUncachedFromSignature'));
+        self::assertSame(1, substr_count($content, "'mw.shared -> handler.service::process'"));
+        self::assertSame(17, $this->registerRoutes($cache)->routeCalls);
     }
 
     public function testTreatsMalformedPayloadAsCacheMiss(): void
@@ -299,10 +243,7 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
 
         $cache = $this->createCache($cacheFile);
 
-        $collector       = new RecordingRouteCollector();
-        $pipelineFactory = $this->createPipelineFactory([]);
-
-        self::assertFalse($cache->registerRoutes($collector, $pipelineFactory));
+        self::assertFalse($cache->registerRoutes(new RecordingRouteCollector(), $this->pipelineFactory()));
     }
 
     public function testIgnoresCompiledCacheWriteFailure(): void
@@ -332,20 +273,44 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
             ]),
         ]);
 
-        $collector       = new RecordingRouteCollector();
-        $pipelineFactory = $this->createPipelineFactory([
-            'handler.service' => new TestMiddleware(),
-        ]);
+        $collector = new RecordingRouteCollector();
+        self::assertTrue($cache->registerRoutes(
+            $collector,
+            $this->pipelineFactory()
+        ));
 
-        self::assertTrue($cache->registerRoutes($collector, $pipelineFactory));
-        self::assertSame(1, $collector->routeCalls);
-        self::assertInstanceOf(Route::class, $collector->lastRoute);
-        self::assertSame('bar', $collector->lastRoute->getOptions()['foo'] ?? null);
-        self::assertSame(42, $collector->lastRoute->getOptions()['num'] ?? null);
-        self::assertSame(
-            'handler.service::process',
-            $collector->lastRoute->getOptions()['sirix_routing_attributes.middleware_display'] ?? null
-        );
+        self::assertSame('bar', $collector->routes[0]->getOptions()['foo']);
+        self::assertSame(42, $collector->routes[0]->getOptions()['num']);
+    }
+
+    public function testCachedRegistrationMatchesColdRegistrationSemantics(): void
+    {
+        $route = new RouteDefinition('/semantic', null, 'handler.service', 'process', ['mw.service'], '   ', [
+            'existing'                                    => 'overridden',
+            'nested'                                      => [
+                'values' => ['first', 'second'],
+            ],
+            'sirix_routing_attributes.middleware_display' => 'default-overrides-display',
+        ]);
+        $configureRoute = static function($registeredRoute): void {
+            $registeredRoute->setOptions([
+                'existing' => 'preserved',
+            ]);
+        };
+        $coldCollector = new RecordingRouteCollector($configureRoute);
+        (new RouteRegistrar())->register($coldCollector, [$route], $this->pipelineFactory());
+
+        $cacheFile          = $this->createCacheFilePath();
+        $this->cacheFiles[] = $cacheFile;
+        $cache              = $this->createCache($cacheFile);
+        self::assertTrue($cache->save([$route]));
+        $cachedCollector = new RecordingRouteCollector($configureRoute);
+        self::assertTrue($cache->registerRoutes($cachedCollector, $this->pipelineFactory()));
+
+        self::assertSame($coldCollector->lastName, $cachedCollector->lastName);
+        self::assertSame($coldCollector->routes[0]->getPath(), $cachedCollector->routes[0]->getPath());
+        self::assertSame($coldCollector->routes[0]->getAllowedMethods(), $cachedCollector->routes[0]->getAllowedMethods());
+        self::assertSame($coldCollector->routes[0]->getOptions(), $cachedCollector->routes[0]->getOptions());
     }
 
     public function testRejectsNonCacheCompatibleDefaults(): void
@@ -433,13 +398,20 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
         );
     }
 
-    /**
-     * @param array<string, mixed> $services
-     */
-    private function createPipelineFactory(array $services): MiddlewarePipelineFactory
+    private function registerRoutes(CompiledRouteRegistrarCache $cache): RecordingRouteCollector
+    {
+        $collector = new RecordingRouteCollector();
+        self::assertTrue($cache->registerRoutes($collector, $this->pipelineFactory()));
+
+        return $collector;
+    }
+
+    private function pipelineFactory(): MiddlewarePipelineFactory
     {
         return new MiddlewarePipelineFactory(
-            new InMemoryContainer($services),
+            new InMemoryContainer([
+                'handler.service' => new TestMiddleware(),
+            ]),
             new ServiceMiddlewareResolver()
         );
     }
@@ -452,5 +424,19 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
     private function createDirectoryPath(): string
     {
         return sys_get_temp_dir() . '/mezzio-routing-attributes-compiled-cache-dir-' . uniqid('', true);
+    }
+
+    private function assertSinglePreparedRowsArtifact(string $content): void
+    {
+        self::assertStringContainsString('$compiledMiddlewares', $content);
+        self::assertStringContainsString('$middlewareDisplays', $content);
+        self::assertStringContainsString('createUncachedFromSignature', $content);
+        self::assertStringContainsString('RouteRegistrar::registerPreparedRows($collector, $compiledMiddlewares, $routeRows, $middlewareDisplays)', $content);
+        self::assertStringNotContainsString('$collector->route(', $content);
+        self::assertStringNotContainsString('$routeChunks', $content);
+        self::assertStringNotContainsString('$serviceTable', $content);
+        self::assertStringNotContainsString('$methodTable', $content);
+        self::assertStringNotContainsString('$middlewareTable', $content);
+        self::assertStringNotContainsString('$compiledSignatureTable', $content);
     }
 }

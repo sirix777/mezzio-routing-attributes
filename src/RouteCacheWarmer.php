@@ -10,9 +10,6 @@ use Sirix\Mezzio\Routing\Attributes\Discovery\DiscoveredClassesResolverInterface
 use Sirix\Mezzio\Routing\Attributes\Exception\InvalidConfigurationException;
 use Sirix\Mezzio\Routing\Attributes\Extractor\AttributeRouteExtractorInterface;
 
-use function array_merge;
-use function array_unique;
-use function array_values;
 use function is_dir;
 
 /**
@@ -22,26 +19,30 @@ use function is_dir;
  */
 final readonly class RouteCacheWarmer
 {
+    private RouteDefinitionResolver $routeDefinitionResolver;
+
     public function __construct(
         private RoutingAttributesConfig $config,
-        private AttributeRouteExtractorInterface $extractor,
-        private DuplicateRouteResolver $duplicateRouteResolver,
-        private DiscoveredClassesResolverInterface $discoveredClassesResolver,
+        AttributeRouteExtractorInterface $extractor,
+        DuplicateRouteResolver $duplicateRouteResolver,
+        DiscoveredClassesResolverInterface $discoveredClassesResolver,
         private RouteRegistrarCacheInterface $routeRegistrarCache
-    ) {}
+    ) {
+        $this->routeDefinitionResolver = new RouteDefinitionResolver(
+            $extractor,
+            $duplicateRouteResolver,
+            $discoveredClassesResolver
+        );
+    }
 
     public function warm(): bool
     {
         $this->assertConfiguredDiscoveryPathsExist();
 
-        $classes = array_values(array_unique(array_merge(
+        return $this->routeRegistrarCache->save($this->routeDefinitionResolver->resolve(
             $this->config->classes,
-            $this->config->discoveryEnabled ? $this->discoveredClassesResolver->resolve() : []
-        )));
-
-        return $this->routeRegistrarCache->save(
-            $this->duplicateRouteResolver->resolve($this->extractor->extract($classes))
-        );
+            $this->config->discoveryEnabled
+        ));
     }
 
     private function assertConfiguredDiscoveryPathsExist(): void

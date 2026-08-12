@@ -18,7 +18,7 @@ final readonly class DiscoveryFileInventory
      */
     public function __construct(private array $paths) {}
 
-    /** @return list<array{0: non-empty-string, 1: int}> */
+    /** @return list<non-empty-string> */
     public function collect(): array
     {
         $files = [];
@@ -40,7 +40,7 @@ final readonly class DiscoveryFileInventory
                     continue;
                 }
 
-                $files[] = [$file, $fileInfo->getMTime()];
+                $files[] = $file;
             }
         }
 

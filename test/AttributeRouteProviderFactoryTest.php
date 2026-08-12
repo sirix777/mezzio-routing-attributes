@@ -74,6 +74,7 @@ final class AttributeRouteProviderFactoryTest extends TestCase
     {
         $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
         $container = $this->createContainerWithMiddlewarePipeline([
+            'config'                                => [],
             AttributeRouteExtractorInterface::class => $extractor,
         ]);
 

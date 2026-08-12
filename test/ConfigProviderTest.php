@@ -20,6 +20,8 @@ use Sirix\Mezzio\Routing\Attributes\Command\RouteMiddlewareDisplayResolver;
 use Sirix\Mezzio\Routing\Attributes\Command\RouteMiddlewareDisplayResolverFactory;
 use Sirix\Mezzio\Routing\Attributes\Command\WarmRouteCacheCommand;
 use Sirix\Mezzio\Routing\Attributes\Command\WarmRouteCacheCommandFactory;
+use Sirix\Mezzio\Routing\Attributes\Config\RoutingAttributesConfig;
+use Sirix\Mezzio\Routing\Attributes\Config\RoutingAttributesConfigFactory;
 use Sirix\Mezzio\Routing\Attributes\ConfigProvider;
 use Sirix\Mezzio\Routing\Attributes\Discovery\DiscoveredClassesResolverInterface;
 use Sirix\Mezzio\Routing\Attributes\DuplicateRouteResolver;
@@ -57,6 +59,7 @@ class ConfigProviderTest extends TestCase
         self::assertArrayHasKey('delegators', $dependencies);
         self::assertSame(AttributeRouteProviderFactory::class, $dependencies['factories'][AttributeRouteProvider::class]);
         self::assertSame(AttributeRouteExtractorFactory::class, $dependencies['factories'][AttributeRouteExtractor::class]);
+        self::assertSame(RoutingAttributesConfigFactory::class, $dependencies['factories'][RoutingAttributesConfig::class]);
         self::assertSame(AttributeRouteExtractor::class, $dependencies['aliases'][AttributeRouteExtractorInterface::class]);
         self::assertSame(
             DiscoveryClassMapResolverFactory::class,
@@ -104,6 +107,10 @@ class ConfigProviderTest extends TestCase
         self::assertInstanceOf(
             ServiceMiddlewareResolver::class,
             $serviceManager->get(ServiceMiddlewareResolver::class)
+        );
+        self::assertSame(
+            $serviceManager->get(RoutingAttributesConfig::class),
+            $serviceManager->get(RoutingAttributesConfig::class)
         );
         self::assertInstanceOf(
             MiddlewarePipelineFactory::class,

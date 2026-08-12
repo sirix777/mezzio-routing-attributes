@@ -14,9 +14,7 @@ use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 use RuntimeException;
-use Sirix\Mezzio\Routing\Attributes\Command\ClosureRouteConfigLoader;
 use Sirix\Mezzio\Routing\Attributes\Command\ListRoutesCommand;
-use Sirix\Mezzio\Routing\Attributes\Command\NullRouteConfigLoader;
 use Sirix\Mezzio\Routing\Attributes\Command\RouteListFilter;
 use Sirix\Mezzio\Routing\Attributes\Command\RouteListFormatter;
 use Sirix\Mezzio\Routing\Attributes\Command\RouteListSorter;
@@ -42,15 +40,15 @@ final class RouteListServicesTest extends TestCase
             ->willReturn([])
         ;
 
-        $provider = new RouteTableProvider($collector, new ClosureRouteConfigLoader(static function() use (&$loaderCalled): void {
+        $provider = new RouteTableProvider($collector, static function() use (&$loaderCalled): void {
             $loaderCalled = true;
-        }));
+        });
         $provider->getRoutes();
 
         self::assertTrue($loaderCalled);
     }
 
-    public function testRouteTableProviderWorksWithNullLoader(): void
+    public function testRouteTableProviderWorksWithoutRouteConfigLoader(): void
     {
         $collector = $this->createMock(RouteCollectorInterface::class);
         $collector
@@ -59,7 +57,7 @@ final class RouteListServicesTest extends TestCase
             ->willReturn([])
         ;
 
-        $provider = new RouteTableProvider($collector, new NullRouteConfigLoader());
+        $provider = new RouteTableProvider($collector);
 
         self::assertSame([], $provider->getRoutes());
     }
@@ -275,7 +273,7 @@ final class RouteListServicesTest extends TestCase
     {
         $container  = new InMemoryContainer([]);
         $factory    = new MiddlewarePipelineFactory($container, new ServiceMiddlewareResolver());
-        $middleware = $factory->createFromCompiled('handler.service', 'process', ['mw.first']);
+        $middleware = $factory->createFromSignature('handler.service', 'process', ['mw.first']);
         $route      = new Route('/lazy', $middleware, ['GET'], 'lazy.route');
         $route->setOptions([
             RouteMiddlewareDisplayResolver::ROUTE_OPTION_MIDDLEWARE_DISPLAY => 'mw.first -> handler.service::process',
@@ -289,7 +287,7 @@ final class RouteListServicesTest extends TestCase
     public function testRouteListFilterUsesMiddlewareDisplayOptionForLazyAttributeRoute(): void
     {
         $middleware = (new MiddlewarePipelineFactory(new InMemoryContainer([]), new ServiceMiddlewareResolver()))
-            ->createFromCompiled('handler.single', 'process', [])
+            ->createFromSignature('handler.single', 'process', [])
         ;
         $route = new Route('/lazy-single', $middleware, ['GET'], 'lazy.single');
         $route->setOptions([
@@ -360,7 +358,7 @@ final class RouteListServicesTest extends TestCase
         $middlewareDisplayResolver = new RouteMiddlewareDisplayResolver();
 
         return new ListRoutesCommand(
-            new RouteTableProvider($collector, new NullRouteConfigLoader()),
+            new RouteTableProvider($collector),
             new RouteListFilter($middlewareDisplayResolver),
             new RouteListSorter(),
             new RouteListFormatter($middlewareDisplayResolver)
