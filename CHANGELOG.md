@@ -52,6 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Reworked benchmark methodology and documented current fresh-process reference measurements.
 - Documented cache warmup, release identifiers, cache-directory ownership, and required long-running worker reloads.
+- Added UML sequence diagram of Mezzio routing registration/runtime flow in `docs/routing-with-mezzio.puml`.
 
 ## [1.1.0] - 2026-08-12
 

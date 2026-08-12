@@ -1,0 +1,72 @@
+@startuml
+title Mezzio Routing Attributes + Mezzio Router
+
+skinparam shadowing false
+skinparam componentStyle rectangle
+skinparam sequenceMessageAlign center
+
+actor Client
+participant "Mezzio application\n(Container)" as App
+participant "RouteCollector\n(Mezzio Router)" as Collector
+participant "RouteCollectorDelegator" as Delegator
+participant "AttributeRouteProvider" as Provider
+participant "Compiled route cache" as Cache
+participant "RouteDefinitionResolver" as Resolver
+participant "AttributeRouteExtractor\n(Reflection)" as Extractor
+participant "RouteRegistrar" as Registrar
+participant "MiddlewarePipelineFactory" as Pipeline
+participant "Service container" as Container
+participant "Handler / middleware" as Handler
+
+== 1. Application boot: route registration ==
+
+App -> Collector : create RouteCollector
+App -> Delegator : delegate RouteCollector creation
+Delegator -> Provider : registerRoutes(collector)
+
+Provider -> Cache : registerRoutes(collector, pipelineFactory)
+alt cache file exists, is valid, and fingerprint matches
+    Cache -> Pipeline : createUncachedFromSignature(...)
+    Pipeline --> Cache : prepared middleware pipelines
+    Cache -> Collector : register prepared routes
+else cache miss / disabled / invalid
+    Provider -> Resolver : resolve(configured classes)
+    Resolver -> Resolver : add discovered classes (if enabled)
+    Resolver -> Extractor : extract(classes)
+    Extractor -> Extractor : read #[Route]/#[Get]/...\nbuild RouteDefinition objects
+    Extractor --> Resolver : route definitions
+    Resolver --> Provider : de-duplicated route definitions
+    Provider -> Cache : save(route definitions) [best effort]
+    Provider -> Registrar : register(collector, routes, pipelineFactory)
+    Registrar -> Pipeline : createFromSignature(handler, method, middleware)
+    Pipeline --> Registrar : lazy middleware pipeline
+    Registrar -> Collector : route(path, pipeline, methods, name)
+end
+Delegator --> App : configured RouteCollector
+
+note right of Collector
+  The package adds routes to Mezzio's collector.
+  It does not perform URL matching itself.
+end note
+
+== 2. Runtime: handling a matching request ==
+
+Client -> App : HTTP request
+App -> Collector : match request
+Collector --> App : matching route + registered pipeline
+App -> Pipeline : process(request, next handler)
+loop each attribute middleware, then handler
+    Pipeline -> Container : get(service) on first execution
+    Container --> Pipeline : service instance
+    Pipeline -> Handler : process(request, next)\nor handle(request) / configured method
+    Handler --> Pipeline : response
+end
+Pipeline --> App : response
+App --> Client : HTTP response
+
+note over Pipeline, Handler
+  LazyServiceMiddleware resolves each service from the PSR-11 container.
+  A PSR-15 middleware calls process(); a request handler is adapted to middleware;
+  callable-mode method routes use MethodInvokerMiddleware.
+end note
+@enduml
