@@ -61,9 +61,9 @@ final readonly class RouteCacheStorage
             return false;
         }
 
-        $renameError = null;
-        if (! $this->renameWithCapturedError($tmpFile, $cacheFile, $renameError)) {
-            $this->reportFailure('replace_artifact', $cacheFile, $renameError);
+        $replacementError = null;
+        if (! $this->replaceTemporaryFile($tmpFile, $cacheFile, $replacementError)) {
+            $this->reportFailure('replace_artifact', $cacheFile, $replacementError);
             $this->removeTemporaryFile($tmpFile, $cacheFile);
 
             return false;
@@ -97,6 +97,23 @@ final readonly class RouteCacheStorage
         if (! $this->unlinkWithCapturedError($temporaryFile, $unlinkError)) {
             $this->reportFailure('remove_temporary_file', $cacheFile, $unlinkError);
         }
+    }
+
+    private function replaceTemporaryFile(string $temporaryFile, string $cacheFile, ?string &$error): bool
+    {
+        if ('Windows' === PHP_OS_FAMILY && file_exists($cacheFile)) {
+            if (! $this->isSafeTarget($cacheFile)) {
+                $error = 'Cache target changed to an unsafe type before replacement.';
+
+                return false;
+            }
+
+            if (! $this->unlinkWithCapturedError($cacheFile, $error)) {
+                return false;
+            }
+        }
+
+        return $this->renameWithCapturedError($temporaryFile, $cacheFile, $error);
     }
 
     private function reportFailure(string $operation, string $cacheFile, ?string $error): void

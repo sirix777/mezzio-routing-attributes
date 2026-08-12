@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Cache saves now report success or failure to callers, allowing cache warmup to return a non-zero exit code when it cannot produce an artifact.
-- Cache artifacts are written through a same-directory temporary file and atomic rename.
+- Cache artifacts are written through a same-directory temporary file and atomic rename on POSIX; Windows safely replaces an existing artifact before rename.
 - Documentation now describes deploy-time cache warmup, release identifiers, runtime/deploy filesystem responsibilities, and optional `sirix/monolog` logging integration.
 
 ### Fixed

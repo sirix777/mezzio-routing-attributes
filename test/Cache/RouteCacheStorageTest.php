@@ -76,6 +76,16 @@ final class RouteCacheStorageTest extends TestCase
         self::assertFalse(is_file($cacheFile));
     }
 
+    public function testSaveReplacesAnExistingArtifact(): void
+    {
+        $cacheFile     = $this->createPath('existing-artifact');
+        $this->paths[] = $cacheFile;
+        file_put_contents($cacheFile, 'old artifact');
+
+        self::assertTrue((new RouteCacheStorage())->save($cacheFile, 'new artifact'));
+        self::assertSame('new artifact', file_get_contents($cacheFile));
+    }
+
     public function testSaveCleansTemporaryFileWhenRenameFails(): void
     {
         $directory     = $this->createPath('rename-failure');
