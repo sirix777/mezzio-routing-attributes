@@ -20,6 +20,8 @@ use function var_export;
 
 final readonly class RouteCacheGenerator
 {
+    public const FORMAT_VERSION = 1;
+
     private const INLINE_ROUTE_LIMIT              = 256;
     private const CHUNK_SIZE                      = 1000;
     private const ROUTE_OPTION_MIDDLEWARE_DISPLAY = 'sirix_routing_attributes.middleware_display';
@@ -27,7 +29,7 @@ final readonly class RouteCacheGenerator
     /**
      * @param list<RouteDefinition> $routes
      */
-    public function generate(array $routes): string
+    public function generate(array $routes, string $configFingerprint = ''): string
     {
         $this->assertCacheCompatibleDefaults($routes);
 
@@ -44,10 +46,22 @@ final readonly class RouteCacheGenerator
             use Sirix\\Mezzio\\Routing\\Attributes\\MiddlewarePipelineFactory;
 
             return [
+                'format_version' => {$this->formatVersionCode()},
+                'config_fingerprint' => {$this->configFingerprintCode($configFingerprint)},
                 'register' => static function(RouteCollectorInterface \$collector, MiddlewarePipelineFactory \$pipelineFactory): void {
             {$routesCode}    },
             ];
             PHP;
+    }
+
+    private function formatVersionCode(): string
+    {
+        return (string) self::FORMAT_VERSION;
+    }
+
+    private function configFingerprintCode(string $configFingerprint): string
+    {
+        return var_export($configFingerprint, true);
     }
 
     /**

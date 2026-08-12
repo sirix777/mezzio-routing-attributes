@@ -18,7 +18,8 @@ final readonly class CacheConfigParser
      *
      * @return array{
      *     enabled: bool,
-     *     file: ?string
+     *     file: ?string,
+     *     release: ?string
      * }
      */
     public function parse(array $routingAttributesConfig): array
@@ -33,7 +34,8 @@ final readonly class CacheConfigParser
             throw InvalidConfigurationException::invalidCacheEnabled($cacheEnabled);
         }
 
-        $cacheFile = null;
+        $cacheFile    = null;
+        $cacheRelease = null;
         if ($cacheEnabled) {
             if (array_key_exists('mode', $cacheConfig)) {
                 throw InvalidConfigurationException::removedCacheOption('mode');
@@ -57,11 +59,19 @@ final readonly class CacheConfigParser
             }
 
             $cacheFile = $configuredCacheFile;
+
+            $configuredCacheRelease = $cacheConfig['release'] ?? null;
+            if (null !== $configuredCacheRelease && (! is_string($configuredCacheRelease) || '' === $configuredCacheRelease)) {
+                throw InvalidConfigurationException::invalidCacheRelease($configuredCacheRelease);
+            }
+
+            $cacheRelease = $configuredCacheRelease;
         }
 
         return [
             'enabled' => $cacheEnabled,
             'file'    => $cacheFile,
+            'release' => $cacheRelease,
         ];
     }
 }

@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) for the documented `1.x` public API.
 
+## [1.1.0] - 2026-08-12
+
+### Added
+
+- Versioned compiled route-cache artifacts with a fingerprint of the effective route-producing configuration and optional `routing_attributes.cache.release` deployment identifier.
+- `routing-attributes:cache:warmup` command for explicit cache generation during deployment.
+- Optional PSR-3 logging of route-cache write failures when `Psr\Log\LoggerInterface` is installed and registered in the container; `psr/log` is now suggested for this integration.
+
+### Changed
+
+- Cache saves now report success or failure to callers, allowing cache warmup to return a non-zero exit code when it cannot produce an artifact.
+- Cache artifacts are written through a same-directory temporary file and atomic rename on POSIX; Windows safely replaces an existing artifact before rename.
+- Documentation now describes deploy-time cache warmup, release identifiers, runtime/deploy filesystem responsibilities, and optional `sirix/monolog` logging integration.
+
+### Fixed
+
+- Cache loading rejects symlink and non-regular artifact targets before evaluating PHP.
+- Cache warmup fails without writing an artifact when any configured discovery directory is missing.
+- Cache fingerprints are binary-safe for valid configured paths containing non-UTF-8 bytes.
+- Temporary cache files are removed when atomic replacement fails.
+
+### Removed
+
+- Unused `RouteCacheStorage::load()` and `RouteCacheStorage::exists()` methods, which bypassed hardened artifact loading.
+
+### Tests
+
+- Added regression coverage for cache format/fingerprint mismatches, release changes, unsafe cache targets, cache write failures and logger wiring.
+- Added warmup coverage for missing discovery paths and non-zero write-failure exits.
+
 ## [1.0.3] - 2026-08-11
 
 ### Fixed

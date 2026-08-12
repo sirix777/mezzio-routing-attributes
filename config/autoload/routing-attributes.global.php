@@ -39,6 +39,8 @@ return [
             'enabled' => true,
             // Path for compiled route definitions.
             'file' => 'data/cache/mezzio-routing-attributes.php',
+            // Set a unique immutable application build/release identifier in production.
+            'release' => null,
         ],
     ],
 ];

@@ -20,5 +20,5 @@ interface RouteRegistrarCacheInterface
     /**
      * @param list<RouteDefinition> $routes
      */
-    public function save(array $routes): void;
+    public function save(array $routes): bool;
 }

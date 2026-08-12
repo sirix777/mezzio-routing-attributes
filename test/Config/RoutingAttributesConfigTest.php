@@ -33,6 +33,7 @@ final class RoutingAttributesConfigTest extends TestCase
         self::assertSame('upstream', $config->classicRoutesMiddlewareDisplay);
         self::assertTrue($config->cacheEnabled);
         self::assertSame('/tmp/routes.php', $config->cacheFile);
+        self::assertNull($config->cacheRelease);
         self::assertTrue($config->discoveryEnabled);
         self::assertSame(['/app/src/Handler'], $config->discoveryPaths);
         self::assertSame('token', $config->discoveryStrategy);
@@ -59,6 +60,73 @@ final class RoutingAttributesConfigTest extends TestCase
         self::assertSame('token', $config->discoveryStrategy);
         self::assertSame([], $config->discoveryPsr4Mappings);
         self::assertTrue($config->discoveryPsr4FallbackToToken);
+    }
+
+    public function testCacheFingerprintChangesForRouteProducingConfigurationButNotCacheLocation(): void
+    {
+        $base = [
+            'routing_attributes' => [
+                'classes' => ['App\Handler\PingHandler'],
+                'cache'   => [
+                    'enabled' => true,
+                    'file'    => '/cache/first.php',
+                ],
+            ],
+        ];
+        $sameRoutesDifferentLocation                                        = $base;
+        $sameRoutesDifferentLocation['routing_attributes']['cache']['file'] = '/cache/second.php';
+        $changedRoutes                                                      = $base;
+        $changedRoutes['routing_attributes']['handlers']                    = [
+            'mode' => 'callable',
+        ];
+
+        self::assertSame(
+            RoutingAttributesConfig::fromRootConfig($base)->cacheFingerprint(),
+            RoutingAttributesConfig::fromRootConfig($sameRoutesDifferentLocation)->cacheFingerprint()
+        );
+        self::assertNotSame(
+            RoutingAttributesConfig::fromRootConfig($base)->cacheFingerprint(),
+            RoutingAttributesConfig::fromRootConfig($changedRoutes)->cacheFingerprint()
+        );
+    }
+
+    public function testCacheFingerprintChangesWhenDeploymentReleaseChanges(): void
+    {
+        $releaseOne = [
+            'routing_attributes' => [
+                'classes' => ['App\Handler\PingHandler'],
+                'cache'   => [
+                    'enabled' => true,
+                    'file'    => '/cache/routes.php',
+                    'release' => 'release-1',
+                ],
+            ],
+        ];
+        $releaseTwo                                           = $releaseOne;
+        $releaseTwo['routing_attributes']['cache']['release'] = 'release-2';
+
+        self::assertNotSame(
+            RoutingAttributesConfig::fromRootConfig($releaseOne)->cacheFingerprint(),
+            RoutingAttributesConfig::fromRootConfig($releaseTwo)->cacheFingerprint()
+        );
+    }
+
+    public function testCacheFingerprintSupportsNonUtf8ConfiguredPaths(): void
+    {
+        $config = RoutingAttributesConfig::fromRootConfig([
+            'routing_attributes' => [
+                'discovery' => [
+                    'enabled' => true,
+                    'paths'   => ["/tmp/\xff"],
+                ],
+                'cache'     => [
+                    'enabled' => true,
+                    'file'    => '/tmp/routes.php',
+                ],
+            ],
+        ]);
+
+        self::assertMatchesRegularExpression('/^[a-f0-9]{64}$/', $config->cacheFingerprint());
     }
 
     public function testThrowsWhenRootConfigIsInvalid(): void
@@ -88,6 +156,21 @@ final class RoutingAttributesConfigTest extends TestCase
                     'enabled'             => true,
                     'file'                => '/tmp/routes.php',
                     'write_fail_strategy' => 'throw',
+                ],
+            ],
+        ]);
+    }
+
+    public function testThrowsWhenConfiguredCacheReleaseIsEmpty(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+        RoutingAttributesConfig::fromRootConfig([
+            'routing_attributes' => [
+                'classes' => [],
+                'cache'   => [
+                    'enabled' => true,
+                    'file'    => '/tmp/routes.php',
+                    'release' => '',
                 ],
             ],
         ]);
