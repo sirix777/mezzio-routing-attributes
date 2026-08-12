@@ -62,8 +62,13 @@ final class DiscoveryFileInventoryTest extends TestCase
             $paths
         );
 
-        self::assertContains($this->tempDir . '/A.php', $paths);
-        self::assertContains($this->tempDir . '/Nested/B.php', $paths);
-        self::assertNotContains($this->tempDir . '/skip.txt', $paths);
+        self::assertContains($this->normalizePath($this->tempDir . '/A.php'), $paths);
+        self::assertContains($this->normalizePath($this->tempDir . '/Nested/B.php'), $paths);
+        self::assertNotContains($this->normalizePath($this->tempDir . '/skip.txt'), $paths);
+    }
+
+    private function normalizePath(string $path): string
+    {
+        return str_replace('\\', '/', $path);
     }
 }
