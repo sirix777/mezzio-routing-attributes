@@ -5,11 +5,17 @@ declare(strict_types=1);
 namespace SirixTest\Mezzio\Routing\Attributes\Cache;
 
 use PHPUnit\Framework\TestCase;
+use Sirix\Mezzio\Routing\Attributes\Cache\RouteCacheGenerator;
 use Sirix\Mezzio\Routing\Attributes\Cache\RouteCacheLoader;
 use Sirix\Mezzio\Routing\Attributes\Exception\InvalidConfigurationException;
 
 use function file_put_contents;
+use function is_dir;
 use function is_file;
+use function is_link;
+use function mkdir;
+use function rmdir;
+use function symlink;
 use function sys_get_temp_dir;
 use function uniqid;
 use function unlink;
@@ -22,12 +28,24 @@ final class RouteCacheLoaderTest extends TestCase
     protected function tearDown(): void
     {
         foreach ($this->cacheFiles as $cacheFile) {
+            if (is_link($cacheFile)) {
+                unlink($cacheFile);
+
+                continue;
+            }
+
             if (is_file($cacheFile)) {
                 unlink($cacheFile);
+
+                continue;
+            }
+
+            if (is_dir($cacheFile)) {
+                rmdir($cacheFile);
             }
         }
 
-        unset($GLOBALS['sirix_route_cache_loader_require_count']);
+        unset($GLOBALS['sirix_route_cache_loader_require_count'], $GLOBALS['sirix_route_cache_loader_symlink_executed']);
     }
 
     public function testValidateAcceptsPayloadWithCallableRegister(): void
@@ -35,7 +53,9 @@ final class RouteCacheLoaderTest extends TestCase
         $loader = new RouteCacheLoader();
 
         self::assertTrue($loader->validate([
-            'register' => static function(): void {},
+            'format_version'     => RouteCacheGenerator::FORMAT_VERSION,
+            'config_fingerprint' => '',
+            'register'           => static function(): void {},
         ]));
     }
 
@@ -71,6 +91,8 @@ final class RouteCacheLoaderTest extends TestCase
                 ++$GLOBALS['sirix_route_cache_loader_require_count'];
 
                 return [
+                    'format_version' => 1,
+                    'config_fingerprint' => '',
                     'register' => static function (): void {},
                 ];
                 PHP
@@ -90,6 +112,87 @@ final class RouteCacheLoaderTest extends TestCase
         $loader = new RouteCacheLoader();
 
         self::assertNull($loader->load($this->createCacheFilePath()));
+    }
+
+    public function testLoadDoesNotEvaluateSymlinkedArtifact(): void
+    {
+        $targetFile          = $this->createCacheFilePath();
+        $cacheFile           = $this->createCacheFilePath();
+        $this->cacheFiles[]  = $targetFile;
+        $this->cacheFiles[]  = $cacheFile;
+        file_put_contents(
+            $targetFile,
+            <<<'PHP'
+                <?php
+
+                $GLOBALS['sirix_route_cache_loader_symlink_executed'] = true;
+
+                return [
+                    'format_version' => 1,
+                    'config_fingerprint' => '',
+                    'register' => static function (): void {},
+                ];
+                PHP
+        );
+
+        if (! symlink($targetFile, $cacheFile)) {
+            self::markTestSkipped('The filesystem does not support symlinks.');
+        }
+
+        self::assertTrue(is_link($cacheFile));
+        self::assertNull((new RouteCacheLoader())->load($cacheFile));
+        self::assertArrayNotHasKey('sirix_route_cache_loader_symlink_executed', $GLOBALS);
+    }
+
+    public function testLoadReturnsNullForNonRegularArtifactTarget(): void
+    {
+        $cacheDirectory     = $this->createCacheFilePath();
+        $this->cacheFiles[] = $cacheDirectory;
+        mkdir($cacheDirectory);
+
+        self::assertNull((new RouteCacheLoader())->load($cacheDirectory));
+
+        rmdir($cacheDirectory);
+    }
+
+    public function testLoadReturnsNullForArtifactWithDifferentFormatVersion(): void
+    {
+        $cacheFile          = $this->createCacheFilePath();
+        $this->cacheFiles[] = $cacheFile;
+        file_put_contents(
+            $cacheFile,
+            <<<'PHP'
+                <?php
+
+                return [
+                    'format_version' => 999,
+                    'config_fingerprint' => 'expected',
+                    'register' => static function (): void {},
+                ];
+                PHP
+        );
+
+        self::assertNull((new RouteCacheLoader())->load($cacheFile, 'expected'));
+    }
+
+    public function testLoadReturnsNullForArtifactWithDifferentConfigurationFingerprint(): void
+    {
+        $cacheFile          = $this->createCacheFilePath();
+        $this->cacheFiles[] = $cacheFile;
+        file_put_contents(
+            $cacheFile,
+            <<<'PHP'
+                <?php
+
+                return [
+                    'format_version' => 1,
+                    'config_fingerprint' => 'old-fingerprint',
+                    'register' => static function (): void {},
+                ];
+                PHP
+        );
+
+        self::assertNull((new RouteCacheLoader())->load($cacheFile, 'new-fingerprint'));
     }
 
     public function testLoadThrowsWhenTopLevelValueIsNotArray(): void
@@ -122,6 +225,8 @@ final class RouteCacheLoaderTest extends TestCase
                 <?php
 
                 return [
+                    'format_version' => 1,
+                    'config_fingerprint' => '',
                     'meta' => [],
                 ];
                 PHP

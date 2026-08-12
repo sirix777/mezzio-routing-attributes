@@ -35,11 +35,13 @@
         "laminas/laminas-diactoros": "^3.8",
         "laminas/laminas-servicemanager": "^3.23",
         "phpunit/phpunit": "^11.5",
+        "psr/log": "^1.1 || ^2.0 || ^3.0",
         "symfony/console": "^6.4 || ^7.0"
     },
     "suggest": {
         "laminas/laminas-cli": "Enables routing-attributes CLI command registration.",
         "mezzio/mezzio-tooling": "Enables integration with the Mezzio routes list command.",
+        "psr/log": "Provides PSR-3 types; register Psr\\Log\\LoggerInterface in the container to receive compiled route-cache write failures.",
         "symfony/console": "Provides base Console command APIs used by the optional CLI commands."
     },
     "autoload": {

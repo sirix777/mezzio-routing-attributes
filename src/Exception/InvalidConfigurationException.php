@@ -112,6 +112,14 @@ class InvalidConfigurationException extends InvalidArgumentException
         ));
     }
 
+    public static function invalidCacheRelease(mixed $release): self
+    {
+        return new self(sprintf(
+            'Configuration key "routing_attributes.cache.release" must be a non-empty string when provided; received %s.',
+            get_debug_type($release)
+        ));
+    }
+
     public static function removedCacheOption(string $option): self
     {
         return new self(sprintf(
@@ -213,6 +221,14 @@ class InvalidConfigurationException extends InvalidArgumentException
             'Configuration key "routing_attributes.discovery.paths" must contain non-empty strings; received %s at index "%s".',
             get_debug_type($path),
             (string) $index
+        ));
+    }
+
+    public static function missingDiscoveryPath(string $path): self
+    {
+        return new self(sprintf(
+            'Configured discovery path does not exist or is not a directory: "%s".',
+            $path
         ));
     }
 

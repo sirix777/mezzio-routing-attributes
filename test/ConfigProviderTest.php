@@ -18,6 +18,8 @@ use Sirix\Mezzio\Routing\Attributes\Command\ListRoutesCommand;
 use Sirix\Mezzio\Routing\Attributes\Command\ListRoutesCommandDelegator;
 use Sirix\Mezzio\Routing\Attributes\Command\RouteMiddlewareDisplayResolver;
 use Sirix\Mezzio\Routing\Attributes\Command\RouteMiddlewareDisplayResolverFactory;
+use Sirix\Mezzio\Routing\Attributes\Command\WarmRouteCacheCommand;
+use Sirix\Mezzio\Routing\Attributes\Command\WarmRouteCacheCommandFactory;
 use Sirix\Mezzio\Routing\Attributes\ConfigProvider;
 use Sirix\Mezzio\Routing\Attributes\Discovery\DiscoveredClassesResolverInterface;
 use Sirix\Mezzio\Routing\Attributes\DuplicateRouteResolver;
@@ -80,6 +82,7 @@ class ConfigProviderTest extends TestCase
 
         $consoleDependencies = (new ConfigProvider(new ConsoleRegistrationPolicy(true, false)))->getDependencies();
         self::assertSame(ClearRouteCacheCommandFactory::class, $consoleDependencies['factories'][ClearRouteCacheCommand::class]);
+        self::assertSame(WarmRouteCacheCommandFactory::class, $consoleDependencies['factories'][WarmRouteCacheCommand::class]);
         self::assertSame(
             RouteMiddlewareDisplayResolverFactory::class,
             $consoleDependencies['factories'][RouteMiddlewareDisplayResolver::class]
@@ -135,6 +138,10 @@ class ConfigProviderTest extends TestCase
             ClearRouteCacheCommand::class,
             $config['laminas-cli']['commands']['routing-attributes:cache:clear']
         );
+        self::assertSame(
+            WarmRouteCacheCommand::class,
+            $config['laminas-cli']['commands']['routing-attributes:cache:warmup']
+        );
         self::assertArrayNotHasKey(self::TOOLING_LIST_ROUTES_COMMAND, $dependencies['delegators']);
     }
 
@@ -149,6 +156,10 @@ class ConfigProviderTest extends TestCase
         self::assertSame(
             ClearRouteCacheCommand::class,
             $config['laminas-cli']['commands']['routing-attributes:cache:clear']
+        );
+        self::assertSame(
+            WarmRouteCacheCommand::class,
+            $config['laminas-cli']['commands']['routing-attributes:cache:warmup']
         );
         self::assertSame(
             [ListRoutesCommandDelegator::class],

@@ -37,6 +37,7 @@ This package provides:
 - CLI commands:
   - `routing-attributes:routes:list`
   - `routing-attributes:cache:clear`
+  - `routing-attributes:cache:warmup`
 
 ## Stability and Public API
 
@@ -63,6 +64,7 @@ The stable public API for `1.x` is:
   - `discovery.psr4.fallback_to_token`
   - `cache.enabled`
   - `cache.file`
+  - `cache.release`
 - Extension contract for custom route metadata attributes:
   - `Sirix\Mezzio\Routing\Contracts\RouteAttributeModifierInterface`
 - Package integration entry point:
@@ -70,6 +72,7 @@ The stable public API for `1.x` is:
 - CLI command names and documented options:
   - `routing-attributes:routes:list`
   - `routing-attributes:cache:clear`
+  - `routing-attributes:cache:warmup`
 
 All other source classes are implementation details unless this README documents them as an integration point. They may be final, internal, or changed in a minor release when needed to keep the documented API working.
 
@@ -79,8 +82,8 @@ Recommended production mode:
 
 - use an explicit `classes` list;
 - enable compiled cache;
-- clear/warm cache during deploy;
-- restart long-running workers after route/cache changes.
+- build the cache explicitly during deploy with `routing-attributes:cache:warmup`;
+- reload long-running workers after the newly built artifact is active.
 
 ## Configuration
 
@@ -112,6 +115,8 @@ return [
         'cache' => [
             'enabled' => true,
             'file' => 'data/cache/mezzio-routing-attributes.php',
+            // Set to a unique application build/release identifier in production.
+            'release' => null,
         ],
     ],
 ];
@@ -121,6 +126,7 @@ Supported `routing_attributes.cache` keys:
 
 - `enabled` (`bool`)
 - `file` (`non-empty string`, required when `enabled=true`)
+- `release` (`null|non-empty string`, optional): an application-controlled deployment/release identifier.
 
 The package registers its own factories through `ConfigProvider`; application handlers and middleware still need to be available in your container.
 
@@ -138,7 +144,7 @@ When `mezzio/mezzio-tooling` is available, the package can decorate the upstream
 
 - If `discovery.enabled=false`, only explicit `classes` are used.
 - If `discovery.enabled=true`, classes are discovered from `discovery.paths`.
-- If compiled cache is enabled and cache file already exists, discovery is skipped on boot.
+- If compiled cache is enabled and its artifact is a usable regular file with matching format and fingerprint, discovery is skipped on boot.
 - Prefer discovery for development or cache warmup, not as the main production boot path.
 - In `handlers.mode=callable`, discovery includes plain classes only when they have a method-level route attribute; irrelevant plain classes are skipped. Explicit `classes` entries remain strict and must be PSR-15 handlers unless they define method routes in callable mode.
 - `strategy=token` parses PHP files without requiring PSR-4 path mappings.
@@ -146,16 +152,28 @@ When `mezzio/mezzio-tooling` is available, the package can decorate the upstream
 
 ## Compiled Cache Behavior
 
-- If `cache.enabled=true` and cache file exists, routes are registered from compiled cache.
-- If cache file is missing or invalid, routes are extracted/discovered and cache file is rebuilt.
+- Each artifact includes a format version and a fingerprint of the effective route-producing configuration and optional `cache.release` identifier. If either does not match, it is a cache miss.
+- If `cache.enabled=true` and the artifact matches, routes are registered from compiled cache.
+- If the file is missing, invalid, or stale, routes are extracted/discovered and the package attempts to rebuild it.
 - Cache writes are best-effort: write failures do not break application boot, but they leave the next boot on the non-compiled path.
+- Write failures are sent to `Psr\Log\LoggerInterface` only when both `psr/log` is installed and that service is registered in the application container.
 - Cache format is optimized for startup speed and keeps middleware pipeline resolution lazy per service.
-- Ensure the cache directory is writable by the process that warms/rebuilds routes.
+- The package rejects symlink cache targets and existing non-regular target files when writing. It does not manage cache-file ownership, `chmod`, ACLs, release paths, or runtime-vs-deploy policy.
 - With compiled cache enabled, route defaults must be recursively scalar, `null`, or arrays. Closures, resources, and objects are rejected before routes are registered. Without compiled cache, defaults remain unrestricted.
 
-## Cache Clear Command
+## Cache Operations
 
-Clear compiled cache file:
+Build the artifact deliberately during deploy:
+
+```bash
+php vendor/bin/laminas routing-attributes:cache:warmup
+```
+
+The warmup command resolves configured and discovered route classes directly and does not reuse an existing artifact or boot your application. It requires `cache.enabled=true` and uses the configured `cache.file` path.
+
+Set `cache.release` to a unique immutable build or release ID and change it for every deployment that can change route classes, attributes, middleware, or route modifiers. This package intentionally does not hash application source files at runtime: doing so would require rediscovery/reflection on every cache hit and still could not reliably model all autoloaded route dependencies. When `cache.release` is omitted, only the package format and effective routing configuration invalidate the artifact; use that omission only for development or single-user environments.
+
+Clear a compiled cache file only when your deployment process owns that operation:
 
 ```bash
 php vendor/bin/laminas routing-attributes:cache:clear
@@ -167,7 +185,25 @@ Override file path:
 php vendor/bin/laminas routing-attributes:cache:clear --file=data/cache/custom-routes.php
 ```
 
-In RoadRunner/Swoole-style runtimes, reload workers after clearing or rebuilding the cache.
+`--file` bypasses the configured cache path and deletes the exact path supplied. Treat it as a deploy-only administrative override; never construct it from untrusted input.
+
+Production deployments are responsible for filesystem permissions and ownership. Prefer a release-specific cache path, let only the deploy user create/remove the artifact, and give the web/runtime user read-only access to the completed artifact and its directory. Do not place it in upload or other shared-writable locations.
+
+On POSIX systems, `tempnam()` creates the temporary artifact with mode `0600`, and the atomic rename preserves that mode. When deploy and runtime use different users, the application must explicitly grant the runtime user read access after warmup through its own group or ACL policy.
+
+### Optional cache-failure logging with `sirix/monolog`
+
+[`sirix/monolog`](https://packagist.org/packages/sirix/monolog) registers `Psr\Log\LoggerInterface` for its default logger service, so the cache package will use it automatically:
+
+```bash
+composer require sirix/monolog
+```
+
+Configure a real handler as described in the [`sirix/monolog` documentation](https://github.com/sirix777/sirix-monolog/blob/main/README.md); its default logger is a no-op. This package logs cache write failures at the `error` level with `operation`, `cache_file`, and filesystem-error context.
+
+Recommended sequence: deploy the new release, run `routing-attributes:cache:warmup`, activate the release/artifact, then reload long-running workers. If a deployment must delete a cache file, do so only as the deploy user and immediately warm a replacement; avoid deleting an artifact still used by live workers.
+
+In RoadRunner/Swoole-style runtimes, reload workers after a newly warmed artifact is active.
 
 ## Upgrading from `0.1.x`
 
@@ -177,7 +213,7 @@ In RoadRunner/Swoole-style runtimes, reload workers after clearing or rebuilding
 - Compiled route cache is configured with `routing_attributes.cache.enabled` and `routing_attributes.cache.file`. Legacy cache keys such as `mode`, `backend`, `strict`, and `write_fail_strategy` are no longer supported.
 - Discovery class-map cache configuration was removed. Use compiled route cache plus explicit `classes` for production, and enable discovery mainly for development or cache warmup.
 - Optional CLI integrations are optional dependencies. Install `laminas/laminas-cli` and `symfony/console` when you want package commands registered automatically, and install `mezzio/mezzio-tooling` only for upstream route-list integration.
-- Cache writes are best-effort. A failed cache write does not stop application boot, but the next boot will run the non-compiled path until the cache file can be written.
+- Cache writes are best-effort at runtime. During deployment, run `routing-attributes:cache:warmup` and treat a non-zero exit as a deploy failure before activating the release.
 
 ## Basic Usage
 
@@ -369,6 +405,6 @@ These are microbenchmarks for route registration/cache paths, not end-to-end HTT
 ## Troubleshooting
 
 - Service not found: register handler/action class in container.
-- Route changes are not visible: clear compiled cache with `routing-attributes:cache:clear`.
-- In long-running workers (RoadRunner/Swoole), reload/restart workers after cache rebuild/clear.
-- Invalid cache payload errors: delete cache file and warm it again.
+- Route changes are not visible: build a new cache with `routing-attributes:cache:warmup` before activating the release.
+- In long-running workers (RoadRunner/Swoole), reload/restart workers after the new artifact is active.
+- Cache warmup fails: verify that the deployment user owns the configured cache path and can write its directory; the package intentionally does not alter ownership, mode bits, or ACLs.

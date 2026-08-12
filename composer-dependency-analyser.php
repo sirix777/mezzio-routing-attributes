@@ -11,6 +11,7 @@ return $config
     ->ignoreErrorsOnPackages(
         [
             'laminas/laminas-cli',
+            'psr/log',
             'symfony/console',
         ],
         [ErrorType::DEV_DEPENDENCY_IN_PROD]

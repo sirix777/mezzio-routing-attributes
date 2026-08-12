@@ -19,5 +19,8 @@ final readonly class NullRouteRegistrarCache implements RouteRegistrarCacheInter
         return false;
     }
 
-    public function save(array $routes): void {}
+    public function save(array $routes): bool
+    {
+        return false;
+    }
 }

@@ -14,6 +14,8 @@ use Sirix\Mezzio\Routing\Attributes\Command\ListRoutesCommandDelegator;
 use Sirix\Mezzio\Routing\Attributes\Command\ListRoutesCommandFactory;
 use Sirix\Mezzio\Routing\Attributes\Command\RouteMiddlewareDisplayResolver;
 use Sirix\Mezzio\Routing\Attributes\Command\RouteMiddlewareDisplayResolverFactory;
+use Sirix\Mezzio\Routing\Attributes\Command\WarmRouteCacheCommand;
+use Sirix\Mezzio\Routing\Attributes\Command\WarmRouteCacheCommandFactory;
 use Sirix\Mezzio\Routing\Attributes\Discovery\DiscoveredClassesResolverInterface;
 use Sirix\Mezzio\Routing\Attributes\Extractor\AttributeRouteExtractor;
 use Sirix\Mezzio\Routing\Attributes\Extractor\AttributeRouteExtractorFactory;
@@ -79,6 +81,7 @@ final readonly class ConfigProvider
         if ($consolePolicy->canRegisterConsoleConfig()) {
             $dependencies['factories'][ListRoutesCommand::class]              = ListRoutesCommandFactory::class;
             $dependencies['factories'][ClearRouteCacheCommand::class]         = ClearRouteCacheCommandFactory::class;
+            $dependencies['factories'][WarmRouteCacheCommand::class]          = WarmRouteCacheCommandFactory::class;
             $dependencies['factories'][RouteMiddlewareDisplayResolver::class] = RouteMiddlewareDisplayResolverFactory::class;
             if ($consolePolicy->shouldRegisterToolingDelegator()) {
                 $dependencies['delegators'][self::TOOLING_LIST_ROUTES_COMMAND] = [
@@ -96,8 +99,9 @@ final readonly class ConfigProvider
     public function getConsoleConfig(bool $registerMezzioAlias = false): array
     {
         $commands = [
-            'routing-attributes:routes:list' => ListRoutesCommand::class,
-            'routing-attributes:cache:clear' => ClearRouteCacheCommand::class,
+            'routing-attributes:routes:list'  => ListRoutesCommand::class,
+            'routing-attributes:cache:clear'  => ClearRouteCacheCommand::class,
+            'routing-attributes:cache:warmup' => WarmRouteCacheCommand::class,
         ];
 
         if ($registerMezzioAlias) {

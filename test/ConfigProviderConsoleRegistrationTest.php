@@ -12,6 +12,8 @@ use Sirix\Mezzio\Routing\Attributes\Command\ClearRouteCacheCommandFactory;
 use Sirix\Mezzio\Routing\Attributes\Command\ListRoutesCommand;
 use Sirix\Mezzio\Routing\Attributes\Command\ListRoutesCommandDelegator;
 use Sirix\Mezzio\Routing\Attributes\Command\ListRoutesCommandFactory;
+use Sirix\Mezzio\Routing\Attributes\Command\WarmRouteCacheCommand;
+use Sirix\Mezzio\Routing\Attributes\Command\WarmRouteCacheCommandFactory;
 use Sirix\Mezzio\Routing\Attributes\ConfigProvider;
 use Symfony\Component\Console\Command\Command;
 
@@ -49,15 +51,21 @@ final class ConfigProviderConsoleRegistrationTest extends TestCase
                 $config['laminas-cli']['commands']['routing-attributes:cache:clear']
             );
             self::assertSame(
+                WarmRouteCacheCommand::class,
+                $config['laminas-cli']['commands']['routing-attributes:cache:warmup']
+            );
+            self::assertSame(
                 ListRoutesCommand::class,
                 $config['laminas-cli']['commands']['mezzio:routes:list']
             );
             self::assertSame(ListRoutesCommandFactory::class, $dependencies['factories'][ListRoutesCommand::class]);
             self::assertSame(ClearRouteCacheCommandFactory::class, $dependencies['factories'][ClearRouteCacheCommand::class]);
+            self::assertSame(WarmRouteCacheCommandFactory::class, $dependencies['factories'][WarmRouteCacheCommand::class]);
         } else {
             self::assertArrayNotHasKey('laminas-cli', $config);
             self::assertArrayNotHasKey(ListRoutesCommand::class, $dependencies['factories']);
             self::assertArrayNotHasKey(ClearRouteCacheCommand::class, $dependencies['factories']);
+            self::assertArrayNotHasKey(WarmRouteCacheCommand::class, $dependencies['factories']);
         }
 
         self::assertArrayNotHasKey(self::TOOLING_LIST_ROUTES_COMMAND, $dependencies['delegators']);
@@ -83,9 +91,14 @@ final class ConfigProviderConsoleRegistrationTest extends TestCase
             ClearRouteCacheCommand::class,
             $config['laminas-cli']['commands']['routing-attributes:cache:clear']
         );
+        self::assertSame(
+            WarmRouteCacheCommand::class,
+            $config['laminas-cli']['commands']['routing-attributes:cache:warmup']
+        );
         self::assertArrayNotHasKey('mezzio:routes:list', $config['laminas-cli']['commands']);
         self::assertSame(ListRoutesCommandFactory::class, $dependencies['factories'][ListRoutesCommand::class]);
         self::assertSame(ClearRouteCacheCommandFactory::class, $dependencies['factories'][ClearRouteCacheCommand::class]);
+        self::assertSame(WarmRouteCacheCommandFactory::class, $dependencies['factories'][WarmRouteCacheCommand::class]);
         self::assertSame(
             [ListRoutesCommandDelegator::class],
             $dependencies['delegators'][self::TOOLING_LIST_ROUTES_COMMAND]
