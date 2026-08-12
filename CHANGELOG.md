@@ -35,6 +35,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added regression coverage for cache format/fingerprint mismatches, release changes, unsafe cache targets, cache write failures and logger wiring.
 - Added warmup coverage for missing discovery paths and non-zero write-failure exits.
 
+## [1.0.3] - 2026-08-11
+
+### Fixed
+
+- Fixed compiled route-cache generation for defaults containing indexed nested arrays.
+
 ## [1.0.2] - 2026-08-11
 
 ### Changed

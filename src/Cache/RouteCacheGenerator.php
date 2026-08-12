@@ -326,16 +326,15 @@ final readonly class RouteCacheGenerator
     }
 
     /**
-     * @param array<string, mixed> $value
-     * @param array<string, true>  $activeArrayReferences
+     * @param array<array-key, mixed> $value
+     * @param array<string, true>     $activeArrayReferences
      */
     private function assertCacheCompatibleArray(array $value, string $path, string $key, array $activeArrayReferences): void
     {
         foreach ($value as $nestedKey => $nestedValue) {
-            $nestedKey       = (string) $nestedKey;
-            $nestedValueKey  = $key . '[' . $nestedKey . ']';
-            $reference       = ReflectionReference::fromArrayElement($value, $nestedKey);
-            $referenceId     = null;
+            $nestedValueKey = $key . '[' . $nestedKey . ']';
+            $reference      = ReflectionReference::fromArrayElement($value, $nestedKey);
+            $referenceId    = null;
             if ($reference instanceof ReflectionReference && is_array($nestedValue)) {
                 $referenceId = $reference->getId();
                 if (isset($activeArrayReferences[$referenceId])) {

@@ -378,7 +378,7 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
 
     public function testRejectsRecursiveArrayDefaultsBeforeCacheGeneration(): void
     {
-        $defaults             = [
+        $defaults = [
             'nested' => [],
         ];
         $defaults['nested']['parent'] = &$defaults;
@@ -393,9 +393,20 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
         ]);
     }
 
+    public function testAcceptsNestedListDefaults(): void
+    {
+        $generated = (new RouteCacheGenerator())->generate([
+            new RouteDefinition('/list-default', ['GET'], 'handler.service', 'process', [], 'list.default.route', [
+                'values' => ['first', 'second'],
+            ]),
+        ]);
+
+        self::assertStringContainsString('list.default.route', $generated);
+    }
+
     public function testAcceptsSiblingAliasesToTheSameNonRecursiveArray(): void
     {
-        $shared   = [
+        $shared = [
             'value' => 'shared',
         ];
         $defaults           = [];
