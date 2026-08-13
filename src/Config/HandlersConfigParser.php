@@ -24,8 +24,11 @@ final readonly class HandlersConfigParser
             throw InvalidConfigurationException::invalidHandlersType($handlersConfig);
         }
 
-        $handlersMode = $handlersConfig['mode'] ?? 'psr15';
-        if (! is_string($handlersMode) || ! in_array($handlersMode, ['psr15', 'callable'], true)) {
+        $handlersMode = $handlersConfig['mode'] ?? RoutingAttributesConfig::HANDLERS_MODE_PSR15;
+        if (! is_string($handlersMode) || ! in_array($handlersMode, [
+            RoutingAttributesConfig::HANDLERS_MODE_PSR15,
+            RoutingAttributesConfig::HANDLERS_MODE_CALLABLE,
+        ], true)) {
             throw InvalidConfigurationException::invalidHandlersMode($handlersMode);
         }
 

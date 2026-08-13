@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace SirixTest\Mezzio\Routing\Attributes\Cache;
 
 use PHPUnit\Framework\TestCase;
-use Sirix\Mezzio\Routing\Attributes\Cache\RouteCacheGenerator;
 use Sirix\Mezzio\Routing\Attributes\Cache\RouteCacheLoader;
 use Sirix\Mezzio\Routing\Attributes\Exception\InvalidConfigurationException;
 
@@ -48,35 +47,6 @@ final class RouteCacheLoaderTest extends TestCase
         unset($GLOBALS['sirix_route_cache_loader_require_count'], $GLOBALS['sirix_route_cache_loader_symlink_executed']);
     }
 
-    public function testValidateAcceptsPayloadWithCallableRegister(): void
-    {
-        $loader = new RouteCacheLoader();
-
-        self::assertTrue($loader->validate([
-            'format_version'     => RouteCacheGenerator::FORMAT_VERSION,
-            'config_fingerprint' => '',
-            'register'           => static function(): void {},
-        ]));
-    }
-
-    public function testValidateRejectsPayloadWithoutRegister(): void
-    {
-        $loader = new RouteCacheLoader();
-
-        self::assertFalse($loader->validate([
-            'meta' => [],
-        ]));
-    }
-
-    public function testValidateRejectsPayloadWithNonCallableRegister(): void
-    {
-        $loader = new RouteCacheLoader();
-
-        self::assertFalse($loader->validate([
-            'register' => 'not-a-callable',
-        ]));
-    }
-
     public function testLoadReusesPreviouslyLoadedArtifact(): void
     {
         $cacheFile          = $this->createCacheFilePath();
@@ -91,7 +61,7 @@ final class RouteCacheLoaderTest extends TestCase
                 ++$GLOBALS['sirix_route_cache_loader_require_count'];
 
                 return [
-                    'format_version' => 1,
+                    'format_version' => 2,
                     'config_fingerprint' => '',
                     'register' => static function (): void {},
                 ];
@@ -105,6 +75,33 @@ final class RouteCacheLoaderTest extends TestCase
 
         self::assertSame(1, $GLOBALS['sirix_route_cache_loader_require_count']);
         self::assertSame($firstPayload, $secondPayload);
+    }
+
+    public function testArtifactsAreCachedPerLoaderInstance(): void
+    {
+        $cacheFile          = $this->createCacheFilePath();
+        $this->cacheFiles[] = $cacheFile;
+
+        file_put_contents(
+            $cacheFile,
+            <<<'PHP'
+                <?php
+
+                $GLOBALS['sirix_route_cache_loader_require_count'] ??= 0;
+                ++$GLOBALS['sirix_route_cache_loader_require_count'];
+
+                return [
+                    'format_version' => 2,
+                    'config_fingerprint' => '',
+                    'register' => static function (): void {},
+                ];
+                PHP
+        );
+
+        (new RouteCacheLoader())->load($cacheFile);
+        (new RouteCacheLoader())->load($cacheFile);
+
+        self::assertSame(2, $GLOBALS['sirix_route_cache_loader_require_count']);
     }
 
     public function testLoadReturnsNullWhenCacheFileIsMissing(): void
@@ -128,7 +125,7 @@ final class RouteCacheLoaderTest extends TestCase
                 $GLOBALS['sirix_route_cache_loader_symlink_executed'] = true;
 
                 return [
-                    'format_version' => 1,
+                    'format_version' => 2,
                     'config_fingerprint' => '',
                     'register' => static function (): void {},
                 ];
@@ -185,7 +182,7 @@ final class RouteCacheLoaderTest extends TestCase
                 <?php
 
                 return [
-                    'format_version' => 1,
+                    'format_version' => 2,
                     'config_fingerprint' => 'old-fingerprint',
                     'register' => static function (): void {},
                 ];
@@ -225,7 +222,7 @@ final class RouteCacheLoaderTest extends TestCase
                 <?php
 
                 return [
-                    'format_version' => 1,
+                    'format_version' => 2,
                     'config_fingerprint' => '',
                     'meta' => [],
                 ];

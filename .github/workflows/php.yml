@@ -54,6 +54,22 @@ jobs:
             - name: Run phpunit
               run: composer test
 
+            - name: Run benchmark smoke checks
+              env:
+                  BENCHMARK_ITERATIONS: 1
+                  BENCHMARK_ROUTE_COUNTS: 10
+              run: |
+                  composer benchmark > /dev/null
+                  composer benchmark-threshold > /dev/null
+
+            - name: Verify benchmark large-corpus manifest transport
+              env:
+                  BENCHMARK_ITERATIONS: 1
+                  BENCHMARK_ROUTE_COUNTS: 12800
+              run: |
+                  BENCHMARK_PROFILE=unique composer benchmark-threshold > /dev/null
+                  BENCHMARK_PROFILE=mixed composer benchmark-threshold > /dev/null
+
             - name: Run benchmark report (non-blocking)
               continue-on-error: true
               run: composer benchmark > benchmarks/report.md

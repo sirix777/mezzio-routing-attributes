@@ -16,18 +16,19 @@ use function lstat;
 use function restore_error_handler;
 use function set_error_handler;
 
-final readonly class RouteCacheLoader
+final class RouteCacheLoader
 {
+    /** @var array<string, array{payload: array{register: callable}}> */
+    private array $loadedArtifacts = [];
+
     /**
      * @return null|array{register: callable}
      */
     public function load(string $cacheFile, string $expectedFingerprint = ''): ?array
     {
-        static $loadedArtifacts = [];
-
         $cacheKey = $cacheFile . "\0" . $expectedFingerprint;
-        if (isset($loadedArtifacts[$cacheKey])) {
-            return $loadedArtifacts[$cacheKey]['payload'];
+        if (isset($this->loadedArtifacts[$cacheKey])) {
+            return $this->loadedArtifacts[$cacheKey]['payload'];
         }
 
         if (! $this->isSafeArtifact($cacheFile)) {
@@ -66,22 +67,11 @@ final readonly class RouteCacheLoader
             'register' => $payload['register'],
         ];
 
-        $loadedArtifacts[$cacheKey] = [
+        $this->loadedArtifacts[$cacheKey] = [
             'payload' => $artifact,
         ];
 
         return $artifact;
-    }
-
-    public function validate(mixed $payload, string $expectedFingerprint = ''): bool
-    {
-        return is_array($payload)
-            && ($payload['format_version'] ?? null) === RouteCacheGenerator::FORMAT_VERSION
-            && isset($payload['config_fingerprint'])
-            && is_string($payload['config_fingerprint'])
-            && hash_equals($expectedFingerprint, $payload['config_fingerprint'])
-            && isset($payload['register'])
-            && is_callable($payload['register']);
     }
 
     private function withCapturedError(callable $callback, ?string &$error): mixed

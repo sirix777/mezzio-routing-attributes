@@ -52,10 +52,7 @@ final class DiscoveryFileInventoryTest extends TestCase
         $path      = $this->tempDir;
         $inventory = new DiscoveryFileInventory([$path]);
         $result    = $inventory->collect();
-        $paths     = [];
-        foreach ($result as [$file]) {
-            $paths[] = $file;
-        }
+        $paths     = $result;
 
         $paths = array_map(
             static fn (string $file): string => str_replace('\\', '/', $file),

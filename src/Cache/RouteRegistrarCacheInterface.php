@@ -15,8 +15,6 @@ interface RouteRegistrarCacheInterface
 {
     public function registerRoutes(RouteCollectorInterface $collector, MiddlewarePipelineFactory $pipelineFactory): bool;
 
-    public function hasUsableArtifact(): bool;
-
     /**
      * @param list<RouteDefinition> $routes
      */

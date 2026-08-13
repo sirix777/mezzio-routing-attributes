@@ -8,6 +8,7 @@ use Psr\Container\ContainerInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Sirix\Mezzio\Routing\Attributes\AttributeRouteProviderFactory;
 use Sirix\Mezzio\Routing\Attributes\Cache\RouteRegistrarCacheInterface;
+use Sirix\Mezzio\Routing\Attributes\Config\RoutingAttributesConfig;
 use Sirix\Mezzio\Routing\Attributes\Discovery\DiscoveredClassesResolverInterface;
 use Sirix\Mezzio\Routing\Attributes\DuplicateRouteResolver;
 use Sirix\Mezzio\Routing\Attributes\Extractor\AttributeRouteExtractor;
@@ -139,6 +140,27 @@ function summarizeSamples(array $samples): array
     ];
 }
 
+function createTemporaryDirectory(): string
+{
+    $directory = sys_get_temp_dir() . '/mezzio-routing-attributes-benchmark-' . bin2hex(random_bytes(16));
+    if (! mkdir($directory, 0o700)) {
+        throw new RuntimeException('Unable to create private route benchmark directory.');
+    }
+
+    return $directory;
+}
+
+function removeTemporaryDirectory(string $directory): void
+{
+    foreach (glob($directory . '/*') ?: [] as $file) {
+        if (is_file($file) || is_link($file)) {
+            unlink($file);
+        }
+    }
+
+    rmdir($directory);
+}
+
 /**
  * @param callable(): array{
  *     elapsed_ms: float,
@@ -200,6 +222,7 @@ function runProvider(array $config): array
     $extractor = createBenchmarkExtractor();
     $container = new BenchmarkContainer([
         'config' => $config,
+        RoutingAttributesConfig::class => RoutingAttributesConfig::fromRootConfig($config),
         AttributeRouteExtractorInterface::class => $extractor,
         ServiceMiddlewareResolver::class => new ServiceMiddlewareResolver(),
         PingHandler::class => new PingHandler(),
@@ -232,8 +255,52 @@ function runProvider(array $config): array
     ];
 }
 
-$iterations = 100;
-$tempPrefix = sys_get_temp_dir() . '/mezzio-routing-attributes-bench-' . uniqid('', true);
+/**
+ * @return array{elapsed_ms: float, peak_memory_usage_kb: float, route_calls: int}
+ */
+function runProviderInFreshProcess(array $config): array
+{
+    $encodedConfig = base64_encode(json_encode($config, JSON_THROW_ON_ERROR));
+    $process       = proc_open(
+        [PHP_BINARY, __FILE__, '--sample', $encodedConfig],
+        [
+            1 => ['pipe', 'w'],
+            2 => ['pipe', 'w'],
+        ],
+        $pipes
+    );
+    if (! is_resource($process)) {
+        throw new RuntimeException('Unable to start route provider benchmark sample process.');
+    }
+
+    $output = stream_get_contents($pipes[1]);
+    $errors = stream_get_contents($pipes[2]);
+    fclose($pipes[1]);
+    fclose($pipes[2]);
+    $exitCode = proc_close($process);
+    if (0 !== $exitCode) {
+        throw new RuntimeException('Route provider benchmark sample process failed: ' . $errors);
+    }
+
+    /** @var array{elapsed_ms: float, peak_memory_usage_kb: float, route_calls: int} $sample */
+    $sample = json_decode($output, true, flags: JSON_THROW_ON_ERROR);
+
+    return $sample;
+}
+
+if ('--sample' === ($argv[1] ?? null)) {
+    /** @var array<string, mixed> $config */
+    $config = json_decode(base64_decode($argv[2], true) ?: '', true, flags: JSON_THROW_ON_ERROR);
+    echo json_encode(runProvider($config), JSON_THROW_ON_ERROR);
+    exit(0);
+}
+
+$iterations = max(1, (int) (getenv('BENCHMARK_ITERATIONS') ?: 100));
+$temporaryDirectory = createTemporaryDirectory();
+register_shutdown_function(static function() use ($temporaryDirectory): void {
+    removeTemporaryDirectory($temporaryDirectory);
+});
+$tempPrefix = $temporaryDirectory . '/routes';
 $manualRouteCacheFile = $tempPrefix . '-manual-routes.php';
 $discoveryTokenRouteCacheFile = $tempPrefix . '-discovery-token-routes.php';
 $discoveryPsr4RouteCacheFile = $tempPrefix . '-discovery-psr4-routes.php';
@@ -263,9 +330,9 @@ if (file_exists($manualRouteCacheFile)) {
 }
 runProvider($manualConfig);
 
-$warmManual = runScenario(static fn (): array => runProvider($manualConfig), $iterations);
+$warmManual = runScenario(static fn (): array => runProviderInFreshProcess($manualConfig), $iterations);
 
-$noCacheManual = runScenario(static fn (): array => runProvider($manualNoCacheConfig), $iterations);
+$noCacheManual = runScenario(static fn (): array => runProviderInFreshProcess($manualNoCacheConfig), $iterations);
 
 if (file_exists($manualRouteCacheFile)) {
     unlink($manualRouteCacheFile);
@@ -275,7 +342,7 @@ $coldManual = runScenario(static function() use ($manualConfig, $manualRouteCach
         unlink($manualRouteCacheFile);
     }
 
-    return runProvider($manualConfig);
+    return runProviderInFreshProcess($manualConfig);
 }, $iterations);
 
 $discoveryBaseConfig = [
@@ -297,7 +364,7 @@ if (file_exists($discoveryTokenRouteCacheFile)) {
     unlink($discoveryTokenRouteCacheFile);
 }
 runProvider($discoveryBaseConfig);
-$warmDiscoveryToken = runScenario(static fn (): array => runProvider($discoveryBaseConfig), $iterations);
+$warmDiscoveryToken = runScenario(static fn (): array => runProviderInFreshProcess($discoveryBaseConfig), $iterations);
 
 $discoveryPsr4Config = $discoveryBaseConfig;
 $discoveryPsr4Config['routing_attributes']['cache']['file'] = $discoveryPsr4RouteCacheFile;
@@ -313,7 +380,7 @@ if (file_exists($discoveryPsr4RouteCacheFile)) {
     unlink($discoveryPsr4RouteCacheFile);
 }
 runProvider($discoveryPsr4Config);
-$warmDiscoveryPsr4 = runScenario(static fn (): array => runProvider($discoveryPsr4Config), $iterations);
+$warmDiscoveryPsr4 = runScenario(static fn (): array => runProviderInFreshProcess($discoveryPsr4Config), $iterations);
 
 if (file_exists($manualRouteCacheFile)) {
     unlink($manualRouteCacheFile);
@@ -329,12 +396,16 @@ $report = [
     'php_version' => PHP_VERSION,
     'timestamp' => date('c'),
     'iterations' => $iterations,
+    'measurement' => [
+        'warm_cache_mode' => 'fresh_process',
+        'artifact_load_included' => true,
+    ],
     'scenario_notes' => [
-        'warm_cache_hit_manual' => 'Route cache hit with explicit class list. Primary signal for route-cache load-path memory.',
+        'warm_cache_hit_manual' => 'Fresh-process cache hit with explicit class list, including artifact require/load.',
         'no_cache_manual' => 'Manual class list without route cache. Lower-bound reference for registration overhead.',
         'cold_cache_rebuild_manual' => 'Route cache cold rebuild from explicit class list. Captures extraction/write cost.',
-        'warm_cache_hit_discovery_token' => 'Discovery (token strategy) + route cache hit.',
-        'warm_cache_hit_discovery_psr4' => 'Discovery (PSR-4 strategy) + route cache hit.',
+        'warm_cache_hit_discovery_token' => 'Fresh-process cache hit with token discovery configuration; discovery is skipped on hit.',
+        'warm_cache_hit_discovery_psr4' => 'Fresh-process cache hit with PSR-4 discovery configuration; discovery is skipped on hit.',
     ],
     'scenarios' => [
         'warm_cache_hit_manual' => $warmManual,
@@ -349,9 +420,16 @@ $report = [
 ];
 
 $baselineFile = dirname(__DIR__) . '/benchmarks/baseline.json';
+$baselineCompatible = false;
 if (file_exists($baselineFile)) {
     $decoded = json_decode((string) file_get_contents($baselineFile), true);
-    if (is_array($decoded) && isset($decoded['scenarios']['warm_cache_hit_manual']['median_ms'])) {
+    if (
+        is_array($decoded)
+        && 'fresh_process' === ($decoded['measurement']['warm_cache_mode'] ?? null)
+        && true === ($decoded['measurement']['artifact_load_included'] ?? null)
+        && isset($decoded['scenarios']['warm_cache_hit_manual']['median_ms'])
+    ) {
+        $baselineCompatible = true;
         $baselineMedian = (float) $decoded['scenarios']['warm_cache_hit_manual']['median_ms'];
         $currentMedian = (float) $warmManual['median_ms'];
         if ($baselineMedian > 0.0) {
@@ -415,7 +493,13 @@ if (isset($report['comparison'])) {
     );
 } else {
     echo "## Baseline Comparison\n\n";
-    echo "- No `benchmarks/baseline.json` found; comparison skipped.\n";
+    echo $baselineCompatible
+        ? "- Compatible baseline contains no warm cache median; comparison skipped.\n"
+        : "- Baseline predates fresh-process artifact loading; comparison skipped.\n";
 }
 
 echo "\nReport JSON: `benchmarks/report.json`\n";
+
+if (isset($report['comparison']) && ! $report['comparison']['within_budget']) {
+    exit(1);
+}

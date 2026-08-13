@@ -16,7 +16,7 @@ use function implode;
 final class MiddlewarePipelineFactory
 {
     /** @var array<string, MiddlewareInterface> */
-    private array $compiledMiddlewareCache = [];
+    private array $middlewareBySignature = [];
 
     public function __construct(
         private readonly ContainerInterface $container,
@@ -24,36 +24,34 @@ final class MiddlewarePipelineFactory
     ) {}
 
     /**
-     * @return array{middleware: MiddlewareInterface, middlewareDisplay: non-empty-string}
+     * @param list<non-empty-string> $middlewareServices
      */
-    public function create(RouteDefinition $route): array
+    public function createFromSignature(string $handlerService, string $handlerMethod, array $middlewareServices): MiddlewareInterface
     {
-        $middleware = $this->createFromCompiled(
-            $route->handlerService,
-            $route->handlerMethod,
-            $route->middlewareServices
-        );
+        $signatureKey = $this->signatureKey($handlerService, $handlerMethod, $middlewareServices);
+        if (isset($this->middlewareBySignature[$signatureKey])) {
+            return $this->middlewareBySignature[$signatureKey];
+        }
 
-        return [
-            'middleware'        => $middleware,
-            'middlewareDisplay' => $this->buildMiddlewareDisplay(
-                $route->handlerService,
-                $route->handlerMethod,
-                $route->middlewareServices
-            ),
-        ];
+        return $this->middlewareBySignature[$signatureKey] = $this->createUncachedFromSignature(
+            $handlerService,
+            $handlerMethod,
+            $middlewareServices
+        );
     }
 
     /**
+     * Constructs a pipeline without consulting or updating the compiled-signature cache.
+     *
      * @param list<non-empty-string> $middlewareServices
+     *
+     * @internal used by generated route-cache artifacts, which already deduplicate signatures
      */
-    public function createFromCompiled(string $handlerService, string $handlerMethod, array $middlewareServices): MiddlewareInterface
-    {
-        $cacheKey = $this->compiledRouteSignature($handlerService, $handlerMethod, $middlewareServices);
-        if (isset($this->compiledMiddlewareCache[$cacheKey])) {
-            return $this->compiledMiddlewareCache[$cacheKey];
-        }
-
+    public function createUncachedFromSignature(
+        string $handlerService,
+        string $handlerMethod,
+        array $middlewareServices
+    ): MiddlewareInterface {
         $middlewares = [];
         foreach ($middlewareServices as $serviceName) {
             $middlewares[] = $this->createServiceMiddleware($serviceName, 'process');
@@ -61,13 +59,9 @@ final class MiddlewarePipelineFactory
 
         $middlewares[] = $this->createServiceMiddleware($handlerService, $handlerMethod);
 
-        $middleware = 1 === count($middlewares)
+        return 1 === count($middlewares)
             ? $middlewares[0]
             : $this->createPipeline($middlewares);
-
-        $this->compiledMiddlewareCache[$cacheKey] = $middleware;
-
-        return $middleware;
     }
 
     private function createServiceMiddleware(string $serviceName, string $methodName): MiddlewareInterface
@@ -78,27 +72,6 @@ final class MiddlewarePipelineFactory
             $serviceName,
             $methodName
         );
-    }
-
-    /**
-     * @param list<non-empty-string> $middlewareServices
-     *
-     * @return non-empty-string
-     */
-    private function buildMiddlewareDisplay(string $handlerService, string $handlerMethod, array $middlewareServices): string
-    {
-        $middlewareDisplay = '';
-        foreach ($middlewareServices as $serviceName) {
-            $middlewareDisplay = '' === $middlewareDisplay
-                ? $serviceName
-                : $middlewareDisplay . ' -> ' . $serviceName;
-        }
-
-        $handlerDisplay = $handlerService . '::' . $handlerMethod;
-
-        return '' === $middlewareDisplay
-            ? $handlerDisplay
-            : $middlewareDisplay . ' -> ' . $handlerDisplay;
     }
 
     /**
@@ -127,7 +100,7 @@ final class MiddlewarePipelineFactory
     /**
      * @param list<non-empty-string> $middlewareServices
      */
-    private function compiledRouteSignature(string $handlerService, string $handlerMethod, array $middlewareServices): string
+    private function signatureKey(string $handlerService, string $handlerMethod, array $middlewareServices): string
     {
         return $handlerService . "\0" . $handlerMethod . "\0" . implode("\0", $middlewareServices);
     }

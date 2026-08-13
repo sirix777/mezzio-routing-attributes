@@ -52,7 +52,9 @@ final class CompiledRouteRegistrarCacheFactoryTest extends TestCase
 
     public function testInvokeUsesNullCacheWhenCacheConfigIsAbsent(): void
     {
-        $container = new InMemoryContainer([]);
+        $container = new InMemoryContainer([
+            'config' => [],
+        ]);
 
         $cache = (new CompiledRouteRegistrarCacheFactory())($container);
 

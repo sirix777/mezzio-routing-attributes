@@ -12,10 +12,6 @@ use Sirix\Mezzio\Routing\Attributes\Config\RoutingAttributesConfig;
 use Sirix\Mezzio\Routing\Attributes\Discovery\DiscoveredClassesResolverInterface;
 use Sirix\Mezzio\Routing\Attributes\Extractor\AttributeRouteExtractorInterface;
 
-use function array_merge;
-use function array_unique;
-use function array_values;
-
 final class AttributeRouteProviderFactory
 {
     /**
@@ -24,34 +20,15 @@ final class AttributeRouteProviderFactory
      */
     public function __invoke(ContainerInterface $container): AttributeRouteProvider
     {
-        $rootConfig = $container->has('config') ? $container->get('config') : [];
-        $config     = RoutingAttributesConfig::fromRootConfig($rootConfig);
-
-        $routeRegistrarCache = $container->get(RouteRegistrarCacheInterface::class);
-
-        $classes = array_values(array_unique(array_merge(
-            $config->classes,
-            $this->resolveDiscoveredClasses($container, $routeRegistrarCache)
-        )));
+        $config = $container->get(RoutingAttributesConfig::class);
 
         return new AttributeRouteProvider(
             $container->get(AttributeRouteExtractorInterface::class),
-            $classes,
+            $config->classes,
             $container->get(DuplicateRouteResolver::class),
             $container->get(MiddlewarePipelineFactory::class),
-            $routeRegistrarCache
+            $container->get(RouteRegistrarCacheInterface::class),
+            $container->get(DiscoveredClassesResolverInterface::class)
         );
-    }
-
-    /**
-     * @return list<non-empty-string>
-     */
-    private function resolveDiscoveredClasses(ContainerInterface $container, RouteRegistrarCacheInterface $routeRegistrarCache): array
-    {
-        if ($routeRegistrarCache->hasUsableArtifact()) {
-            return [];
-        }
-
-        return $container->get(DiscoveredClassesResolverInterface::class)->resolve();
     }
 }

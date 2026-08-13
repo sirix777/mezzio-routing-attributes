@@ -11,15 +11,21 @@ use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 use Sirix\Mezzio\Routing\Attributes\AttributeRouteProviderFactory;
 use Sirix\Mezzio\Routing\Attributes\Cache\RouteRegistrarCacheInterface;
+use Sirix\Mezzio\Routing\Attributes\Config\RoutingAttributesConfig;
 use Sirix\Mezzio\Routing\Attributes\Discovery\DiscoveredClassesResolverInterface;
 use Sirix\Mezzio\Routing\Attributes\DuplicateRouteResolver;
+use Sirix\Mezzio\Routing\Attributes\Extractor\AttributeRouteExtractor;
 use Sirix\Mezzio\Routing\Attributes\Extractor\AttributeRouteExtractorInterface;
+use Sirix\Mezzio\Routing\Attributes\Extractor\ClassEligibilityValidator;
+use Sirix\Mezzio\Routing\Attributes\Extractor\MethodSignatureValidator;
+use Sirix\Mezzio\Routing\Attributes\Extractor\RouteAttributeReader;
+use Sirix\Mezzio\Routing\Attributes\Extractor\RouteDataNormalizer;
+use Sirix\Mezzio\Routing\Attributes\Extractor\RouteDefinitionBuilder;
 use Sirix\Mezzio\Routing\Attributes\Factory\CompiledRouteRegistrarCacheFactory;
 use Sirix\Mezzio\Routing\Attributes\Factory\DiscoveryClassMapResolverFactory;
 use Sirix\Mezzio\Routing\Attributes\Factory\DuplicateRouteResolverFactory;
 use Sirix\Mezzio\Routing\Attributes\Factory\MiddlewarePipelineFactoryFactory;
 use Sirix\Mezzio\Routing\Attributes\MiddlewarePipelineFactory;
-use Sirix\Mezzio\Routing\Attributes\RouteDefinition;
 use Sirix\Mezzio\Routing\Attributes\ServiceMiddlewareResolver;
 
 require dirname(__DIR__) . '/vendor/autoload.php';
@@ -28,8 +34,6 @@ final class ThresholdBenchmarkContainer implements ContainerInterface
 {
     /** @var array<string, mixed> */
     private array $services;
-    public int $getCalls = 0;
-
     /**
      * @param array<string, mixed> $services
      */
@@ -40,8 +44,6 @@ final class ThresholdBenchmarkContainer implements ContainerInterface
 
     public function get(string $id): mixed
     {
-        $this->getCalls++;
-
         return $this->services[$id];
     }
 
@@ -108,34 +110,145 @@ final class ThresholdBenchmarkCollector implements RouteCollectorInterface
     }
 }
 
-final class SyntheticExtractor implements AttributeRouteExtractorInterface
-{
-    public function __construct(private int $routeCount) {}
-
-    public function extract(array $classes): array
-    {
-        $routes = [];
-        for ($i = 1; $i <= $this->routeCount; $i++) {
-            $routes[] = new RouteDefinition(
-                '/bench/' . $i,
-                ['GET'],
-                'bench.handler',
-                'process',
-                [],
-                'bench.route.' . $i
-            );
-        }
-
-        return $routes;
-    }
-}
-
 final class BenchHandlerMiddleware implements MiddlewareInterface
 {
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
         return $handler->handle($request);
     }
+}
+
+function createBenchmarkExtractor(): AttributeRouteExtractor
+{
+    $attributeReader = new RouteAttributeReader();
+
+    return new AttributeRouteExtractor(
+        new ClassEligibilityValidator(false),
+        $attributeReader,
+        new RouteDefinitionBuilder(
+            $attributeReader,
+            new MethodSignatureValidator(),
+            new RouteDataNormalizer()
+        )
+    );
+}
+
+function createTemporaryDirectory(): string
+{
+    $directory = sys_get_temp_dir() . '/mezzio-routing-attributes-benchmark-' . bin2hex(random_bytes(16));
+    if (! mkdir($directory, 0o700)) {
+        throw new RuntimeException('Unable to create private route benchmark directory.');
+    }
+
+    return $directory;
+}
+
+function removeTemporaryDirectory(string $directory): void
+{
+    foreach (glob($directory . '/*') ?: [] as $file) {
+        if (is_file($file) || is_link($file)) {
+            unlink($file);
+        }
+    }
+
+    rmdir($directory);
+}
+
+/**
+ * @param list<class-string<MiddlewareInterface>> $classNames
+ */
+function writeClassManifest(string $manifestFile, array $classNames): void
+{
+    $manifest = json_encode($classNames, JSON_THROW_ON_ERROR);
+    if (false === file_put_contents($manifestFile, $manifest, LOCK_EX)) {
+        throw new RuntimeException('Unable to write route benchmark class manifest.');
+    }
+
+    if (! chmod($manifestFile, 0o600)) {
+        throw new RuntimeException('Unable to secure route benchmark class manifest.');
+    }
+}
+
+/**
+ * @return list<class-string<MiddlewareInterface>>
+ */
+function readClassManifest(string $manifestFile): array
+{
+    $manifest = file_get_contents($manifestFile);
+    if (false === $manifest) {
+        throw new RuntimeException('Unable to read route benchmark class manifest.');
+    }
+
+    $classNames = json_decode($manifest, true, flags: JSON_THROW_ON_ERROR);
+    if (! is_array($classNames) || ! array_is_list($classNames)) {
+        throw new RuntimeException('Route benchmark class manifest must contain a class-name list.');
+    }
+
+    foreach ($classNames as $className) {
+        if (! is_string($className)) {
+            throw new RuntimeException('Route benchmark class manifest contains an invalid class name.');
+        }
+    }
+
+    /** @var list<class-string<MiddlewareInterface>> $classNames */
+    return $classNames;
+}
+
+/**
+ * @return list<class-string<MiddlewareInterface>>
+ */
+function createRouteCorpus(int $routeCount, string $sourceFile, string $profile): array
+{
+    $classRoutes = match ($profile) {
+        'shared' => [$routeCount],
+        'unique' => array_fill(0, $routeCount, 1),
+        'mixed' => array_merge([(int) ceil($routeCount / 2)], array_fill(0, (int) floor($routeCount / 2), 1)),
+        default => throw new RuntimeException(sprintf('Unsupported BENCHMARK_PROFILE "%s".', $profile)),
+    };
+    $classes = [];
+    $route = 1;
+    foreach ($classRoutes as $classIndex => $routesForClass) {
+        $className = sprintf('RouteCorpus%s%s', ucfirst($profile), $classIndex + 1);
+        $attributes = [];
+        for ($i = 0; $i < $routesForClass; $i++, $route++) {
+            $attributes[] = "#[\\Sirix\\Mezzio\\Routing\\Attributes\\Attribute\\Route('/bench/{$route}', ['GET'], 'bench.route.{$route}')]";
+        }
+        $classes[] = [
+            'name' => $className,
+            'attributes' => implode("\n", $attributes),
+        ];
+    }
+
+    $source = <<<PHP
+        namespace Bench\\Generated;
+
+        use Psr\\Http\\Message\\ResponseInterface;
+        use Psr\\Http\\Message\\ServerRequestInterface;
+        use Psr\\Http\\Server\\MiddlewareInterface;
+        use Psr\\Http\\Server\\RequestHandlerInterface;
+
+        %s
+        final class %s implements MiddlewareInterface
+        {
+            public function process(ServerRequestInterface \$request, RequestHandlerInterface \$handler): ResponseInterface
+            {
+                return \$handler->handle(\$request);
+            }
+        }
+        PHP;
+    $definitions = array_map(
+        static fn (array $class): string => sprintf($source, $class['attributes'], $class['name']),
+        $classes
+    );
+    $fileContents = "<?php\n\ndeclare(strict_types=1);\n\n" . implode("\n", $definitions);
+    if (false === file_put_contents($sourceFile, $fileContents)) {
+        throw new RuntimeException('Unable to create route benchmark corpus.');
+    }
+
+    /** @var list<class-string<MiddlewareInterface>> $classNames */
+    $classNames = array_map(static fn (array $class): string => 'Bench\\Generated\\' . $class['name'], $classes);
+
+    return $classNames;
 }
 
 /**
@@ -163,12 +276,15 @@ function summarize(array $samples): array
 }
 
 /**
- * @return array{elapsed_ms: float, peak_kb: float, usage_delta_kb: float}
+ * @return array{elapsed_ms: float, peak_kb: float, usage_delta_kb: float, route_calls: int}
  */
 function runProvider(
-    int $routeCount,
     bool $cacheEnabled,
-    string $cacheFile
+    string $cacheFile,
+    string $sourceFile,
+    array $classNames,
+    bool $loadCorpus,
+    int $expectedRouteCount
 ): array
 {
     $cacheConfig = [
@@ -178,16 +294,17 @@ function runProvider(
 
     $config = [
         'routing_attributes' => [
-            'classes' => ['Bench\\Virtual\\Handler'],
+            'classes' => $classNames,
             'cache' => $cacheConfig,
         ],
     ];
 
     $container = new ThresholdBenchmarkContainer([
         'config' => $config,
-        AttributeRouteExtractorInterface::class => new SyntheticExtractor($routeCount),
+        RoutingAttributesConfig::class => RoutingAttributesConfig::fromRootConfig($config),
+        AttributeRouteExtractorInterface::class => createBenchmarkExtractor(),
         ServiceMiddlewareResolver::class => new ServiceMiddlewareResolver(),
-        'bench.handler' => new BenchHandlerMiddleware(),
+        ...array_fill_keys($classNames, new BenchHandlerMiddleware()),
     ]);
     $container->set(RouteRegistrarCacheInterface::class, (new CompiledRouteRegistrarCacheFactory())($container));
     $container->set(DuplicateRouteResolver::class, (new DuplicateRouteResolverFactory())($container));
@@ -204,19 +321,89 @@ function runProvider(
     }
 
     $start = hrtime(true);
+    if ($loadCorpus) {
+        require $sourceFile;
+    }
     $provider->registerRoutes($collector);
     $elapsedMs = (hrtime(true) - $start) / 1_000_000;
     $usageDeltaKb = max(memory_get_usage() - $usageBefore, 0) / 1024;
     $peakKb = max(memory_get_peak_usage() - $usageBefore, 0) / 1024;
+    if ($collector->routeCalls !== $expectedRouteCount) {
+        throw new RuntimeException(sprintf(
+            'Expected %d registered routes, got %d.',
+            $expectedRouteCount,
+            $collector->routeCalls
+        ));
+    }
 
     return [
         'elapsed_ms' => round($elapsedMs, 4),
         'peak_kb' => round($peakKb, 4),
         'usage_delta_kb' => round($usageDeltaKb, 4),
+        'route_calls' => $collector->routeCalls,
     ];
 }
 
 /**
+ * @return array{elapsed_ms: float, peak_kb: float, usage_delta_kb: float, route_calls: int}
+ */
+function runProviderInFreshProcess(
+    bool $cacheEnabled,
+    string $cacheFile,
+    string $sourceFile,
+    string $classManifestFile,
+    int $expectedRouteCount,
+    bool $loadCorpus
+): array
+{
+    $process = proc_open(
+        [
+            PHP_BINARY,
+            __FILE__,
+            '--sample',
+            $cacheEnabled ? '1' : '0',
+            $cacheFile,
+            $sourceFile,
+            $classManifestFile,
+            (string) $expectedRouteCount,
+            $loadCorpus ? '1' : '0',
+        ],
+        [
+            1 => ['pipe', 'w'],
+            2 => ['pipe', 'w'],
+        ],
+        $pipes
+    );
+    if (! is_resource($process)) {
+        throw new RuntimeException('Unable to start route cache threshold sample process.');
+    }
+
+    $output = stream_get_contents($pipes[1]);
+    $errors = stream_get_contents($pipes[2]);
+    fclose($pipes[1]);
+    fclose($pipes[2]);
+    $exitCode = proc_close($process);
+    if (0 !== $exitCode) {
+        throw new RuntimeException('Route cache threshold sample process failed: ' . $errors);
+    }
+
+    /** @var array{elapsed_ms: float, peak_kb: float, usage_delta_kb: float, route_calls: int} $sample */
+    $sample = json_decode($output, true, flags: JSON_THROW_ON_ERROR);
+
+    return $sample;
+}
+
+if ('--sample' === ($argv[1] ?? null)) {
+    echo json_encode(
+        runProvider('1' === $argv[2], $argv[3], $argv[4], readClassManifest($argv[5]), '1' === $argv[7], (int) $argv[6]),
+        JSON_THROW_ON_ERROR
+    );
+    exit(0);
+}
+
+/**
+ * @param callable(): array{elapsed_ms: float, peak_kb: float, usage_delta_kb: float, route_calls: int} $iteration
+ *
  * @return array{
  *     median_ms: float,
  *     avg_ms: float,
@@ -227,21 +414,15 @@ function runProvider(
  * }
  */
 function runScenario(
-    int $routeCount,
-    bool $cacheEnabled,
-    string $cacheFile,
-    int $iterations
+    int $iterations,
+    callable $iteration
 ): array
 {
     $durations = [];
     $peaks = [];
     $usageDeltas = [];
     for ($i = 0; $i < $iterations; $i++) {
-        $sample = runProvider(
-            $routeCount,
-            $cacheEnabled,
-            $cacheFile
-        );
+        $sample = $iteration();
         $durations[] = $sample['elapsed_ms'];
         $peaks[] = $sample['peak_kb'];
         $usageDeltas[] = $sample['usage_delta_kb'];
@@ -261,118 +442,93 @@ function runScenario(
     ];
 }
 
-$routeCounts = [10, 25, 50, 100, 200, 400, 800, 1600, 2400, 3200, 4800, 6400, 9600, 12800];
-$iterations = 20;
-$cacheScenarios = [
-    [
-        'label' => 'compiled',
-        'file_suffix' => 'compiled.cache.php',
-    ],
-];
-$rows = [];
-$firstCacheWin = [];
-foreach ($cacheScenarios as $scenario) {
-    $firstCacheWin[$scenario['label']] = null;
+$routeCounts = array_map(
+    static fn (string $routeCount): int => (int) $routeCount,
+    explode(',', getenv('BENCHMARK_ROUTE_COUNTS') ?: '10,16,17,25,50,100,200,400,800,1600,2400,3200,4800,6400,9600,12800')
+);
+$iterations = max(1, (int) (getenv('BENCHMARK_ITERATIONS') ?: 20));
+$profile = getenv('BENCHMARK_PROFILE') ?: 'mixed';
+if (! in_array($profile, ['shared', 'unique', 'mixed'], true)) {
+    throw new RuntimeException('BENCHMARK_PROFILE must be shared, unique, or mixed.');
 }
+$rows = [];
+$firstCacheWin = null;
+$temporaryDirectory = createTemporaryDirectory();
+register_shutdown_function(static function() use ($temporaryDirectory): void {
+    removeTemporaryDirectory($temporaryDirectory);
+});
 
 foreach ($routeCounts as $routeCount) {
-    $cacheFileBase = sys_get_temp_dir() . '/mezzio-routing-attributes-threshold-' . $routeCount . '-' . uniqid('', true);
+    $cacheFileBase = $temporaryDirectory . '/routes-' . $routeCount;
     $noCacheFile = $cacheFileBase . '-no-cache.php';
+    $sourceFile  = $cacheFileBase . '-corpus.php';
+    $manifestFile = $cacheFileBase . '-classes.json';
+    $classNames  = createRouteCorpus($routeCount, $sourceFile, $profile);
+    writeClassManifest($manifestFile, $classNames);
 
     if (is_file($noCacheFile)) {
         unlink($noCacheFile);
     }
 
-    $noCache = runScenario($routeCount, false, $noCacheFile, $iterations);
+    $noCache = runScenario(
+        $iterations,
+        static fn (): array => runProviderInFreshProcess(false, $noCacheFile, $sourceFile, $manifestFile, $routeCount, true)
+    );
 
     if (is_file($noCacheFile)) {
         unlink($noCacheFile);
     }
 
-    $backendMetrics = [];
-    foreach ($cacheScenarios as $scenario) {
-        $label = $scenario['label'];
-        $cacheFile = $cacheFileBase . '-' . $scenario['file_suffix'];
-        if (is_file($cacheFile)) {
-            unlink($cacheFile);
-        }
+    $cacheFile = $cacheFileBase . '-compiled.cache.php';
+    if (is_file($cacheFile)) {
+        unlink($cacheFile);
+    }
 
-        // Warm cache once before measuring warm hit.
-        runProvider(
-            $routeCount,
-            true,
-            $cacheFile
-        );
-        $cacheHit = runScenario(
-            $routeCount,
-            true,
-            $cacheFile,
-            $iterations
-        );
+    // Warm the production artifact in an isolated process before measuring cache hits.
+    runProviderInFreshProcess(true, $cacheFile, $sourceFile, $manifestFile, $routeCount, true);
+    $cacheHit = runScenario(
+        $iterations,
+        static fn (): array => runProviderInFreshProcess(true, $cacheFile, $sourceFile, $manifestFile, $routeCount, false)
+    );
 
-        if (is_file($cacheFile)) {
-            unlink($cacheFile);
-        }
+    if (is_file($cacheFile)) {
+        unlink($cacheFile);
+    }
 
-        $speedup = $noCache['median_ms'] > 0.0
-            ? (($noCache['median_ms'] - $cacheHit['median_ms']) / $noCache['median_ms']) * 100
-            : 0.0;
+    $speedup = $noCache['median_ms'] > 0.0
+        ? (($noCache['median_ms'] - $cacheHit['median_ms']) / $noCache['median_ms']) * 100
+        : 0.0;
 
-        if (null === $firstCacheWin[$label] && $cacheHit['median_ms'] <= $noCache['median_ms']) {
-            $firstCacheWin[$label] = $routeCount;
-        }
-
-        $backendMetrics[$label] = [
-            'cache_hit' => $cacheHit,
-            'speedup_percent' => round($speedup, 2),
-        ];
+    if (null === $firstCacheWin && $cacheHit['median_ms'] <= $noCache['median_ms']) {
+        $firstCacheWin = $routeCount;
     }
 
     $rows[] = [
         'route_count' => $routeCount,
         'no_cache' => $noCache,
-        'backend_metrics' => $backendMetrics,
+        'cache_hit' => $cacheHit,
+        'speedup_percent' => round($speedup, 2),
     ];
+
+    if (is_file($sourceFile)) {
+        unlink($sourceFile);
+    }
+
+    if (is_file($manifestFile)) {
+        unlink($manifestFile);
+    }
 }
 
 echo "# Route Cache Threshold Benchmark\n\n";
 echo sprintf("- PHP: `%s`\n", PHP_VERSION);
 echo sprintf("- Iterations per point: `%d`\n", $iterations);
+echo sprintf("- Corpus profile: `%s`\n", $profile);
 echo "- Interpretation: positive backend `speedup %` means warm cache hit is faster than no-cache.\n\n";
 echo "- `usage delta KB` is non-peak live memory change (`memory_get_usage()` after - before route registration).\n\n";
-echo "- Scenarios: `compiled`.\n\n";
+echo "- Scenarios: `no-cache`, `compiled`.\n\n";
 
-$header = '| Routes | no-cache median ms';
-foreach ($cacheScenarios as $scenario) {
-    $label = $scenario['label'];
-    $header .= ' | ' . $label . ' median ms';
-    $header .= ' | ' . $label . ' speedup %';
-}
-$header .= ' | no-cache median peak KB';
-foreach ($cacheScenarios as $scenario) {
-    $label = $scenario['label'];
-    $header .= ' | ' . $label . ' median peak KB';
-}
-$header .= ' | no-cache median usage delta KB';
-foreach ($cacheScenarios as $scenario) {
-    $label = $scenario['label'];
-    $header .= ' | ' . $label . ' median usage delta KB';
-}
-$header .= " |\n";
-
-$separator = '|---:|---:';
-foreach ($cacheScenarios as $scenario) {
-    $separator .= '|---:|---:';
-}
-$separator .= '|---:';
-foreach ($cacheScenarios as $scenario) {
-    $separator .= '|---:';
-}
-$separator .= '|---:';
-foreach ($cacheScenarios as $scenario) {
-    $separator .= '|---:';
-}
-$separator .= "|\n";
+$header = '| Routes | no-cache median ms | compiled median ms | compiled speedup % | no-cache median peak KB | compiled median peak KB | no-cache median usage delta KB | compiled median usage delta KB |' . "\n";
+$separator = '|---:|---:|---:|---:|---:|---:|---:|---:|' . "\n";
 
 echo $header;
 echo $separator;
@@ -384,38 +540,24 @@ foreach ($rows as $row) {
         number_format((float) $row['no_cache']['median_ms'], 4, '.', '')
     );
 
-    foreach ($cacheScenarios as $scenario) {
-        $metrics = $row['backend_metrics'][$scenario['label']];
-        $line .= sprintf(
-            ' | %s | %s',
-            number_format((float) $metrics['cache_hit']['median_ms'], 4, '.', ''),
-            number_format((float) $metrics['speedup_percent'], 2, '.', '')
-        );
-    }
-
-    $line .= sprintf(' | %s', number_format((float) $row['no_cache']['median_peak_kb'], 4, '.', ''));
-    foreach ($cacheScenarios as $scenario) {
-        $metrics = $row['backend_metrics'][$scenario['label']];
-        $line .= sprintf(' | %s', number_format((float) $metrics['cache_hit']['median_peak_kb'], 4, '.', ''));
-    }
-    $line .= sprintf(' | %s', number_format((float) $row['no_cache']['median_usage_delta_kb'], 4, '.', ''));
-    foreach ($cacheScenarios as $scenario) {
-        $metrics = $row['backend_metrics'][$scenario['label']];
-        $line .= sprintf(' | %s', number_format((float) $metrics['cache_hit']['median_usage_delta_kb'], 4, '.', ''));
-    }
+    $line .= sprintf(
+        ' | %s | %s | %s | %s | %s | %s',
+        number_format((float) $row['cache_hit']['median_ms'], 4, '.', ''),
+        number_format((float) $row['speedup_percent'], 2, '.', ''),
+        number_format((float) $row['no_cache']['median_peak_kb'], 4, '.', ''),
+        number_format((float) $row['cache_hit']['median_peak_kb'], 4, '.', ''),
+        number_format((float) $row['no_cache']['median_usage_delta_kb'], 4, '.', ''),
+        number_format((float) $row['cache_hit']['median_usage_delta_kb'], 4, '.', '')
+    );
 
     $line .= " |\n";
     echo $line;
 }
 
 echo "\n";
-foreach ($cacheScenarios as $scenario) {
-    $label = $scenario['label'];
-    if (null !== $firstCacheWin[$label]) {
-        echo sprintf("- First measured cache-win point (%s): `%d` routes.\n", $label, $firstCacheWin[$label]);
+if (null !== $firstCacheWin) {
+    echo sprintf("- First measured cache-win point: `%d` routes.\n", $firstCacheWin);
 
-        continue;
-    }
-
-    echo sprintf("- No cache-win point found for `%s` in tested range.\n", $label);
+    exit(0);
 }
+echo "- No cache-win point found in tested range.\n";

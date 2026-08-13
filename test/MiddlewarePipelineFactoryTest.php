@@ -36,10 +36,35 @@ final class MiddlewarePipelineFactoryTest extends TestCase
             },
         ]), new ServiceMiddlewareResolver());
 
-        $first  = $factory->createFromCompiled('handler.service', 'process', ['mw.first']);
-        $second = $factory->createFromCompiled('handler.service', 'process', ['mw.first']);
+        $first  = $factory->createFromSignature('handler.service', 'process', ['mw.first']);
+        $second = $factory->createFromSignature('handler.service', 'process', ['mw.first']);
 
         self::assertSame($first, $second);
+    }
+
+    public function testUncachedCompiledPipelineDoesNotChangeColdOrCachedPipelineReuse(): void
+    {
+        $factory = new MiddlewarePipelineFactory(new InMemoryContainer([
+            'mw.first'        => new class implements MiddlewareInterface {
+                public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
+                {
+                    return $handler->handle($request);
+                }
+            },
+            'handler.service' => new class implements MiddlewareInterface {
+                public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
+                {
+                    return $handler->handle($request);
+                }
+            },
+        ]), new ServiceMiddlewareResolver());
+
+        $generatedArtifactPipeline = $factory->createUncachedFromSignature('handler.service', 'process', ['mw.first']);
+        $coldPipeline              = $factory->createFromSignature('handler.service', 'process', ['mw.first']);
+        $cachedPipeline            = $factory->createFromSignature('handler.service', 'process', ['mw.first']);
+
+        self::assertNotSame($generatedArtifactPipeline, $coldPipeline);
+        self::assertSame($coldPipeline, $cachedPipeline);
     }
 
     public function testLazyPipelineResolvesContainerServicesOnlyOnFirstExecution(): void
@@ -81,7 +106,7 @@ final class MiddlewarePipelineFactoryTest extends TestCase
             }
         };
         $factory  = new MiddlewarePipelineFactory($container, new ServiceMiddlewareResolver());
-        $pipeline = $factory->createFromCompiled('handler.service', 'process', ['mw.first']);
+        $pipeline = $factory->createFromSignature('handler.service', 'process', ['mw.first']);
 
         self::assertSame(0, $container->getCalls);
 

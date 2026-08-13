@@ -16,6 +16,8 @@ use Sirix\Mezzio\Routing\Attributes\Command\RouteMiddlewareDisplayResolver;
 use Sirix\Mezzio\Routing\Attributes\Command\RouteMiddlewareDisplayResolverFactory;
 use Sirix\Mezzio\Routing\Attributes\Command\WarmRouteCacheCommand;
 use Sirix\Mezzio\Routing\Attributes\Command\WarmRouteCacheCommandFactory;
+use Sirix\Mezzio\Routing\Attributes\Config\RoutingAttributesConfig;
+use Sirix\Mezzio\Routing\Attributes\Config\RoutingAttributesConfigFactory;
 use Sirix\Mezzio\Routing\Attributes\Discovery\DiscoveredClassesResolverInterface;
 use Sirix\Mezzio\Routing\Attributes\Extractor\AttributeRouteExtractor;
 use Sirix\Mezzio\Routing\Attributes\Extractor\AttributeRouteExtractorFactory;
@@ -60,6 +62,7 @@ final readonly class ConfigProvider
             'factories'  => [
                 AttributeRouteProvider::class             => AttributeRouteProviderFactory::class,
                 AttributeRouteExtractor::class            => AttributeRouteExtractorFactory::class,
+                RoutingAttributesConfig::class            => RoutingAttributesConfigFactory::class,
                 DiscoveredClassesResolverInterface::class => DiscoveryClassMapResolverFactory::class,
                 MiddlewarePipelineFactory::class          => MiddlewarePipelineFactoryFactory::class,
                 DuplicateRouteResolver::class             => DuplicateRouteResolverFactory::class,

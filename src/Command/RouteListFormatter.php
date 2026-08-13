@@ -26,15 +26,10 @@ final readonly class RouteListFormatter
                 'name'       => $route->getName(),
                 'path'       => $route->getPath(),
                 'methods'    => implode(',', $route->getAllowedMethods() ?? []),
-                'middleware' => $this->getMiddlewareDisplay($route),
+                'middleware' => $this->middlewareDisplayResolver->resolve($route),
             ];
         }
 
         return $rows;
-    }
-
-    private function getMiddlewareDisplay(Route $route): string
-    {
-        return $this->middlewareDisplayResolver->resolveForDisplay($route);
     }
 }

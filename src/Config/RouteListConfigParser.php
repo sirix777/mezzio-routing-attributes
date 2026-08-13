@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Sirix\Mezzio\Routing\Attributes\Config;
 
-use Sirix\Mezzio\Routing\Attributes\Command\RouteMiddlewareDisplayResolver;
 use Sirix\Mezzio\Routing\Attributes\Exception\InvalidConfigurationException;
 
 use function in_array;
@@ -25,14 +24,14 @@ final readonly class RouteListConfigParser
         }
 
         $classicRoutesMiddlewareDisplay = $routeListConfig['classic_routes_middleware_display']
-            ?? RouteMiddlewareDisplayResolver::CLASSIC_ROUTES_MIDDLEWARE_DISPLAY_UPSTREAM;
+            ?? RoutingAttributesConfig::CLASSIC_ROUTES_MIDDLEWARE_DISPLAY_UPSTREAM;
 
         if (
             ! in_array(
                 $classicRoutesMiddlewareDisplay,
                 [
-                    RouteMiddlewareDisplayResolver::CLASSIC_ROUTES_MIDDLEWARE_DISPLAY_UPSTREAM,
-                    RouteMiddlewareDisplayResolver::CLASSIC_ROUTES_MIDDLEWARE_DISPLAY_RESOLVED,
+                    RoutingAttributesConfig::CLASSIC_ROUTES_MIDDLEWARE_DISPLAY_UPSTREAM,
+                    RoutingAttributesConfig::CLASSIC_ROUTES_MIDDLEWARE_DISPLAY_RESOLVED,
                 ],
                 true
             )

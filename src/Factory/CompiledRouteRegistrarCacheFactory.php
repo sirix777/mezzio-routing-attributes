@@ -25,8 +25,7 @@ final class CompiledRouteRegistrarCacheFactory
      */
     public function __invoke(ContainerInterface $container): RouteRegistrarCacheInterface
     {
-        $rootConfig = $container->has('config') ? $container->get('config') : [];
-        $config     = RoutingAttributesConfig::fromRootConfig($rootConfig);
+        $config = $container->get(RoutingAttributesConfig::class);
 
         return $this->createFromCacheFile(
             $config->cacheFile,

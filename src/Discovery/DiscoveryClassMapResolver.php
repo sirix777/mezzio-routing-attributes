@@ -6,7 +6,6 @@ namespace Sirix\Mezzio\Routing\Attributes\Discovery;
 
 use function array_keys;
 use function sort;
-use function usort;
 
 final readonly class DiscoveryClassMapResolver implements DiscoveredClassesResolverInterface
 {
@@ -27,10 +26,9 @@ final readonly class DiscoveryClassMapResolver implements DiscoveredClassesResol
      */
     public function resolve(): array
     {
-        $files    = $this->sortFilesByPath($this->fileInventory->collect());
+        $files    = $this->fileInventory->collect();
         $classSet = [];
-        foreach ($files as $fileEntry) {
-            $file        = $fileEntry[0];
+        foreach ($files as $file) {
             $fileClasses = $this->resolveFileClasses($file);
             foreach ($this->routableClassFilter->filter($fileClasses) as $className) {
                 $classSet[$className] = true;
@@ -63,17 +61,5 @@ final readonly class DiscoveryClassMapResolver implements DiscoveredClassesResol
         }
 
         return [];
-    }
-
-    /**
-     * @param list<array{0: non-empty-string, 1: int}> $files
-     *
-     * @return list<array{0: non-empty-string, 1: int}>
-     */
-    private function sortFilesByPath(array $files): array
-    {
-        usort($files, static fn (array $left, array $right): int => $left[0] <=> $right[0]);
-
-        return $files;
     }
 }

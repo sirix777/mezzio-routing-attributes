@@ -187,7 +187,7 @@ php vendor/bin/laminas routing-attributes:cache:clear --file=data/cache/custom-r
 
 `--file` bypasses the configured cache path and deletes the exact path supplied. Treat it as a deploy-only administrative override; never construct it from untrusted input.
 
-Production deployments are responsible for filesystem permissions and ownership. Prefer a release-specific cache path, let only the deploy user create/remove the artifact, and give the web/runtime user read-only access to the completed artifact and its directory. Do not place it in upload or other shared-writable locations.
+Production deployments **must** use a release-specific, deploy-owned cache directory that the runtime user cannot write. Only the deploy user may create or remove the artifact; the web/runtime user needs read-only access to the completed artifact and its directory. Do not place it in upload or other shared-writable locations: a PHP cache artifact is executable code, and pathname checks cannot make a directory writable by an attacker safe from replacement races.
 
 On POSIX systems, `tempnam()` creates the temporary artifact with mode `0600`, and the atomic rename preserves that mode. When deploy and runtime use different users, the application must explicitly grant the runtime user read access after warmup through its own group or ACL policy.
 
@@ -377,6 +377,45 @@ composer benchmark
 composer benchmark-threshold
 ```
 
+### Methodology
+
+The original v1 figures were removed: they ran warm-cache iterations in the same PHP process after warmup, allowing `RouteCacheLoader` to return its process-static artifact. That excluded the PHP artifact `require` from the measured path.
+
+The current benchmarks measure cold-start behavior more faithfully:
+
+- cache-hit and no-cache samples run in separate PHP processes;
+- cache-hit timing includes loading the generated PHP artifact with `require`;
+- the threshold benchmark generates temporary corpora with real `#[Route]` attributes;
+- its no-cache path measures class loading, reflection, attribute parsing, validation, normalization, and route registration;
+- its cache-hit path uses the pre-warmed artifact for the same route corpus;
+- every threshold sample verifies that it registered exactly the requested number of routes.
+- large `unique` and `mixed` corpora pass their class inventory through a private JSON manifest rather than the child-process command line, so the default range remains valid beyond the platform argument-length limit.
+
+The threshold benchmark compares uncached extraction with the one production artifact format. Its default `mixed` corpus models one handler with shared routes plus single-route handlers; set `BENCHMARK_PROFILE=shared`, `unique`, or `mixed` to select a corpus.
+
+The route-provider benchmark's discovery-configured cache-hit scenarios intentionally skip discovery: a valid artifact is expected to bypass it.
+
+### Current reference measurements
+
+Local alternating fresh-process run, `41` samples, PHP `8.2.32`. These are registration/bootstrap microbenchmarks, not an HTTP latency claim.
+
+| Corpus | Routes | Result |
+|---|---:|---|
+| `shared` | 12,800 | compiled `30.6591 ms` vs no-cache `62.4985 ms` (50.94% faster) |
+| `mixed` | 3,200 | compiled `11.5022 ms` vs no-cache `28.5560 ms` (59.72% faster) |
+| `unique` | 3,200 | compiled `13.3335 ms` vs no-cache `40.4937 ms` (67.07% faster) |
+
+The common registration primitive is an intentional maintainability trade-off. Its isolated previous comparison at 12,800 routes showed `+7.8%` on cold registration and `8.47 ms` → `9.56 ms` (+12.9%) for the compiled loop, with memory effectively unchanged. We retain it because cold and cached registration share one semantic implementation; reconsider only if a stable CI performance budget or a representative production profile makes that cost material.
+
+### Running a focused comparison
+
+Results are host-sensitive microbenchmarks, not an end-to-end HTTP latency claim. Run a focused comparison on the target host with:
+
+```bash
+BENCHMARK_ITERATIONS=41 BENCHMARK_ROUTE_COUNTS=16,17 \
+  BENCHMARK_PROFILE=mixed composer benchmark-threshold
+```
+
 Run test coverage with PCOV:
 
 ```bash
@@ -384,23 +423,6 @@ composer coverage
 ```
 
 The coverage command requires the `pcov` PHP extension and runs PHPUnit with `pcov.enabled=1` and `pcov.directory=src`.
-
-Baseline run (`PHP 8.2.30`, refreshed on `2026-05-25`):
-
-- Provider benchmark command: `php8.2 benchmarks/route-provider-benchmark.php`
-- Threshold benchmark command: `php8.2 benchmarks/route-cache-threshold-benchmark.php`
-- Fixture corpus: `test/Extractor/Fixture`
-- Manual scenarios register `2` routes; discovery scenarios register `10` routes from the fixture corpus.
-- `warm_cache_hit_manual`: `0.0018 ms` median, `2.0156 KB` median peak
-- `no_cache_manual`: `0.0074 ms` median, `3.4453 KB` median peak
-- `cold_cache_rebuild_manual`: `0.0351 ms` median, `5.9063 KB` median peak
-- `warm_cache_hit_discovery_token`: `0.0106 ms` median, `7.8906 KB` median peak
-- `warm_cache_hit_discovery_psr4`: `0.0106 ms` median, `7.8906 KB` median peak
-- Threshold benchmark (`compiled`) showed cache-win from `10` routes onward.
-- At `12800` routes: `21.9587 ms` (no-cache) vs `8.6249 ms` (compiled), speedup `60.72%`;
-  peak memory `13213.21 KB` vs `9260.80 KB`.
-
-These are microbenchmarks for route registration/cache paths, not end-to-end HTTP latency.
 
 ## Troubleshooting
 

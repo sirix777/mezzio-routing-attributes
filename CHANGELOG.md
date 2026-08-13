@@ -5,6 +5,55 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) for the documented `1.x` public API.
 
+## [1.2.0] - 2026-08-13
+
+### Added
+
+- Shared `RoutingAttributesConfig` container service, giving runtime services and the route-list command delegator one validated configuration source.
+- `RouteDefinitionResolver` internal service shared by application registration and cache warmup.
+- Fresh-process cache benchmarks using real route attributes and `shared`, `mixed`, and `unique` route corpora.
+- Benchmark smoke checks in CI, including 12,800-route `mixed` and `unique` corpora.
+
+### Changed
+
+- Compiled route-cache artifacts now use format `2` and a single prepared-row registrar format. Existing format-`1` artifacts are treated as cache misses and rebuilt.
+- Cache artifacts precompute route names and middleware displays, deduplicate middleware signatures, and avoid per-route `RouteDefinition` allocation on cache hits.
+- Discovery is deferred until an actual compiled-cache miss; a valid cache artifact bypasses discovery entirely.
+- Cold and compiled registration share the same route-option/default semantics; cold registration remains streaming and does not stage all routes in temporary arrays.
+- `RouteCacheLoader` keeps its loaded artifacts per loader instance rather than in function-static process state. Long-running workers must still reload or restart after a new artifact is deployed.
+- Pipeline factory methods now use signature-oriented names: `createFromSignature()` and `createUncachedFromSignature()`.
+- Route-list configuration, including `override_mezzio_routes_list_command`, is parsed by `RoutingAttributesConfig`.
+- Route cache threshold benchmark transports large class inventories through a private manifest instead of process arguments.
+
+### Fixed
+
+- Invalid or malformed compiled cache artifacts now behave as cache misses and are rebuilt instead of failing route registration.
+- Duplicate route detection now identifies overlapping HTTP method sets, including `ANY` routes, before Mezzio registration.
+- Callable-mode discovery skips unrelated plain classes and discovers route-bearing callable classes correctly.
+- Callable handlers now reject incompatible second parameters during validation instead of failing at invocation.
+- Compiled cache rejects non-cache-compatible route defaults before generating an unusable PHP artifact.
+- Route-list filters combine active criteria with AND semantics.
+- Route cache write failures remain non-fatal at runtime but are observable through the optional PSR-3 logger and fail explicit cache warmup.
+- Route-list fallback loading and middleware display handling were made more resilient.
+- Threshold benchmarks no longer exceed OS argument-length limits for large `mixed` or `unique` corpora.
+
+### Removed
+
+- Competing inline/compact compiled artifact layouts and their automatic threshold selection.
+- Cache-probe and loader helper methods superseded by the lazy cache-miss flow.
+- Redundant route-config loader wrappers and unused discovery inventory metadata.
+
+### Security
+
+- Compiled cache loading continues to reject symlink and non-regular artifact targets and validates format and configuration fingerprint before registration.
+- Production documentation now requires a deploy-owned, runtime-read-only cache directory; PHP artifacts are executable code and must never be stored in shared-writable locations.
+
+### Documentation
+
+- Reworked benchmark methodology and documented current fresh-process reference measurements.
+- Documented cache warmup, release identifiers, cache-directory ownership, and required long-running worker reloads.
+- Added UML sequence diagram of Mezzio routing registration/runtime flow in `docs/routing-with-mezzio.puml`.
+
 ## [1.1.0] - 2026-08-12
 
 ### Added

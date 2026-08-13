@@ -14,11 +14,6 @@ final readonly class NullRouteRegistrarCache implements RouteRegistrarCacheInter
         return false;
     }
 
-    public function hasUsableArtifact(): bool
-    {
-        return false;
-    }
-
     public function save(array $routes): bool
     {
         return false;

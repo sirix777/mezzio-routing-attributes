@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Sirix\Mezzio\Routing\Attributes\Command;
 
+use Closure;
 use Mezzio\Router\RouteCollector;
 use Mezzio\Tooling\Routes\ConfigLoaderInterface;
 use Psr\Container\ContainerInterface;
@@ -36,7 +37,8 @@ final class ListRoutesCommandFactory
         );
     }
 
-    private function createConfigLoader(ContainerInterface $container): RouteConfigLoaderInterface
+    /** @return null|Closure(): void */
+    private function createConfigLoader(ContainerInterface $container): ?Closure
     {
         if (
             interface_exists(ConfigLoaderInterface::class)
@@ -44,9 +46,9 @@ final class ListRoutesCommandFactory
         ) {
             $configLoader = $container->get(ConfigLoaderInterface::class);
 
-            return new ClosureRouteConfigLoader(static function() use ($configLoader): void {
+            return static function() use ($configLoader): void {
                 $configLoader->load();
-            });
+            };
         }
 
         if (
@@ -54,10 +56,10 @@ final class ListRoutesCommandFactory
             || ! $container->has(self::MIDDLEWARE_FACTORY_SERVICE)
             || ! file_exists(self::DEFAULT_ROUTES_FILE)
         ) {
-            return new NullRouteConfigLoader();
+            return null;
         }
 
-        return new ClosureRouteConfigLoader(static function() use ($container): void {
+        return static function() use ($container): void {
             /** @phpstan-ignore require.fileNotFound */
             $routes = require self::DEFAULT_ROUTES_FILE;
             $routes(
@@ -65,6 +67,6 @@ final class ListRoutesCommandFactory
                 $container->get(self::MIDDLEWARE_FACTORY_SERVICE),
                 $container
             );
-        });
+        };
     }
 }

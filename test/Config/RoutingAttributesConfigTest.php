@@ -30,6 +30,7 @@ final class RoutingAttributesConfigTest extends TestCase
         self::assertSame(['App\Handler\PingHandler'], $config->classes);
         self::assertSame('ignore', $config->duplicateStrategy);
         self::assertSame('psr15', $config->handlersMode);
+        self::assertFalse($config->overrideMezzioRoutesListCommand);
         self::assertSame('upstream', $config->classicRoutesMiddlewareDisplay);
         self::assertTrue($config->cacheEnabled);
         self::assertSame('/tmp/routes.php', $config->cacheFile);
@@ -52,6 +53,7 @@ final class RoutingAttributesConfigTest extends TestCase
         self::assertSame([], $config->classes);
         self::assertSame('throw', $config->duplicateStrategy);
         self::assertSame('psr15', $config->handlersMode);
+        self::assertFalse($config->overrideMezzioRoutesListCommand);
         self::assertSame('upstream', $config->classicRoutesMiddlewareDisplay);
         self::assertFalse($config->cacheEnabled);
         self::assertNull($config->cacheFile);
@@ -277,6 +279,27 @@ final class RoutingAttributesConfigTest extends TestCase
         ]);
 
         self::assertSame('resolved', $config->classicRoutesMiddlewareDisplay);
+    }
+
+    public function testParsesMezzioRoutesListCommandOverride(): void
+    {
+        $config = RoutingAttributesConfig::fromRootConfig([
+            'routing_attributes' => [
+                'override_mezzio_routes_list_command' => true,
+            ],
+        ]);
+
+        self::assertTrue($config->overrideMezzioRoutesListCommand);
+    }
+
+    public function testThrowsWhenMezzioRoutesListCommandOverrideIsInvalid(): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+        RoutingAttributesConfig::fromRootConfig([
+            'routing_attributes' => [
+                'override_mezzio_routes_list_command' => 'true',
+            ],
+        ]);
     }
 
     public function testThrowsWhenRouteListTypeIsInvalid(): void

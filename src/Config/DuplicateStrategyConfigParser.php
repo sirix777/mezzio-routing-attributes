@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Sirix\Mezzio\Routing\Attributes\Config;
 
-use Sirix\Mezzio\Routing\Attributes\AttributeRouteProvider;
 use Sirix\Mezzio\Routing\Attributes\Exception\InvalidConfigurationException;
 
 use function in_array;
@@ -15,16 +14,16 @@ final readonly class DuplicateStrategyConfigParser
     /**
      * @param array<string, mixed> $routingAttributesConfig
      *
-     * @return AttributeRouteProvider::DUPLICATE_STRATEGY_IGNORE|AttributeRouteProvider::DUPLICATE_STRATEGY_THROW
+     * @return RoutingAttributesConfig::DUPLICATE_STRATEGY_IGNORE|RoutingAttributesConfig::DUPLICATE_STRATEGY_THROW
      */
     public function parse(array $routingAttributesConfig): string
     {
-        $duplicateStrategy = $routingAttributesConfig['duplicate_strategy'] ?? AttributeRouteProvider::DUPLICATE_STRATEGY_THROW;
+        $duplicateStrategy = $routingAttributesConfig['duplicate_strategy'] ?? RoutingAttributesConfig::DUPLICATE_STRATEGY_THROW;
         if (! is_string($duplicateStrategy) || ! in_array(
             $duplicateStrategy,
             [
-                AttributeRouteProvider::DUPLICATE_STRATEGY_THROW,
-                AttributeRouteProvider::DUPLICATE_STRATEGY_IGNORE,
+                RoutingAttributesConfig::DUPLICATE_STRATEGY_THROW,
+                RoutingAttributesConfig::DUPLICATE_STRATEGY_IGNORE,
             ],
             true
         )) {

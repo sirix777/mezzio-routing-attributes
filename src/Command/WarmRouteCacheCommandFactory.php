@@ -16,8 +16,7 @@ final class WarmRouteCacheCommandFactory
 {
     public function __invoke(ContainerInterface $container): WarmRouteCacheCommand
     {
-        $rootConfig = $container->has('config') ? $container->get('config') : [];
-        $config     = RoutingAttributesConfig::fromRootConfig($rootConfig);
+        $config = $container->get(RoutingAttributesConfig::class);
 
         if (null === $config->cacheFile) {
             return new WarmRouteCacheCommand(null, null);
