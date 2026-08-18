@@ -320,6 +320,43 @@ final class OrdersHandler
 }
 ```
 
+## Middleware Specifications
+
+Attribute modifiers may return `MiddlewareSpecification` entries from `getMiddleware()` in
+addition to service-id strings. A specification names the middleware service, a container
+factory, and scalar-only arguments for that factory:
+
+```php
+use Psr\Container\ContainerInterface;
+use Psr\Http\Server\MiddlewareInterface;
+use Sirix\Mezzio\Routing\Contracts\MiddlewareFactoryInterface;
+use Sirix\Mezzio\Routing\Contracts\MiddlewareSpecification;
+
+public function getMiddleware(): array
+{
+    return [new MiddlewareSpecification(
+        ProfileMiddleware::class,
+        ProfileMiddlewareFactory::class,
+        ['profile' => 'admin'],
+    )];
+}
+
+final class ProfileMiddlewareFactory implements MiddlewareFactoryInterface
+{
+    public function create(ContainerInterface $container, MiddlewareSpecification $specification): MiddlewareInterface
+    {
+        return new ProfileMiddleware($specification->arguments['profile']);
+    }
+}
+```
+
+The factory is fetched from the application container and invoked lazily on the first request,
+matching the existing service-id middleware path. `MiddlewareSpecification` arguments must be
+scalars, `null`, or nested arrays of those values: route-cache artifacts use `var_export()` and
+rehydrate specifications through `__set_state()`. See
+[`sirix/mezzio-routing-contracts`](https://github.com/sirix777/mezzio-routing-contracts) for the
+complete contract API.
+
 ### Route Defaults and Placeholders
 
 The `getDefaults()` method allows you to provide default values for route placeholders. This is useful when you have optional parameters in your route paths.

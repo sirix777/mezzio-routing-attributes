@@ -9,6 +9,7 @@ use ReflectionClass;
 use ReflectionMethod;
 use Sirix\Mezzio\Routing\Attributes\Attribute\Route;
 use Sirix\Mezzio\Routing\Attributes\RouteDefinition;
+use Sirix\Mezzio\Routing\Contracts\MiddlewareSpecification;
 use Sirix\Mezzio\Routing\Contracts\RouteAttributeModifierInterface;
 
 final readonly class RouteDefinitionBuilder
@@ -31,10 +32,10 @@ final readonly class RouteDefinitionBuilder
     }
 
     /**
-     * @param non-empty-string                                         $className
-     * @param list<Route>                                              $classRoutes
-     * @param list<Route>                                              $methodRoutes
-     * @param null|array{list<non-empty-string>, array<string, mixed>} $classModifiers
+     * @param non-empty-string                                                                 $className
+     * @param list<Route>                                                                      $classRoutes
+     * @param list<Route>                                                                      $methodRoutes
+     * @param null|array{list<MiddlewareSpecification|non-empty-string>, array<string, mixed>} $classModifiers
      *
      * @return list<RouteDefinition>
      */
@@ -63,7 +64,7 @@ final readonly class RouteDefinitionBuilder
      * @param ReflectionClass<object> $classReflection
      * @param non-empty-string        $className
      *
-     * @return array{list<non-empty-string>, array<string, mixed>}
+     * @return array{list<MiddlewareSpecification|non-empty-string>, array<string, mixed>}
      */
     public function collectClassModifiers(ReflectionClass $classReflection, string $className): array
     {
@@ -71,11 +72,11 @@ final readonly class RouteDefinitionBuilder
     }
 
     /**
-     * @param ReflectionClass<object>|ReflectionMethod                 $reflection
-     * @param non-empty-string                                         $className
-     * @param list<Route>                                              $classRoutes
-     * @param null|list<Route>                                         $preloadedAttributes
-     * @param null|array{list<non-empty-string>, array<string, mixed>} $preloadedClassModifiers
+     * @param ReflectionClass<object>|ReflectionMethod                                         $reflection
+     * @param non-empty-string                                                                 $className
+     * @param list<Route>                                                                      $classRoutes
+     * @param null|list<Route>                                                                 $preloadedAttributes
+     * @param null|array{list<MiddlewareSpecification|non-empty-string>, array<string, mixed>} $preloadedClassModifiers
      *
      * @return list<RouteDefinition>
      */
@@ -144,7 +145,7 @@ final readonly class RouteDefinitionBuilder
      * @param ReflectionClass<object>|ReflectionMethod $reflection
      * @param non-empty-string                         $className
      *
-     * @return array{list<non-empty-string>, array<string, mixed>}
+     * @return array{list<MiddlewareSpecification|non-empty-string>, array<string, mixed>}
      */
     private function collectModifiers(ReflectionClass|ReflectionMethod $reflection, string $className): array
     {

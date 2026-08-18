@@ -6,9 +6,11 @@ namespace Sirix\Mezzio\Routing\Attributes\Cache;
 
 use ReflectionReference;
 use Sirix\Mezzio\Routing\Attributes\Exception\InvalidConfigurationException;
+use Sirix\Mezzio\Routing\Attributes\MiddlewareSignatureKey;
 use Sirix\Mezzio\Routing\Attributes\RouteDefinition;
 use Sirix\Mezzio\Routing\Attributes\RouteMiddlewareDisplay;
 use Sirix\Mezzio\Routing\Attributes\RouteRegistrar;
+use Sirix\Mezzio\Routing\Contracts\MiddlewareSpecification;
 
 use function array_key_exists;
 use function count;
@@ -128,11 +130,11 @@ final readonly class RouteCacheGenerator
     }
 
     /**
-     * @param list<non-empty-string> $middlewareServices
+     * @param list<MiddlewareSpecification|non-empty-string> $middlewareServices
      */
     private function routeSignatureKey(string $handlerService, string $handlerMethod, array $middlewareServices): string
     {
-        return $handlerService . "\0" . $handlerMethod . "\0" . implode("\0", $middlewareServices);
+        return MiddlewareSignatureKey::for($handlerService, $handlerMethod, $middlewareServices);
     }
 
     /**
