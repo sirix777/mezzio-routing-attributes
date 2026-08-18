@@ -7,6 +7,7 @@ namespace Sirix\Mezzio\Routing\Attributes\Exception;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
+use Sirix\Mezzio\Routing\Contracts\MiddlewareFactoryInterface;
 
 use function sprintf;
 
@@ -19,6 +20,16 @@ final class InvalidServiceDefinitionException extends InvalidConfigurationExcept
             $serviceName,
             MiddlewareInterface::class,
             RequestHandlerInterface::class,
+            $actualType
+        ));
+    }
+
+    public static function invalidMiddlewareFactoryServiceType(string $serviceName, string $actualType): self
+    {
+        return new self(sprintf(
+            'Container service "%s" must implement %s; received %s.',
+            $serviceName,
+            MiddlewareFactoryInterface::class,
             $actualType
         ));
     }

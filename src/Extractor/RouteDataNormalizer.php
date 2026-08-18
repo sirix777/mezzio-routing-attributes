@@ -7,7 +7,11 @@ namespace Sirix\Mezzio\Routing\Attributes\Extractor;
 use ReflectionClass;
 use Sirix\Mezzio\Routing\Attributes\Attribute\Route;
 use Sirix\Mezzio\Routing\Attributes\Exception\InvalidRouteDefinitionException;
+use Sirix\Mezzio\Routing\Contracts\Exception\InvalidMiddlewareSpecificationException;
+use Sirix\Mezzio\Routing\Contracts\MiddlewareSpecification;
 
+use function get_debug_type;
+use function is_string;
 use function ltrim;
 use function trim;
 
@@ -114,9 +118,9 @@ final readonly class RouteDataNormalizer
     }
 
     /**
-     * @param null|list<string> $services
+     * @param null|list<mixed> $services
      *
-     * @return list<non-empty-string>
+     * @return list<MiddlewareSpecification|non-empty-string>
      */
     public function normalizeMiddlewareServices(string $className, ?array $services): array
     {
@@ -126,6 +130,20 @@ final readonly class RouteDataNormalizer
 
         $normalized = [];
         foreach ($services as $service) {
+            if ($service instanceof MiddlewareSpecification) {
+                $normalized[] = $service;
+
+                continue;
+            }
+
+            if (! is_string($service)) {
+                throw new InvalidMiddlewareSpecificationException(
+                    'Middleware entry for route class "' . $className
+                    . '" must be a non-empty string or ' . MiddlewareSpecification::class
+                    . '; received ' . get_debug_type($service) . '.'
+                );
+            }
+
             $service = trim($service);
             if ('' !== $service) {
                 $normalized[] = $service;
@@ -142,7 +160,7 @@ final readonly class RouteDataNormalizer
     /**
      * @param list<Route> $classRoutes
      *
-     * @return list<non-empty-string>
+     * @return list<MiddlewareSpecification|non-empty-string>
      */
     public function collectClassMiddleware(array $classRoutes): array
     {
@@ -158,10 +176,10 @@ final readonly class RouteDataNormalizer
     }
 
     /**
-     * @param list<non-empty-string> $classMiddleware
-     * @param list<non-empty-string> $routeMiddleware
+     * @param list<MiddlewareSpecification|non-empty-string> $classMiddleware
+     * @param list<MiddlewareSpecification|non-empty-string> $routeMiddleware
      *
-     * @return list<non-empty-string>
+     * @return list<MiddlewareSpecification|non-empty-string>
      */
     public function mergeMiddlewareServices(string $className, array $classMiddleware, array $routeMiddleware): array
     {

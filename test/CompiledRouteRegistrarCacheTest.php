@@ -5,16 +5,31 @@ declare(strict_types=1);
 namespace SirixTest\Mezzio\Routing\Attributes;
 
 use PHPUnit\Framework\TestCase;
+use Psr\Container\ContainerInterface;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
+use Psr\Http\Server\MiddlewareInterface;
+use Psr\Http\Server\RequestHandlerInterface;
 use Sirix\Mezzio\Routing\Attributes\Cache\RouteCacheGenerator;
 use Sirix\Mezzio\Routing\Attributes\Cache\RouteCacheLoader;
 use Sirix\Mezzio\Routing\Attributes\Cache\RouteCacheStorage;
 use Sirix\Mezzio\Routing\Attributes\CompiledRouteRegistrarCache;
 use Sirix\Mezzio\Routing\Attributes\Config\RoutingAttributesConfig;
 use Sirix\Mezzio\Routing\Attributes\Exception\InvalidConfigurationException;
+use Sirix\Mezzio\Routing\Attributes\Extractor\AttributeRouteExtractor;
+use Sirix\Mezzio\Routing\Attributes\Extractor\ClassEligibilityValidator;
+use Sirix\Mezzio\Routing\Attributes\Extractor\MethodSignatureValidator;
+use Sirix\Mezzio\Routing\Attributes\Extractor\RouteAttributeReader;
+use Sirix\Mezzio\Routing\Attributes\Extractor\RouteDataNormalizer;
+use Sirix\Mezzio\Routing\Attributes\Extractor\RouteDefinitionBuilder;
 use Sirix\Mezzio\Routing\Attributes\MiddlewarePipelineFactory;
 use Sirix\Mezzio\Routing\Attributes\RouteDefinition;
 use Sirix\Mezzio\Routing\Attributes\RouteRegistrar;
 use Sirix\Mezzio\Routing\Attributes\ServiceMiddlewareResolver;
+use Sirix\Mezzio\Routing\Contracts\MiddlewareFactoryInterface;
+use Sirix\Mezzio\Routing\Contracts\MiddlewareSpecification;
+use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\SpecificationMiddlewareFactory;
+use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\SpecificationModifierHandler;
 use SirixTest\Mezzio\Routing\Attributes\TestAsset\CacheDefaultWithSetState;
 use SirixTest\Mezzio\Routing\Attributes\TestAsset\InMemoryContainer;
 use SirixTest\Mezzio\Routing\Attributes\TestAsset\RecordingRouteCollector;
@@ -224,6 +239,132 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
         self::assertSame(17, $this->registerRoutes($cache)->routeCalls);
     }
 
+    public function testSaveAndRegisterRoutesWithMiddlewareSpecificationRoundTrip(): void
+    {
+        $cacheFile          = $this->createCacheFilePath();
+        $this->cacheFiles[] = $cacheFile;
+        $cache              = $this->createCache($cacheFile);
+        $createdMiddleware  = new class implements MiddlewareInterface {
+            public int $processCalls = 0;
+
+            public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
+            {
+                ++$this->processCalls;
+
+                return $handler->handle($request);
+            }
+        };
+        $factory            = new class($createdMiddleware) implements MiddlewareFactoryInterface {
+            public int $createCalls = 0;
+
+            public ?MiddlewareSpecification $receivedSpecification = null;
+
+            public function __construct(private readonly MiddlewareInterface $middleware) {}
+
+            public function create(ContainerInterface $container, MiddlewareSpecification $specification): MiddlewareInterface
+            {
+                ++$this->createCalls;
+                $this->receivedSpecification = $specification;
+
+                return $this->middleware;
+            }
+        };
+        $specification      = new MiddlewareSpecification('middleware.spec', $factory::class, [
+            'profile' => 'admin',
+        ]);
+
+        self::assertTrue($cache->save([
+            new RouteDefinition('/compiled-spec', ['GET'], 'handler.service', 'process', [$specification], 'compiled.spec.route'),
+        ]));
+
+        $contents = (string) file_get_contents($cacheFile);
+        self::assertStringContainsString(MiddlewareSpecification::class . '::__set_state', $contents);
+
+        $collector = new RecordingRouteCollector();
+        self::assertTrue($cache->registerRoutes($collector, $this->pipelineFactory([
+            $factory::class => $factory,
+        ])));
+        $response = $this->createMock(ResponseInterface::class);
+        $terminal = new class($response) implements RequestHandlerInterface {
+            public function __construct(private readonly ResponseInterface $response) {}
+
+            public function handle(ServerRequestInterface $request): ResponseInterface
+            {
+                return $this->response;
+            }
+        };
+
+        self::assertSame($response, $collector->routes[0]->getMiddleware()->process(
+            $this->createMock(ServerRequestInterface::class),
+            $terminal
+        ));
+        self::assertSame(1, $factory->createCalls);
+        self::assertSame(1, $createdMiddleware->processCalls);
+        self::assertNotSame($specification, $factory->receivedSpecification);
+        self::assertInstanceOf(MiddlewareSpecification::class, $factory->receivedSpecification);
+        self::assertSame($specification->service, $factory->receivedSpecification->service);
+        self::assertSame($specification->factory, $factory->receivedSpecification->factory);
+        self::assertSame($specification->arguments, $factory->receivedSpecification->arguments);
+    }
+
+    public function testDoesNotDeduplicateDelimitedSpecificationAndStringSignaturesInCache(): void
+    {
+        $cacheFile          = $this->createCacheFilePath();
+        $this->cacheFiles[] = $cacheFile;
+        $cache              = $this->createCache($cacheFile);
+
+        self::assertTrue($cache->save([
+            new RouteDefinition(
+                '/compiled-spec-signature',
+                ['GET'],
+                'handler.service',
+                'process',
+                [new MiddlewareSpecification('profile', 'factory.id', [])],
+                'compiled.spec.signature'
+            ),
+            new RouteDefinition(
+                '/compiled-string-signature',
+                ['GET'],
+                'handler.service',
+                'process',
+                ['profile', 'factory.id', 'a:0:{}'],
+                'compiled.string.signature'
+            ),
+        ]));
+
+        self::assertSame(2, substr_count((string) file_get_contents($cacheFile), 'createUncachedFromSignature'));
+        self::assertCount(2, array_unique($this->registerRoutes($cache)->middlewareIds));
+    }
+
+    public function testSpecificationModifierExtractsAndRegistersThroughColdAndWarmedCachePaths(): void
+    {
+        SpecificationMiddlewareFactory::$createCalls = 0;
+        $routes                                      = $this->extractor()->extract([SpecificationModifierHandler::class]);
+
+        self::assertCount(1, $routes);
+        self::assertInstanceOf(MiddlewareSpecification::class, $routes[0]->middlewareServices[0]);
+
+        $coldCollector = new RecordingRouteCollector();
+        (new RouteRegistrar())->register($coldCollector, $routes, $this->pipelineFactory([
+            SpecificationModifierHandler::class   => $this->routeHandlerService(),
+            SpecificationMiddlewareFactory::class => new SpecificationMiddlewareFactory(),
+        ]));
+        $this->processRouteMiddleware($coldCollector);
+
+        $cacheFile          = $this->createCacheFilePath();
+        $this->cacheFiles[] = $cacheFile;
+        $cache              = $this->createCache($cacheFile);
+        self::assertTrue($cache->save($routes));
+        $cachedCollector = new RecordingRouteCollector();
+        self::assertTrue($cache->registerRoutes($cachedCollector, $this->pipelineFactory([
+            SpecificationModifierHandler::class   => $this->routeHandlerService(),
+            SpecificationMiddlewareFactory::class => new SpecificationMiddlewareFactory(),
+        ])));
+        $this->processRouteMiddleware($cachedCollector);
+
+        self::assertSame(2, SpecificationMiddlewareFactory::$createCalls);
+    }
+
     public function testTreatsMalformedPayloadAsCacheMiss(): void
     {
         $cacheFile          = $this->createCacheFilePath();
@@ -406,11 +547,58 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
         return $collector;
     }
 
-    private function pipelineFactory(): MiddlewarePipelineFactory
+    private function extractor(): AttributeRouteExtractor
+    {
+        return new AttributeRouteExtractor(
+            new ClassEligibilityValidator(),
+            new RouteAttributeReader(),
+            new RouteDefinitionBuilder(
+                new RouteAttributeReader(),
+                new MethodSignatureValidator(),
+                new RouteDataNormalizer()
+            )
+        );
+    }
+
+    private function processRouteMiddleware(RecordingRouteCollector $collector): void
+    {
+        $response = $this->createMock(ResponseInterface::class);
+        $handler  = new class($response) implements RequestHandlerInterface {
+            public function __construct(private readonly ResponseInterface $response) {}
+
+            public function handle(ServerRequestInterface $request): ResponseInterface
+            {
+                return $this->response;
+            }
+        };
+
+        $collector->routes[0]->getMiddleware()->process(
+            $this->createMock(ServerRequestInterface::class),
+            $handler
+        );
+    }
+
+    private function routeHandlerService(): RequestHandlerInterface
+    {
+        $response = $this->createMock(ResponseInterface::class);
+
+        return new class($response) implements RequestHandlerInterface {
+            public function __construct(private readonly ResponseInterface $response) {}
+
+            public function handle(ServerRequestInterface $request): ResponseInterface
+            {
+                return $this->response;
+            }
+        };
+    }
+
+    /** @param array<string, mixed> $services */
+    private function pipelineFactory(array $services = []): MiddlewarePipelineFactory
     {
         return new MiddlewarePipelineFactory(
             new InMemoryContainer([
                 'handler.service' => new TestMiddleware(),
+                ...$services,
             ]),
             new ServiceMiddlewareResolver()
         );

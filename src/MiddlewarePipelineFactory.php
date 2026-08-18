@@ -9,9 +9,11 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
+use Sirix\Mezzio\Routing\Contracts\Exception\InvalidMiddlewareSpecificationException;
+use Sirix\Mezzio\Routing\Contracts\MiddlewareFactoryInterface;
+use Sirix\Mezzio\Routing\Contracts\MiddlewareSpecification;
 
 use function count;
-use function implode;
 
 final class MiddlewarePipelineFactory
 {
@@ -24,7 +26,7 @@ final class MiddlewarePipelineFactory
     ) {}
 
     /**
-     * @param list<non-empty-string> $middlewareServices
+     * @param list<MiddlewareSpecification|non-empty-string> $middlewareServices
      */
     public function createFromSignature(string $handlerService, string $handlerMethod, array $middlewareServices): MiddlewareInterface
     {
@@ -43,7 +45,10 @@ final class MiddlewarePipelineFactory
     /**
      * Constructs a pipeline without consulting or updating the compiled-signature cache.
      *
-     * @param list<non-empty-string> $middlewareServices
+     * A specification entry must define a factory; factory-less entries must use the string
+     * service-id path instead.
+     *
+     * @param list<MiddlewareSpecification|non-empty-string> $middlewareServices
      *
      * @internal used by generated route-cache artifacts, which already deduplicate signatures
      */
@@ -53,8 +58,10 @@ final class MiddlewarePipelineFactory
         array $middlewareServices
     ): MiddlewareInterface {
         $middlewares = [];
-        foreach ($middlewareServices as $serviceName) {
-            $middlewares[] = $this->createServiceMiddleware($serviceName, 'process');
+        foreach ($middlewareServices as $middleware) {
+            $middlewares[] = $middleware instanceof MiddlewareSpecification
+                ? $this->createSpecMiddleware($middleware)
+                : $this->createServiceMiddleware($middleware, 'process');
         }
 
         $middlewares[] = $this->createServiceMiddleware($handlerService, $handlerMethod);
@@ -72,6 +79,20 @@ final class MiddlewarePipelineFactory
             $serviceName,
             $methodName
         );
+    }
+
+    private function createSpecMiddleware(MiddlewareSpecification $specification): MiddlewareInterface
+    {
+        if (null === $specification->factory) {
+            throw new InvalidMiddlewareSpecificationException(
+                'Middleware specification factory must be set when resolving a pipeline entry.'
+            );
+        }
+
+        /** @var class-string<MiddlewareFactoryInterface> $factoryClass */
+        $factoryClass = $specification->factory;
+
+        return new LazySpecMiddleware($this->container, $factoryClass, $specification);
     }
 
     /**
@@ -98,10 +119,10 @@ final class MiddlewarePipelineFactory
     }
 
     /**
-     * @param list<non-empty-string> $middlewareServices
+     * @param list<MiddlewareSpecification|non-empty-string> $middlewareServices
      */
     private function signatureKey(string $handlerService, string $handlerMethod, array $middlewareServices): string
     {
-        return $handlerService . "\0" . $handlerMethod . "\0" . implode("\0", $middlewareServices);
+        return MiddlewareSignatureKey::for($handlerService, $handlerMethod, $middlewareServices);
     }
 }
