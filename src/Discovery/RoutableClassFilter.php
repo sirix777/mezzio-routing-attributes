@@ -26,6 +26,10 @@ final readonly class RoutableClassFilter
     {
         $result = [];
         foreach ($classes as $className) {
+            if (! class_exists($className) || (new ReflectionClass($className))->isAbstract()) {
+                continue;
+            }
+
             if ($this->isPsr15Class($className)) {
                 $result[] = $className;
 

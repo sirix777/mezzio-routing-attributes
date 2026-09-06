@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Sirix\Mezzio\Routing\Attributes;
 
+use Mezzio\Router\Route;
 use Sirix\Mezzio\Routing\Attributes\Exception\DuplicateRouteDefinitionException;
 
+use function array_map;
 use function implode;
 use function strtoupper;
 
@@ -31,9 +33,10 @@ final readonly class DuplicateRouteResolver
         $routesByPath = [];
 
         foreach ($routes as $route) {
-            if (null !== $route->name && isset($names[$route->name])) {
+            $name = $this->effectiveName($route);
+            if (isset($names[$name])) {
                 if (self::STRATEGY_THROW === $this->strategy) {
-                    throw DuplicateRouteDefinitionException::duplicateName($route->name);
+                    throw DuplicateRouteDefinitionException::duplicateName($name);
                 }
 
                 continue;
@@ -50,15 +53,26 @@ final readonly class DuplicateRouteResolver
                 continue;
             }
 
-            if (null !== $route->name) {
-                $names[$route->name] = true;
-            }
+            $names[$name] = true;
 
             $routesByPath[$route->path][] = $route;
             $filtered[]                   = $route;
         }
 
         return $filtered;
+    }
+
+    private function effectiveName(RouteDefinition $route): string
+    {
+        $name = RouteRegistrar::normalizeRouteName($route->name);
+        if (null !== $name) {
+            return $name;
+        }
+
+        // Mezzio preserves method order and uppercases methods before generating the name.
+        return null === $route->methods
+            ? $route->path
+            : $route->path . '^' . implode(Route::HTTP_METHOD_SEPARATOR, array_map(strtoupper(...), $route->methods));
     }
 
     /**

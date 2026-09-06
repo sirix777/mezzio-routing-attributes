@@ -350,6 +350,11 @@ final class ProfileMiddlewareFactory implements MiddlewareFactoryInterface
 }
 ```
 
+Specifications require a non-empty factory service ID; `null` and `''` are rejected during
+route extraction, before cache generation or writing. For middleware without a factory, use
+a service-id string instead. Factory IDs may be container aliases and need not be class names;
+IDs are preserved verbatim. Structural validation does not resolve services or execute factories.
+
 The factory is fetched from the application container and invoked lazily on the first request,
 matching the existing service-id middleware path. `MiddlewareSpecification` arguments must be
 scalars, `null`, or nested arrays of those values: route-cache artifacts use `var_export()` and

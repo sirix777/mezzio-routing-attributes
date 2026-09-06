@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Sirix\Mezzio\Routing\Attributes\Extractor;
 
+use Psr\Http\Server\MiddlewareInterface;
+use Psr\Http\Server\RequestHandlerInterface;
 use ReflectionClass;
 use Sirix\Mezzio\Routing\Attributes\Attribute\Route;
 use Sirix\Mezzio\Routing\Attributes\Exception\InvalidRouteDefinitionException;
@@ -63,11 +65,12 @@ final readonly class RouteDataNormalizer
      */
     public function resolveClassHandlerMethod(ReflectionClass $reflection): string
     {
-        if ($reflection->hasMethod('handle')) {
+        // Preserve request-handler precedence when a service implements both PSR-15 interfaces.
+        if ($reflection->implementsInterface(RequestHandlerInterface::class)) {
             return 'handle';
         }
 
-        if ($reflection->hasMethod('process')) {
+        if ($reflection->implementsInterface(MiddlewareInterface::class)) {
             return 'process';
         }
 
@@ -131,6 +134,13 @@ final readonly class RouteDataNormalizer
         $normalized = [];
         foreach ($services as $service) {
             if ($service instanceof MiddlewareSpecification) {
+                if (null === $service->factory || '' === $service->factory) {
+                    throw new InvalidMiddlewareSpecificationException(
+                        'Middleware specification for route class "' . $className
+                        . '" must define a non-empty factory service ID; use a string for factory-less middleware.'
+                    );
+                }
+
                 $normalized[] = $service;
 
                 continue;

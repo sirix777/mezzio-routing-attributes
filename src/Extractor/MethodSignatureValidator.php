@@ -25,14 +25,10 @@ final readonly class MethodSignatureValidator
         }
 
         $parameters = $method->getParameters();
-        if (! $method->isVariadic()) {
-            if (
-                0 === $method->getNumberOfParameters()
-                || $method->getNumberOfRequiredParameters() > 2
-            ) {
-                throw InvalidRouteDefinitionException::invalidMethodSignature($className, $method->getName());
-            }
-        } elseif ($method->getNumberOfRequiredParameters() > 1) {
+        if (
+            0 === $method->getNumberOfParameters()
+            || $method->getNumberOfRequiredParameters() > 2
+        ) {
             throw InvalidRouteDefinitionException::invalidMethodSignature($className, $method->getName());
         }
 

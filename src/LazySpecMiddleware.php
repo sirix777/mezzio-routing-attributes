@@ -20,7 +20,7 @@ final class LazySpecMiddleware implements MiddlewareInterface
     private ?MiddlewareInterface $resolved = null;
 
     /**
-     * @param class-string<MiddlewareFactoryInterface> $factoryClass
+     * @param non-empty-string $factoryClass
      */
     public function __construct(
         private readonly ContainerInterface $container,

@@ -10,7 +10,6 @@ use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 use Sirix\Mezzio\Routing\Contracts\Exception\InvalidMiddlewareSpecificationException;
-use Sirix\Mezzio\Routing\Contracts\MiddlewareFactoryInterface;
 use Sirix\Mezzio\Routing\Contracts\MiddlewareSpecification;
 
 use function count;
@@ -83,16 +82,13 @@ final class MiddlewarePipelineFactory
 
     private function createSpecMiddleware(MiddlewareSpecification $specification): MiddlewareInterface
     {
-        if (null === $specification->factory) {
+        if (null === $specification->factory || '' === $specification->factory) {
             throw new InvalidMiddlewareSpecificationException(
-                'Middleware specification factory must be set when resolving a pipeline entry.'
+                'Middleware specification factory must be set to a non-empty service ID when resolving a pipeline entry.'
             );
         }
 
-        /** @var class-string<MiddlewareFactoryInterface> $factoryClass */
-        $factoryClass = $specification->factory;
-
-        return new LazySpecMiddleware($this->container, $factoryClass, $specification);
+        return new LazySpecMiddleware($this->container, $specification->factory, $specification);
     }
 
     /**
