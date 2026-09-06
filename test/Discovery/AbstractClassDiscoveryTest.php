@@ -25,7 +25,7 @@ use Sirix\Mezzio\Routing\Attributes\MiddlewarePipelineFactory;
 use Sirix\Mezzio\Routing\Attributes\RouteDefinitionResolver;
 use Sirix\Mezzio\Routing\Attributes\RouteRegistrar;
 use Sirix\Mezzio\Routing\Attributes\ServiceMiddlewareResolver;
-use SirixTest\Mezzio\Routing\Attributes\Discovery\Fixture\AbstractRoutes\Callable;
+use SirixTest\Mezzio\Routing\Attributes\Discovery\Fixture\AbstractRoutes\Callable as CallableRoutes;
 use SirixTest\Mezzio\Routing\Attributes\Discovery\Fixture\AbstractRoutes\Psr15;
 use SirixTest\Mezzio\Routing\Attributes\Discovery\Fixture\PrivateConstructorHandler;
 use SirixTest\Mezzio\Routing\Attributes\TestAsset\InMemoryContainer;
@@ -42,7 +42,7 @@ final class AbstractClassDiscoveryTest extends TestCase
     {
         $mode          = $allowCallable ? 'Callable' : 'Psr15';
         $path          = __DIR__ . '/Fixture/AbstractRoutes/' . $mode;
-        $concreteClass = $allowCallable ? Callable\ConcreteHandler::class : Psr15\ConcreteHandler::class;
+        $concreteClass = $allowCallable ? CallableRoutes\ConcreteHandler::class : Psr15\ConcreteHandler::class;
         $discovery     = new DiscoveryClassMapResolver(
             $strategy,
             false,
@@ -96,8 +96,8 @@ final class AbstractClassDiscoveryTest extends TestCase
     public function testExplicitAbstractContainerBindingsRemainSupported(): void
     {
         foreach ([false, true] as $allowCallable) {
-            $abstractClass = $allowCallable ? Callable\AbstractHandler::class : Psr15\AbstractHandler::class;
-            $concreteClass = $allowCallable ? Callable\ConcreteHandler::class : Psr15\ConcreteHandler::class;
+            $abstractClass = $allowCallable ? CallableRoutes\AbstractHandler::class : Psr15\AbstractHandler::class;
+            $concreteClass = $allowCallable ? CallableRoutes\ConcreteHandler::class : Psr15\ConcreteHandler::class;
             $resolver      = new RouteDefinitionResolver(
                 $this->createExtractor($allowCallable),
                 new DuplicateRouteResolver('throw'),
