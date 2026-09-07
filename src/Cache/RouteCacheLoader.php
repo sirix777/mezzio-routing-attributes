@@ -13,8 +13,6 @@ use function is_callable;
 use function is_link;
 use function is_string;
 use function lstat;
-use function restore_error_handler;
-use function set_error_handler;
 
 final class RouteCacheLoader
 {
@@ -38,7 +36,7 @@ final class RouteCacheLoader
         $requireError = null;
 
         try {
-            $payload = $this->requireWithCapturedError($cacheFile, $requireError);
+            $payload = CapturedError::run(fn () => require $cacheFile, $requireError);
         } catch (Throwable $error) {
             $this->invalidPayload('Failed to load compiled cache payload: ' . $error->getMessage());
         }
@@ -74,22 +72,6 @@ final class RouteCacheLoader
         return $artifact;
     }
 
-    private function withCapturedError(callable $callback, ?string &$error): mixed
-    {
-        $error = null;
-        set_error_handler(static function(int $severity, string $message) use (&$error): bool {
-            $error = $message;
-
-            return true;
-        });
-
-        try {
-            return $callback();
-        } finally {
-            restore_error_handler();
-        }
-    }
-
     private function isSafeArtifact(string $cacheFile): bool
     {
         if (is_link($cacheFile)) {
@@ -97,23 +79,12 @@ final class RouteCacheLoader
         }
 
         $lstatError = null;
-        $stat       = $this->lstatWithCapturedError($cacheFile, $lstatError);
+        $stat       = CapturedError::run(fn () => lstat($cacheFile), $lstatError);
         if (false === $stat) {
             return false;
         }
 
-        return (($stat['mode'] ?? 0) & 0o170000) === 0o100000;
-    }
-
-    /** @return array<string, int>|false */
-    private function lstatWithCapturedError(string $file, ?string &$error): array|false
-    {
-        return $this->withCapturedError(fn () => lstat($file), $error);
-    }
-
-    private function requireWithCapturedError(string $file, ?string &$error): mixed
-    {
-        return $this->withCapturedError(fn () => require $file, $error);
+        return ($stat['mode'] & 0o170000) === 0o100000;
     }
 
     private function formatReason(?string $reason): string

@@ -8,8 +8,6 @@ use Mezzio\Router\Route;
 use Mezzio\Router\RouteCollector;
 use Mezzio\Router\RouteCollectorInterface;
 use PHPUnit\Framework\TestCase;
-use Psr\Container\ContainerInterface;
-use Psr\Http\Server\MiddlewareInterface;
 use Sirix\Mezzio\Routing\Attributes\AttributeRouteProvider;
 use Sirix\Mezzio\Routing\Attributes\AttributeRouteProviderFactory;
 use Sirix\Mezzio\Routing\Attributes\Cache\NullRouteRegistrarCache;
@@ -19,27 +17,23 @@ use Sirix\Mezzio\Routing\Attributes\ConfigProvider;
 use Sirix\Mezzio\Routing\Attributes\Discovery\DiscoveredClassesResolverInterface;
 use Sirix\Mezzio\Routing\Attributes\Discovery\NullDiscoveredClassesResolver;
 use Sirix\Mezzio\Routing\Attributes\DuplicateRouteResolver;
-use Sirix\Mezzio\Routing\Attributes\Extractor\AttributeRouteExtractor;
 use Sirix\Mezzio\Routing\Attributes\Extractor\AttributeRouteExtractorInterface;
-use Sirix\Mezzio\Routing\Attributes\Extractor\ClassEligibilityValidator;
-use Sirix\Mezzio\Routing\Attributes\Extractor\MethodSignatureValidator;
-use Sirix\Mezzio\Routing\Attributes\Extractor\RouteAttributeReader;
-use Sirix\Mezzio\Routing\Attributes\Extractor\RouteDataNormalizer;
-use Sirix\Mezzio\Routing\Attributes\Extractor\RouteDefinitionBuilder;
 use Sirix\Mezzio\Routing\Attributes\MiddlewarePipelineFactory;
 use Sirix\Mezzio\Routing\Attributes\RouteCollectorDelegator;
 use Sirix\Mezzio\Routing\Attributes\ServiceMiddlewareResolver;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\PingHandler;
+use SirixTest\Mezzio\Routing\Attributes\TestAsset\AttributeRouteExtractorBuilder;
 use SirixTest\Mezzio\Routing\Attributes\TestAsset\InMemoryContainer;
+use SirixTest\Mezzio\Routing\Attributes\TestAsset\RecordingRouteCollector;
 
-use function array_key_exists;
+use function array_map;
 
 final class RuntimePathTest extends TestCase
 {
     public function testConfigFactoryExtractorAndCollectorWorkTogether(): void
     {
-        $collector = $this->createMock(RouteCollectorInterface::class);
-        $extractor = $this->createAttributeRouteExtractor();
+        $collector = new RecordingRouteCollector();
+        $extractor = AttributeRouteExtractorBuilder::create();
         $container = new InMemoryContainer([
             'config'                                  => [
                 'routing_attributes' => [
@@ -62,20 +56,9 @@ final class RuntimePathTest extends TestCase
         $provider = (new AttributeRouteProviderFactory())($container);
         self::assertInstanceOf(AttributeRouteProvider::class, $provider);
 
-        $collector
-            ->expects(self::exactly(2))
-            ->method('route')
-            ->willReturnCallback(
-                static fn (string $path, MiddlewareInterface $middleware, ?array $methods = null, ?string $name = null): Route => new Route(
-                    '/runtime',
-                    $middleware,
-                    ['GET'],
-                    'runtime.route'
-                )
-            )
-        ;
-
         $provider->registerRoutes($collector);
+
+        self::assertSame(2, $collector->routeCalls);
     }
 
     public function testConfigProviderWiringWorksForRouteCollectorDelegation(): void
@@ -90,25 +73,7 @@ final class RuntimePathTest extends TestCase
             $packageConfig['dependencies']['delegators'][RouteCollector::class]
         );
 
-        $container = new class implements ContainerInterface {
-            /** @var array<string, mixed> */
-            private array $services = [];
-
-            public function set(string $id, mixed $service): void
-            {
-                $this->services[$id] = $service;
-            }
-
-            public function get(string $id): mixed
-            {
-                return $this->services[$id];
-            }
-
-            public function has(string $id): bool
-            {
-                return array_key_exists($id, $this->services);
-            }
-        };
+        $container = new InMemoryContainer([]);
 
         $rootConfig = [
             'routing_attributes' => [
@@ -117,7 +82,7 @@ final class RuntimePathTest extends TestCase
         ];
         $container->set('config', $rootConfig);
         $container->set(RoutingAttributesConfig::class, RoutingAttributesConfig::fromRootConfig($rootConfig));
-        $container->set(AttributeRouteExtractorInterface::class, $this->createAttributeRouteExtractor());
+        $container->set(AttributeRouteExtractorInterface::class, AttributeRouteExtractorBuilder::create());
         $container->set(PingHandler::class, new PingHandler());
         $container->set(RouteRegistrarCacheInterface::class, new NullRouteRegistrarCache());
         $container->set(DuplicateRouteResolver::class, new DuplicateRouteResolver('throw'));
@@ -131,22 +96,7 @@ final class RuntimePathTest extends TestCase
             (new AttributeRouteProviderFactory())($container)
         );
 
-        $observedRoutes = [];
-        $collector      = $this->createMock(RouteCollectorInterface::class);
-        $collector
-            ->expects(self::exactly(2))
-            ->method('route')
-            ->willReturnCallback(static function(
-                string $path,
-                MiddlewareInterface $middleware,
-                ?array $methods = null,
-                ?string $name = null
-            ) use (&$observedRoutes): Route {
-                $observedRoutes[] = [$path, $methods, $name];
-
-                return new Route('/runtime', $middleware, ['GET'], 'runtime.route');
-            })
-        ;
+        $collector = new RecordingRouteCollector();
 
         $result = (new RouteCollectorDelegator())(
             $container,
@@ -160,19 +110,9 @@ final class RuntimePathTest extends TestCase
                 ['/ping', ['GET'], 'ping'],
                 ['/ping', ['POST'], 'ping.create'],
             ],
-            $observedRoutes
-        );
-    }
-
-    private function createAttributeRouteExtractor(): AttributeRouteExtractor
-    {
-        return new AttributeRouteExtractor(
-            new ClassEligibilityValidator(false),
-            new RouteAttributeReader(),
-            new RouteDefinitionBuilder(
-                new RouteAttributeReader(),
-                new MethodSignatureValidator(),
-                new RouteDataNormalizer()
+            array_map(
+                static fn (Route $route): array => [$route->getPath(), $route->getAllowedMethods(), $route->getName()],
+                $collector->routes
             )
         );
     }

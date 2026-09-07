@@ -7,6 +7,7 @@ namespace Sirix\Mezzio\Routing\Attributes\Command;
 use Mezzio\Router\Route;
 use ReflectionException;
 use ReflectionObject;
+use Sirix\Mezzio\Routing\Attributes\RouteMiddlewareDisplay;
 
 use function get_object_vars;
 use function is_string;
@@ -16,7 +17,9 @@ final readonly class RouteMiddlewareDisplayResolver
 {
     public const CLASSIC_ROUTES_MIDDLEWARE_DISPLAY_UPSTREAM = 'upstream';
     public const CLASSIC_ROUTES_MIDDLEWARE_DISPLAY_RESOLVED = 'resolved';
-    public const ROUTE_OPTION_MIDDLEWARE_DISPLAY            = 'sirix_routing_attributes.middleware_display';
+
+    /** @deprecated Use RouteMiddlewareDisplay::ROUTE_OPTION_MIDDLEWARE_DISPLAY instead. */
+    public const ROUTE_OPTION_MIDDLEWARE_DISPLAY = RouteMiddlewareDisplay::ROUTE_OPTION_MIDDLEWARE_DISPLAY;
 
     /**
      * @param self::CLASSIC_ROUTES_MIDDLEWARE_DISPLAY_RESOLVED|self::CLASSIC_ROUTES_MIDDLEWARE_DISPLAY_UPSTREAM $classicRoutesMiddlewareDisplay
@@ -25,7 +28,7 @@ final readonly class RouteMiddlewareDisplayResolver
 
     public function resolve(Route $route): string
     {
-        $attributeDisplay = $route->getOptions()[self::ROUTE_OPTION_MIDDLEWARE_DISPLAY] ?? null;
+        $attributeDisplay = $route->getOptions()[RouteMiddlewareDisplay::ROUTE_OPTION_MIDDLEWARE_DISPLAY] ?? null;
         if (is_string($attributeDisplay) && '' !== $attributeDisplay) {
             return $attributeDisplay;
         }

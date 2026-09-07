@@ -6,7 +6,6 @@ namespace Sirix\Mezzio\Routing\Attributes;
 
 use Mezzio\Router\RouteCollectorInterface;
 use Psr\Http\Server\MiddlewareInterface;
-use Sirix\Mezzio\Routing\Attributes\Command\RouteMiddlewareDisplayResolver;
 
 use function trim;
 
@@ -101,7 +100,7 @@ final readonly class RouteRegistrar
     ): void {
         $registeredRoute                                                          = $collector->route($path, $middleware, $methods, $name);
         $options                                                                  = $registeredRoute->getOptions();
-        $options[RouteMiddlewareDisplayResolver::ROUTE_OPTION_MIDDLEWARE_DISPLAY] = $middlewareDisplay;
+        $options[RouteMiddlewareDisplay::ROUTE_OPTION_MIDDLEWARE_DISPLAY]         = $middlewareDisplay;
         if ([] !== $defaults) {
             $options = [...$options, ...$defaults];
         }

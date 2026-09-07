@@ -9,6 +9,7 @@ use Sirix\Mezzio\Routing\Attributes\Exception\InvalidConfigurationException;
 use function in_array;
 use function is_string;
 
+/** @deprecated Use RoutingAttributesConfig::fromRootConfig() with the root configuration array instead. */
 final readonly class DuplicateStrategyConfigParser
 {
     /**

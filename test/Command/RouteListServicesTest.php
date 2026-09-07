@@ -21,6 +21,7 @@ use Sirix\Mezzio\Routing\Attributes\Command\RouteListSorter;
 use Sirix\Mezzio\Routing\Attributes\Command\RouteMiddlewareDisplayResolver;
 use Sirix\Mezzio\Routing\Attributes\Command\RouteTableProvider;
 use Sirix\Mezzio\Routing\Attributes\MiddlewarePipelineFactory;
+use Sirix\Mezzio\Routing\Attributes\RouteMiddlewareDisplay;
 use Sirix\Mezzio\Routing\Attributes\ServiceMiddlewareResolver;
 use SirixTest\Mezzio\Routing\Attributes\TestAsset\InMemoryContainer;
 use Symfony\Component\Console\Tester\CommandTester;
@@ -29,6 +30,15 @@ use function json_decode;
 
 final class RouteListServicesTest extends TestCase
 {
+    public function testMiddlewareDisplayOptionKeepsPublicCompatibilityAlias(): void
+    {
+        self::assertSame('sirix_routing_attributes.middleware_display', RouteMiddlewareDisplay::ROUTE_OPTION_MIDDLEWARE_DISPLAY);
+        self::assertSame(
+            RouteMiddlewareDisplay::ROUTE_OPTION_MIDDLEWARE_DISPLAY,
+            RouteMiddlewareDisplayResolver::ROUTE_OPTION_MIDDLEWARE_DISPLAY
+        );
+    }
+
     public function testRouteTableProviderLoadsConfigBeforeReadingRoutes(): void
     {
         $loaderCalled = false;

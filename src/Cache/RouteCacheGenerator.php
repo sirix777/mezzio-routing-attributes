@@ -10,7 +10,6 @@ use Sirix\Mezzio\Routing\Attributes\MiddlewareSignatureKey;
 use Sirix\Mezzio\Routing\Attributes\RouteDefinition;
 use Sirix\Mezzio\Routing\Attributes\RouteMiddlewareDisplay;
 use Sirix\Mezzio\Routing\Attributes\RouteRegistrar;
-use Sirix\Mezzio\Routing\Contracts\MiddlewareSpecification;
 
 use function array_key_exists;
 use function count;
@@ -71,7 +70,7 @@ final readonly class RouteCacheGenerator
         $routeRows           = [];
 
         foreach ($routes as $route) {
-            $signatureKey = $this->routeSignatureKey(
+            $signatureKey = MiddlewareSignatureKey::for(
                 $route->handlerService,
                 $route->handlerMethod,
                 $route->middlewareServices
@@ -127,14 +126,6 @@ final readonly class RouteCacheGenerator
             . '            ' . implode(",\n            ", $routeRows) . ",\n"
             . "        ];\n"
             . "        RouteRegistrar::registerPreparedRows(\$collector, \$compiledMiddlewares, \$routeRows, \$middlewareDisplays);\n";
-    }
-
-    /**
-     * @param list<MiddlewareSpecification|non-empty-string> $middlewareServices
-     */
-    private function routeSignatureKey(string $handlerService, string $handlerMethod, array $middlewareServices): string
-    {
-        return MiddlewareSignatureKey::for($handlerService, $handlerMethod, $middlewareServices);
     }
 
     /**

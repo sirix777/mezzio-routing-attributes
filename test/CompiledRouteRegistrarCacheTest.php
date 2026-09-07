@@ -16,12 +16,6 @@ use Sirix\Mezzio\Routing\Attributes\Cache\RouteCacheStorage;
 use Sirix\Mezzio\Routing\Attributes\CompiledRouteRegistrarCache;
 use Sirix\Mezzio\Routing\Attributes\Config\RoutingAttributesConfig;
 use Sirix\Mezzio\Routing\Attributes\Exception\InvalidConfigurationException;
-use Sirix\Mezzio\Routing\Attributes\Extractor\AttributeRouteExtractor;
-use Sirix\Mezzio\Routing\Attributes\Extractor\ClassEligibilityValidator;
-use Sirix\Mezzio\Routing\Attributes\Extractor\MethodSignatureValidator;
-use Sirix\Mezzio\Routing\Attributes\Extractor\RouteAttributeReader;
-use Sirix\Mezzio\Routing\Attributes\Extractor\RouteDataNormalizer;
-use Sirix\Mezzio\Routing\Attributes\Extractor\RouteDefinitionBuilder;
 use Sirix\Mezzio\Routing\Attributes\MiddlewarePipelineFactory;
 use Sirix\Mezzio\Routing\Attributes\RouteDefinition;
 use Sirix\Mezzio\Routing\Attributes\RouteRegistrar;
@@ -30,6 +24,7 @@ use Sirix\Mezzio\Routing\Contracts\MiddlewareFactoryInterface;
 use Sirix\Mezzio\Routing\Contracts\MiddlewareSpecification;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\SpecificationMiddlewareFactory;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\SpecificationModifierHandler;
+use SirixTest\Mezzio\Routing\Attributes\TestAsset\AttributeRouteExtractorBuilder;
 use SirixTest\Mezzio\Routing\Attributes\TestAsset\CacheDefaultWithSetState;
 use SirixTest\Mezzio\Routing\Attributes\TestAsset\InMemoryContainer;
 use SirixTest\Mezzio\Routing\Attributes\TestAsset\RecordingRouteCollector;
@@ -73,7 +68,6 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
     public function testSaveAndRegisterRoutesRoundTrip(): void
     {
         $cacheFile          = $this->createCacheFilePath();
-        $this->cacheFiles[] = $cacheFile;
         $cache              = $this->createCache($cacheFile);
 
         $cache->save([
@@ -99,7 +93,6 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
     public function testRegisterRoutesIgnoresMetaDifferences(): void
     {
         $cacheFile          = $this->createCacheFilePath();
-        $this->cacheFiles[] = $cacheFile;
         $writer             = $this->createCache($cacheFile);
         $reader             = $this->createCache($cacheFile);
 
@@ -113,7 +106,6 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
     public function testTreatsArtifactFromPreviousDeploymentReleaseAsCacheMiss(): void
     {
         $cacheFile          = $this->createCacheFilePath();
-        $this->cacheFiles[] = $cacheFile;
         $firstRelease       = RoutingAttributesConfig::fromRootConfig([
             'routing_attributes' => [
                 'classes' => ['App\Handler\RouteBearingClass'],
@@ -147,7 +139,6 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
     public function testCompiledCacheUsesSharedNameNormalization(): void
     {
         $cacheFile          = $this->createCacheFilePath();
-        $this->cacheFiles[] = $cacheFile;
         $cache              = $this->createCache($cacheFile);
 
         $cache->save([
@@ -162,7 +153,6 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
     public function testCompiledCacheRegistersAllRoutes(): void
     {
         $cacheFile          = $this->createCacheFilePath();
-        $this->cacheFiles[] = $cacheFile;
         $cache              = $this->createCache($cacheFile);
 
         $cache->save([
@@ -176,7 +166,6 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
     public function testRegistersUsingCollectorAndPipelineFactory(): void
     {
         $cacheFile          = $this->createCacheFilePath();
-        $this->cacheFiles[] = $cacheFile;
         $cache              = $this->createCache($cacheFile);
         self::assertTrue($cache->save([
             new RouteDefinition('/legacy', ['GET'], 'handler.service', 'process', [], 'legacy.route'),
@@ -194,7 +183,6 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
     public function testRegisterRoutesWorksForLargeRouteSet(): void
     {
         $cacheFile          = $this->createCacheFilePath();
-        $this->cacheFiles[] = $cacheFile;
         $cache              = $this->createCache($cacheFile);
 
         $routes = [];
@@ -222,7 +210,6 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
     public function testCompiledCacheUsesSinglePreparedRowsArtifact(): void
     {
         $cacheFile          = $this->createCacheFilePath();
-        $this->cacheFiles[] = $cacheFile;
         $cache              = $this->createCache($cacheFile);
 
         $routes = [];
@@ -242,7 +229,6 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
     public function testSaveAndRegisterRoutesWithMiddlewareSpecificationRoundTrip(): void
     {
         $cacheFile          = $this->createCacheFilePath();
-        $this->cacheFiles[] = $cacheFile;
         $cache              = $this->createCache($cacheFile);
         $createdMiddleware  = new class implements MiddlewareInterface {
             public int $processCalls = 0;
@@ -310,7 +296,6 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
     public function testDoesNotDeduplicateDelimitedSpecificationAndStringSignaturesInCache(): void
     {
         $cacheFile          = $this->createCacheFilePath();
-        $this->cacheFiles[] = $cacheFile;
         $cache              = $this->createCache($cacheFile);
 
         self::assertTrue($cache->save([
@@ -339,7 +324,7 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
     public function testSpecificationModifierExtractsAndRegistersThroughColdAndWarmedCachePaths(): void
     {
         SpecificationMiddlewareFactory::$createCalls = 0;
-        $routes                                      = $this->extractor()->extract([SpecificationModifierHandler::class]);
+        $routes                                      = AttributeRouteExtractorBuilder::create()->extract([SpecificationModifierHandler::class]);
 
         self::assertCount(1, $routes);
         self::assertInstanceOf(MiddlewareSpecification::class, $routes[0]->middlewareServices[0]);
@@ -352,7 +337,6 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
         $this->processRouteMiddleware($coldCollector);
 
         $cacheFile          = $this->createCacheFilePath();
-        $this->cacheFiles[] = $cacheFile;
         $cache              = $this->createCache($cacheFile);
         self::assertTrue($cache->save($routes));
         $cachedCollector = new RecordingRouteCollector();
@@ -368,7 +352,6 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
     public function testTreatsMalformedPayloadAsCacheMiss(): void
     {
         $cacheFile          = $this->createCacheFilePath();
-        $this->cacheFiles[] = $cacheFile;
         file_put_contents(
             $cacheFile,
             <<<'PHP'
@@ -390,7 +373,6 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
     public function testIgnoresCompiledCacheWriteFailure(): void
     {
         $cacheFile          = $this->createDirectoryPath();
-        $this->cacheFiles[] = $cacheFile;
         mkdir($cacheFile, 0o775, true);
 
         $cache = $this->createCache($cacheFile);
@@ -404,7 +386,6 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
     public function testSaveAndRegisterRoutesWithDefaultsRoundTrip(): void
     {
         $cacheFile          = $this->createCacheFilePath();
-        $this->cacheFiles[] = $cacheFile;
         $cache              = $this->createCache($cacheFile);
 
         $cache->save([
@@ -442,7 +423,6 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
         (new RouteRegistrar())->register($coldCollector, [$route], $this->pipelineFactory());
 
         $cacheFile          = $this->createCacheFilePath();
-        $this->cacheFiles[] = $cacheFile;
         $cache              = $this->createCache($cacheFile);
         self::assertTrue($cache->save([$route]));
         $cachedCollector = new RecordingRouteCollector($configureRoute);
@@ -547,19 +527,6 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
         return $collector;
     }
 
-    private function extractor(): AttributeRouteExtractor
-    {
-        return new AttributeRouteExtractor(
-            new ClassEligibilityValidator(),
-            new RouteAttributeReader(),
-            new RouteDefinitionBuilder(
-                new RouteAttributeReader(),
-                new MethodSignatureValidator(),
-                new RouteDataNormalizer()
-            )
-        );
-    }
-
     private function processRouteMiddleware(RecordingRouteCollector $collector): void
     {
         $response = $this->createMock(ResponseInterface::class);
@@ -606,12 +573,12 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
 
     private function createCacheFilePath(): string
     {
-        return sys_get_temp_dir() . '/mezzio-routing-attributes-compiled-cache-' . uniqid('', true) . '.php';
+        return $this->cacheFiles[] = sys_get_temp_dir() . '/mezzio-routing-attributes-compiled-cache-' . uniqid('', true) . '.php';
     }
 
     private function createDirectoryPath(): string
     {
-        return sys_get_temp_dir() . '/mezzio-routing-attributes-compiled-cache-dir-' . uniqid('', true);
+        return $this->cacheFiles[] = sys_get_temp_dir() . '/mezzio-routing-attributes-compiled-cache-dir-' . uniqid('', true);
     }
 
     private function assertSinglePreparedRowsArtifact(string $content): void

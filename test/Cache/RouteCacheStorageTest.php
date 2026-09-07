@@ -6,6 +6,7 @@ namespace SirixTest\Mezzio\Routing\Attributes\Cache;
 
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
+use RuntimeException;
 use Sirix\Mezzio\Routing\Attributes\Cache\RouteCacheStorage;
 
 use function chmod;
@@ -142,6 +143,18 @@ final class RouteCacheStorageTest extends TestCase
         ;
 
         self::assertFalse((new RouteCacheStorage($logger))->save($cacheFile, '<?php return [];'));
+    }
+
+    public function testLoggerFailureDoesNotInterruptBestEffortSave(): void
+    {
+        $baseFile      = $this->createPath('throwing-logger-parent-file');
+        $this->paths[] = $baseFile;
+        file_put_contents($baseFile, '');
+
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects(self::once())->method('error')->willThrowException(new RuntimeException('Logger failed.'));
+
+        self::assertFalse((new RouteCacheStorage($logger))->save($baseFile . '/routes.php', '<?php return [];'));
     }
 
     private function createPath(string $prefix): string

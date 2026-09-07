@@ -29,7 +29,7 @@ final class MiddlewarePipelineFactory
      */
     public function createFromSignature(string $handlerService, string $handlerMethod, array $middlewareServices): MiddlewareInterface
     {
-        $signatureKey = $this->signatureKey($handlerService, $handlerMethod, $middlewareServices);
+        $signatureKey = MiddlewareSignatureKey::for($handlerService, $handlerMethod, $middlewareServices);
         if (isset($this->middlewareBySignature[$signatureKey])) {
             return $this->middlewareBySignature[$signatureKey];
         }
@@ -112,13 +112,5 @@ final class MiddlewarePipelineFactory
                 return $pipelineHandler->handle($request);
             }
         };
-    }
-
-    /**
-     * @param list<MiddlewareSpecification|non-empty-string> $middlewareServices
-     */
-    private function signatureKey(string $handlerService, string $handlerMethod, array $middlewareServices): string
-    {
-        return MiddlewareSignatureKey::for($handlerService, $handlerMethod, $middlewareServices);
     }
 }

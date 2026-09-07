@@ -8,6 +8,7 @@ use Sirix\Mezzio\Routing\Attributes\Exception\InvalidConfigurationException;
 
 use function is_bool;
 
+/** @deprecated Use RoutingAttributesConfig::fromRootConfig() with the root configuration array instead. */
 final readonly class OverrideMezzioRoutesListCommandConfigParser
 {
     /**
