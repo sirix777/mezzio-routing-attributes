@@ -76,6 +76,7 @@
     "scripts": {
         "analyse-deps": "tools/composer-dependency-analyser/vendor/bin/composer-dependency-analyser",
         "benchmark": "php benchmarks/route-provider-benchmark.php",
+        "benchmark-pipeline": "php benchmarks/pipeline-benchmark.php",
         "benchmark-threshold": "php benchmarks/route-cache-threshold-benchmark.php",
         "check": [
             "@cs-check",

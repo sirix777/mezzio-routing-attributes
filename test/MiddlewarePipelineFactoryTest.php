@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace SirixTest\Mezzio\Routing\Attributes;
 
 use ArrayObject;
+use Fiber;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -202,6 +203,84 @@ final class MiddlewarePipelineFactoryTest extends TestCase
         self::assertSame($response, $pipeline->process($this->createMock(ServerRequestInterface::class), $terminal));
         self::assertSame(['string', 'spec', 'handler'], $events->getArrayCopy());
         self::assertSame(1, $specFactory->createCalls);
+    }
+
+    public function testNestedReentryPreservesEachInvocationDownstream(): void
+    {
+        $outerRequest    = $this->createMock(ServerRequestInterface::class);
+        $nestedRequest   = $this->createMock(ServerRequestInterface::class);
+        $outerResponse   = $this->createMock(ResponseInterface::class);
+        $nestedResponse  = $this->createMock(ResponseInterface::class);
+        $outerDownstream = $this->createMock(RequestHandlerInterface::class);
+        $outerDownstream->expects(self::once())->method('handle')->with(self::identicalTo($outerRequest))->willReturn($outerResponse);
+        $nestedDownstream = $this->createMock(RequestHandlerInterface::class);
+        $nestedDownstream->expects(self::once())->method('handle')->with(self::identicalTo($nestedRequest))->willReturn($nestedResponse);
+        $middleware = $this->createMock(MiddlewareInterface::class);
+        $handler    = $this->createMock(MiddlewareInterface::class);
+        $factory    = new MiddlewarePipelineFactory(new InMemoryContainer([
+            'middleware' => $middleware,
+            'handler'    => $handler,
+        ]), new ServiceMiddlewareResolver());
+        $pipeline = $factory->createFromSignature('handler', 'process', ['middleware']);
+        $middleware->expects(self::exactly(2))->method('process')->willReturnCallback(
+            static function(ServerRequestInterface $request, RequestHandlerInterface $downstream) use (
+                $pipeline,
+                $outerRequest,
+                $nestedRequest,
+                $nestedDownstream,
+                $nestedResponse
+            ): ResponseInterface {
+                if ($request === $outerRequest) {
+                    self::assertSame($nestedResponse, $pipeline->process($nestedRequest, $nestedDownstream));
+                }
+
+                return $downstream->handle($request);
+            }
+        );
+        $handler->expects(self::exactly(2))->method('process')->willReturnCallback(
+            static fn (ServerRequestInterface $request, RequestHandlerInterface $downstream): ResponseInterface => $downstream->handle($request)
+        );
+
+        self::assertSame($outerResponse, $pipeline->process($outerRequest, $outerDownstream));
+    }
+
+    public function testInterleavedFibersPreserveEachInvocationDownstream(): void
+    {
+        $firstRequest    = $this->createMock(ServerRequestInterface::class);
+        $secondRequest   = $this->createMock(ServerRequestInterface::class);
+        $firstResponse   = $this->createMock(ResponseInterface::class);
+        $secondResponse  = $this->createMock(ResponseInterface::class);
+        $firstDownstream = $this->createMock(RequestHandlerInterface::class);
+        $firstDownstream->expects(self::once())->method('handle')->with(self::identicalTo($firstRequest))->willReturn($firstResponse);
+        $secondDownstream = $this->createMock(RequestHandlerInterface::class);
+        $secondDownstream->expects(self::once())->method('handle')->with(self::identicalTo($secondRequest))->willReturn($secondResponse);
+        $middleware = $this->createMock(MiddlewareInterface::class);
+        $middleware->expects(self::exactly(2))->method('process')->willReturnCallback(
+            static function(ServerRequestInterface $request, RequestHandlerInterface $downstream): ResponseInterface {
+                Fiber::suspend($request);
+
+                return $downstream->handle($request);
+            }
+        );
+        $handler = $this->createMock(MiddlewareInterface::class);
+        $handler->expects(self::exactly(2))->method('process')->willReturnCallback(
+            static fn (ServerRequestInterface $request, RequestHandlerInterface $downstream): ResponseInterface => $downstream->handle($request)
+        );
+        $factory = new MiddlewarePipelineFactory(new InMemoryContainer([
+            'middleware' => $middleware,
+            'handler'    => $handler,
+        ]), new ServiceMiddlewareResolver());
+        $pipeline = $factory->createFromSignature('handler', 'process', ['middleware']);
+        $first    = new Fiber(static fn (): ResponseInterface => $pipeline->process($firstRequest, $firstDownstream));
+        $second   = new Fiber(static fn (): ResponseInterface => $pipeline->process($secondRequest, $secondDownstream));
+
+        self::assertSame($firstRequest, $first->start());
+        self::assertSame($secondRequest, $second->start());
+        $first->resume();
+        $second->resume();
+
+        self::assertSame($firstResponse, $first->getReturn());
+        self::assertSame($secondResponse, $second->getReturn());
     }
 
     public function testRejectsSpecificationWithoutFactory(): void

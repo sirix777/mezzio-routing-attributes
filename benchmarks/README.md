@@ -1,15 +1,21 @@
 # Benchmarks
 
-This directory contains performance benchmarks for `mezzio-routing-attributes`. There are two benchmarks that measure different aspects of the library's performance.
+This directory contains three performance benchmarks for `mezzio-routing-attributes`, measuring route registration, compiled cache loading, and middleware pipeline execution.
 
 ## Quick Start
 
 ```bash
 # Run the route provider benchmark (fast, ~5 seconds)
 php benchmarks/route-provider-benchmark.php
+composer benchmark
 
 # Run the cache threshold benchmark
 php benchmarks/route-cache-threshold-benchmark.php
+composer benchmark-threshold
+
+# Run the focused pipeline benchmark (JSON on stdout)
+php benchmarks/pipeline-benchmark.php --json
+composer benchmark-pipeline
 ```
 
 ---
@@ -214,12 +220,90 @@ These figures use a former artifact and in-process loader cache. They are retain
 
 ---
 
+## 3. Middleware Pipeline Benchmark
+
+**File:** `pipeline-benchmark.php`
+
+Measures the current `MiddlewarePipelineFactory` execution cost, including its per-call `MiddlewareHandler` chain. It supports the pipeline performance measurement plan (plan 5); it does not measure route registration or end-to-end HTTP latency.
+
+### Corpus and measurement intervals
+
+There are 18 scenarios: 1, 5, 10, and 20 middleware entries for both service IDs and `MiddlewareSpecification`, each with a no-op or CPU/JSON handler, plus two direct-handler baselines. N means N middleware **plus** the terminal handler adapter, so a 20-middleware pipeline creates 21 chain wrappers. The direct baselines bypass the pipeline.
+
+The no-op middleware increments an invocation counter and delegates; the no-op handler returns a prebuilt 204 response. The illustrative useful handler builds 100 records, computes 100 SHA-256 digests, and constructs a `JsonResponse`. It has no database, networking, or representative application workload.
+
+Each sample constructs a fresh pipeline outside timing. `first` times one call including lazy service/factory resolution. An untimed order check and warmup follow; `warm` times a batch of resolved calls and reports nanoseconds per call. Classes and both resolution paths are primed before all reported samples, and samples share one PHP process. Consequently, `first` is not a cold PHP process, autoload, container construction, or pipeline construction measurement. Scenario order reverses between rounds to reduce systematic order bias; it cannot remove host scheduling, CPU frequency, or allocator effects.
+
+### Configuration and correctness
+
+| Environment variable | Default | Accepted integer range |
+|---|---:|---:|
+| `BENCHMARK_SAMPLES` | 7 | 1–100 |
+| `BENCHMARK_REPEATS` | 5,000 | 1–100,000 |
+| `BENCHMARK_WARMUP` | 100 | 1–10,000 |
+
+```bash
+BENCHMARK_SAMPLES=7 BENCHMARK_REPEATS=5000 BENCHMARK_WARMUP=100 \
+  php benchmarks/pipeline-benchmark.php --json > /tmp/pipeline-performance.json
+```
+
+JSON is also the default without `--json`. It includes PHP version/binary, SAPI, OS, OPcache/JIT settings and activity, instrumentation extensions, configuration, every raw sample, and min/median/max summaries for both phases. `LOG_LEVEL=debug` writes sample progress to stderr outside timing. Invalid arguments/settings or failed correctness checks exit nonzero. There is no percentage CI threshold or blocking performance baseline for this benchmark.
+
+Outside the timed intervals, the harness checks the actual first and final measured response status/body, middleware order, total middleware and handler calls, and resolution counters. Construction must resolve nothing; the first pipeline call must perform N + 1 container gets and, for specifications, N factory calls; subsequent calls must not resolve or create services again. The downstream handler throws if the terminal benchmark handler unexpectedly delegates. Counter increments remain inside timing, so these results include instrumentation overhead.
+
+### Memory interpretation
+
+Each interval runs garbage collection and resets PHP peak tracking before recording live usage. `retained_bytes` is the final live usage minus interval-start usage; `peak_bytes` is the reset peak above that start. Neither reports total allocated bytes, allocation count, process resident memory, or isolated wrapper allocation cost. The actual last measured response remains live during memory sampling and is validated after timing; the previous response is released before the next call.
+
+Released wrappers can produce zero retained bytes while still costing allocations on every request. First-call retained memory includes resolved middleware. CPU/JSON measurements also include response/workload allocations: the reference runs retain 64,320 bytes for the last response, with a direct-handler peak of 77,200 bytes and a 20-middleware warm peak of 78,880 bytes. These are live/peak observations, not a leak or cumulative allocation estimate.
+
+### Reference measurements and decision (2026-09-07)
+
+Two separate CLI runs on Linux with PHP **8.2.33** (`/usr/bin/php82`), OPcache/JIT inactive and neither Xdebug nor PCOV loaded. Each run used the defaults above: seven samples per scenario, 5,000 calls per warm batch, and 100 warmup calls. Source JSON was captured locally as `/tmp/pipeline-performance-php82.json` (A) and `/tmp/pipeline-performance-php82-repeat.json` (B); these temporary files are not repository artifacts. The following summaries preserve the decision evidence here.
+
+No-op corpus; first/warm values are medians in **µs per call**, shown as **A / B**. Peak values are bytes and identical in both runs.
+
+| Kind | Middleware | First µs A / B | Warm µs A / B | First peak bytes | Warm peak bytes |
+|---|---:|---:|---:|---:|---:|
+| direct | 0 | 0.478 / 0.343 | 0.052 / 0.053 | 0 | 0 |
+| service | 1 | 6.235 / 2.291 | 0.440 / 0.417 | 296 | 160 |
+| service | 5 | 4.108 / 4.578 | 1.078 / 1.067 | 936 | 480 |
+| service | 10 | 9.703 / 7.618 | 1.857 / 2.023 | 1,736 | 880 |
+| service | 20 | 13.481 / 13.171 | 3.626 / 3.562 | 3,336 | 1,680 |
+| specification | 1 | 3.516 / 3.460 | 0.383 / 0.417 | 296 | 160 |
+| specification | 5 | 4.103 / 3.093 | 1.096 / 1.075 | 936 | 480 |
+| specification | 10 | 5.963 / 6.442 | 1.977 / 1.980 | 1,736 | 880 |
+| specification | 20 | 11.790 / 11.343 | 3.550 / 3.614 | 3,336 | 1,680 |
+
+Warm retained memory is zero throughout the no-op corpus. First retained bytes are 136, 456, 856, and 1,656 for N = 1, 5, 10, and 20 in either resolution path. First-call timing is particularly noisy: service/1 ranges from 1.606 to 49.088 µs in A, explaining why its median can exceed service/5. Warm service/20 ranges are 3.233–3.797 µs (A) and 3.439–3.840 µs (B); specification/20 ranges are 3.272–3.872 µs and 3.479–3.840 µs.
+
+Useful CPU/JSON corpus; warm **min / median / max**, in **µs per call**:
+
+| Scenario | Run A | Run B |
+|---|---:|---:|
+| direct handler | 42.891 / 45.983 / 47.427 | 42.537 / 46.217 / 46.960 |
+| service, 20 middleware | 45.011 / 46.927 / 51.484 | 46.080 / 48.485 / 54.214 |
+| specification, 20 middleware | 45.459 / 47.841 / 53.637 | 46.369 / 47.498 / 51.219 |
+
+A cross-version run with the same defaults on PHP **8.5.9** (`/tmp/pipeline-performance-php85.json`) had OPcache CLI disabled, OPcache inactive, JIT `disable` (configured buffer `64M`, not active), and no Xdebug/PCOV. The warm no-op 20-middleware medians were 3.069 µs (service) and 3.041 µs (specification), with the same 1,680-byte peak. Useful-work warm min/median/max values were 23.130/23.852/24.598 µs direct, 26.422/27.654/30.232 µs service/20, and 26.524/28.027/29.272 µs specification/20. This shows a measurable dispatch cost of about 3.8–4.2 µs (16–18% of this faster direct workload); the useful-work differences cannot all be dismissed as noise.
+
+**Decision: retain the current production implementation.** On PHP 8.2 the 20-middleware no-op pipeline costs roughly 3.6 µs per call in total, compared with a roughly 0.05 µs direct call, and adds a 1,680-byte warm peak in this corpus. The PHP 8.2 useful-work ranges overlap broadly, while PHP 8.5 demonstrates measurable overhead for a faster handler. Across these runs the absolute dispatch cost remains a few microseconds. There is no representative application evidence establishing a material HTTP cost, and these measurements do not isolate how much time an allocation-reducing alternative could save.
+
+The plan's conditional alternative-comparison branch was therefore not triggered: no alternative or production optimization was implemented. This does not establish that an improvement is impossible. Revisit with a representative application profile and stable measurement environment if pipeline execution is a meaningful part of its request budget. A microbenchmark improvement would still not guarantee an HTTP latency reduction.
+
+The existing immutable per-call chain also keeps each invocation's downstream handler separate, including repeated downstream calls, nested pipeline entry, and overlapping execution using PHP Fibers. A shared mutable cursor would need to preserve all these semantics; caching a chain tied to an earlier request's downstream handler would be incorrect. Avoiding those risks and the maintenance cost of a second execution design is justified by the current evidence. Functional coverage was extended for nested reentry and Fibers; existing repeated-downstream, order, short-circuit, lazy-resolution, and downstream tests were preserved. The full suite passed on PHP 8.2–8.5 (318 tests, 1,189 assertions per runtime).
+
+The Fiber check starts with a fresh pipeline and synchronous lazy resolution. Calls suspend inside the first middleware's `process()` after that middleware has resolved; the terminal service resolves on the first resume. This checks interleaved execution, but does not prove thread safety, Swoole behavior, or correctness of lazy factories that suspend while resolving services.
+
+---
+
 ## Files
 
 | File | Description | Tracked in Git |
 |------|-------------|----------------|
 | `route-provider-benchmark.php` | Route provider performance benchmark | Yes |
 | `route-cache-threshold-benchmark.php` | Cache threshold benchmark | Yes |
+| `pipeline-benchmark.php` | Pipeline first/warm execution and memory benchmark | Yes |
 | `baseline.json` | Known-good performance baseline for regression detection | Yes |
 | `report.json` | Latest benchmark report (auto-generated) | No (gitignored) |
 
@@ -227,9 +311,10 @@ These figures use a former artifact and in-process loader cache. They are retain
 
 ## When to Run
 
-- **Before release:** Run both benchmarks to detect regressions
+- **Before release:** Run all three benchmarks to assess performance
 - **After refactoring:** Run `route-provider-benchmark.php` to check for performance impact
 - **After cache changes:** Run `route-cache-threshold-benchmark.php` to verify cache effectiveness
+- **After pipeline changes:** Run `pipeline-benchmark.php` and compare raw distributions on the same runtime/host; it has no percentage gate
 - **CI integration:** The `route-provider-benchmark.php` benchmark compares against `baseline.json` and exits with a non-zero status if regression exceeds the budget (5%)
 
 ---
@@ -258,7 +343,7 @@ cp benchmarks/report.json benchmarks/baseline.json
 
 ## Container Services
 
-Both benchmarks use a minimal container that mirrors the real Mezzio container. The following services are registered:
+The route provider and cache threshold benchmarks use a minimal container that mirrors the real Mezzio container. The following services are registered (the pipeline benchmark uses its own focused counter-based container):
 
 | Service | Implementation | Why |
 |---------|---------------|-----|

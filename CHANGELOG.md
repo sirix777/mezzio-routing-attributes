@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.2] - 2026-09-07
+
+### Changed
+
+- Simplified compiled route-cache and route-registration internals by sharing captured filesystem-error handling and removing redundant signature forwarding.
+- Decoupled route registration from the CLI middleware-display resolver while preserving compatibility aliases for the previous route option constant and configuration parsers; the legacy parsers are now deprecated in favor of `RoutingAttributesConfig::fromRootConfig()`.
+
+### Tests
+
+- Added isolated compatibility checks for the lowest supported runtime and development dependencies, optional CLI/tooling integrations, and runtime behavior without optional providers.
+
 ### Documentation
 
 - Corrected custom modifier imports and callable handler examples, including container registration requirements and complete response examples.
