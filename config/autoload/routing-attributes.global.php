@@ -22,7 +22,9 @@ return [
         // Optional class discovery by scanning directories for routable classes.
         'discovery' => [
             'enabled' => false,
-            // Directories to scan for classes implementing MiddlewareInterface/RequestHandlerInterface.
+            // Directories to scan for concrete routable classes, including inherited attributed methods.
+            // PSR-15 handlers are supported by default; method actions require handlers.mode="callable".
+            // Abstract classes are skipped by discovery.
             'paths' => [],
             // Discovery strategy: "token" (default) or "psr4".
             'strategy' => 'token',

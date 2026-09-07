@@ -17,6 +17,9 @@ return $config
         [ErrorType::DEV_DEPENDENCY_IN_PROD]
     )
     ->ignoreUnknownClasses([
+        // These providers are exercised with their real packages in isolated compatibility jobs.
+        Mezzio\ConfigProvider::class,
+        Mezzio\Tooling\ConfigProvider::class,
         Mezzio\Tooling\Routes\ConfigLoaderInterface::class,
         Mezzio\Tooling\Routes\ListRoutesCommand::class,
     ]);

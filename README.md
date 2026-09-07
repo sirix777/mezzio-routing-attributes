@@ -128,7 +128,7 @@ Supported `routing_attributes.cache` keys:
 - `file` (`non-empty string`, required when `enabled=true`)
 - `release` (`null|non-empty string`, optional): an application-controlled deployment/release identifier.
 
-The package registers its own factories through `ConfigProvider`; application handlers and middleware still need to be available in your container.
+Load `Sirix\Mezzio\Routing\Attributes\ConfigProvider` in your application's configuration aggregator (accept automatic registration if offered by the installer). It registers the package's own factories; application handlers, middleware service IDs, and specification factory service IDs must still resolve through your PSR-11 container. A class listed in `routing_attributes.classes` is not automatically registered as a container service. Keep application classes autoloadable and configure their services/factories or aliases in the container.
 
 ## Optional CLI Support
 
@@ -140,6 +140,18 @@ composer require laminas/laminas-cli symfony/console
 
 When `mezzio/mezzio-tooling` is available, the package can decorate the upstream routes list command. Without it, the package registers its own `mezzio:routes:list` alias when console support is available.
 
+With tooling installed, set `routing_attributes.override_mezzio_routes_list_command=true` to replace the upstream `mezzio:routes:list` display with this package's attribute-aware command. The default `false` keeps the upstream command; `routing-attributes:routes:list` remains available separately. A plain Symfony Console application needs manual command registration; automatic registration uses Laminas CLI.
+
+```bash
+php vendor/bin/laminas routing-attributes:routes:list --format=json --sort=path
+php vendor/bin/laminas routing-attributes:routes:list --sort=name --has-name=orders.
+php vendor/bin/laminas routing-attributes:routes:list --has-path=/orders --has-middleware=RequireTenant --supports-method=get
+```
+
+For this package's command (and its alias or enabled override), `--sort` accepts `name` (the default) or `path`. Name and path filters match literal, case-sensitive prefixes; middleware matches a literal, case-insensitive substring of the displayed middleware pipeline. All active filters combine with AND. The method filter is case-insensitive and includes routes allowing any method, provided they also satisfy the other filters. These semantics do not describe the unmodified upstream tooling command.
+
+JSON output is an array of objects with string fields `name`, `path`, `methods`, and `middleware`. `methods` is comma-separated (for example, `"GET,POST"`); an ANY route retains `"methods": ""`, also shown as an empty table cell. This representation is preserved for existing JSON consumers; an empty methods string means all methods are allowed.
+
 ## Discovery Behavior
 
 - If `discovery.enabled=false`, only explicit `classes` are used.
@@ -147,6 +159,7 @@ When `mezzio/mezzio-tooling` is available, the package can decorate the upstream
 - If compiled cache is enabled and its artifact is a usable regular file with matching format and fingerprint, discovery is skipped on boot.
 - Prefer discovery for development or cache warmup, not as the main production boot path.
 - In `handlers.mode=callable`, discovery includes plain classes only when they have a method-level route attribute; irrelevant plain classes are skipped. Explicit `classes` entries remain strict and must be PSR-15 handlers unless they define method routes in callable mode.
+- Automatic discovery skips abstract classes in both modes and both strategies. Concrete subclasses can expose inherited attributed methods. Explicit `classes` may still name an abstract class when the container binds that service ID to a concrete implementation; classes with private constructors are also allowed when a factory supplies them.
 - `strategy=token` parses PHP files without requiring PSR-4 path mappings.
 - `strategy=psr4` resolves class names from configured `discovery.psr4.mappings`; when `fallback_to_token=true`, files that cannot be mapped are parsed with the token strategy.
 
@@ -159,7 +172,7 @@ When `mezzio/mezzio-tooling` is available, the package can decorate the upstream
 - Write failures are sent to `Psr\Log\LoggerInterface` only when both `psr/log` is installed and that service is registered in the application container.
 - Cache format is optimized for startup speed and keeps middleware pipeline resolution lazy per service.
 - The package rejects symlink cache targets and existing non-regular target files when writing. It does not manage cache-file ownership, `chmod`, ACLs, release paths, or runtime-vs-deploy policy.
-- With compiled cache enabled, route defaults must be recursively scalar, `null`, or arrays. Closures, resources, and objects are rejected before routes are registered. Without compiled cache, defaults remain unrestricted.
+- With compiled cache enabled, route defaults must be recursively scalar, `null`, or arrays. Closures, resources, objects, and recursive array structures are rejected before routes are registered. Without compiled cache, defaults remain unrestricted.
 
 ## Cache Operations
 
@@ -170,6 +183,8 @@ php vendor/bin/laminas routing-attributes:cache:warmup
 ```
 
 The warmup command resolves configured and discovered route classes directly and does not reuse an existing artifact or boot your application. It requires `cache.enabled=true` and uses the configured `cache.file` path.
+
+A successful warmup validates route structure and writes the artifact. It does not instantiate route handlers or middleware, resolve their specification factories, or execute arbitrary container factory logic. Verify service wiring and application behavior with HTTP tests as well as warmup; factory failures may otherwise appear only on the first request.
 
 Set `cache.release` to a unique immutable build or release ID and change it for every deployment that can change route classes, attributes, middleware, or route modifiers. This package intentionally does not hash application source files at runtime: doing so would require rediscovery/reflection on every cache hit and still could not reliably model all autoloaded route dependencies. When `cache.release` is omitted, only the package format and effective routing configuration invalidate the artifact; use that omission only for development or single-user environments.
 
@@ -217,9 +232,12 @@ In RoadRunner/Swoole-style runtimes, reload workers after a newly warmed artifac
 
 ## Basic Usage
 
+Response examples use `Laminas\Diactoros\Response\JsonResponse`; install `laminas/laminas-diactoros` if it is not already available, or substitute your application's PSR-7 response implementation. Register each example handler as a container service and add it to `routing_attributes.classes` (or discovery). The two `PingHandler` examples below are alternatives.
+
 Method-level attribute:
 
 ```php
+use Laminas\Diactoros\Response\JsonResponse;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\RequestHandlerInterface;
@@ -230,7 +248,7 @@ final class PingHandler implements RequestHandlerInterface
     #[Get('/ping', name: 'ping')]
     public function handle(ServerRequestInterface $request): ResponseInterface
     {
-        throw new \RuntimeException('Implement your response.');
+        return new JsonResponse(['ping' => 'pong']);
     }
 }
 ```
@@ -243,6 +261,7 @@ With `handlers.mode=callable`, a method route may accept the request alone or al
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\RequestHandlerInterface;
+use Sirix\Mezzio\Routing\Attributes\Attribute\Get;
 
 final class ReportAction
 {
@@ -257,6 +276,7 @@ final class ReportAction
 Class-level attribute:
 
 ```php
+use Laminas\Diactoros\Response\JsonResponse;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\RequestHandlerInterface;
@@ -267,7 +287,7 @@ final class PingHandler implements RequestHandlerInterface
 {
     public function handle(ServerRequestInterface $request): ResponseInterface
     {
-        throw new \RuntimeException('Implement your response.');
+        return new JsonResponse(['ping' => 'pong']);
     }
 }
 ```
@@ -282,6 +302,7 @@ Example custom attribute:
 ```php
 namespace Acme\Routing\Attribute;
 
+use Acme\Middleware\RequireTenantMiddleware;
 use Attribute;
 use Sirix\Mezzio\Routing\Contracts\RouteAttributeModifierInterface;
 
@@ -292,7 +313,7 @@ final readonly class RequireTenant implements RouteAttributeModifierInterface
 
     public function getMiddleware(): array
     {
-        return [Acme\Middleware\RequireTenantMiddleware::class];
+        return [RequireTenantMiddleware::class];
     }
 
     public function getDefaults(): array
@@ -304,8 +325,13 @@ final readonly class RequireTenant implements RouteAttributeModifierInterface
 
 Usage with route attributes:
 
+This plain `OrdersHandler` requires `routing_attributes.handlers.mode=callable`. Register `OrdersHandler::class` and `Acme\Middleware\RequireTenantMiddleware::class` as container services, and include the handler in `routing_attributes.classes` or discovery.
+
 ```php
 use Acme\Routing\Attribute\RequireTenant;
+use Laminas\Diactoros\Response\JsonResponse;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
 use Sirix\Mezzio\Routing\Attributes\Attribute\Get;
 
 #[RequireTenant('x-tenant-id')]
@@ -313,12 +339,64 @@ final class OrdersHandler
 {
     #[Get('/orders', name: 'orders.list')]
     #[RequireTenant('x-org-id')]
-    public function index(mixed ...$args): mixed
+    public function index(ServerRequestInterface $request): ResponseInterface
     {
-        // ...
+        return new JsonResponse(['orders' => []]);
     }
 }
 ```
+
+For example, the routing configuration for that handler is:
+
+```php
+return [
+    'routing_attributes' => [
+        'classes' => [OrdersHandler::class],
+        'handlers' => ['mode' => 'callable'],
+    ],
+];
+```
+
+`RequireTenantMiddleware` is application-provided: the attribute only adds middleware and options, and does not itself validate a tenant or grant authorization. The method modifier's `tenant_header` option overrides the class modifier's value; propagation of options to a request depends on the router as described below.
+
+### Combining Class and Method Attributes
+
+If any method routes exist, class-level route attributes supply shared prefixes and middleware; they do not create standalone routes. Multiple class prefixes are concatenated in declaration order, not expanded into alternative routes:
+
+```php
+use Laminas\Diactoros\Response\JsonResponse;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
+use Sirix\Mezzio\Routing\Attributes\Attribute\Get;
+use Sirix\Mezzio\Routing\Attributes\Attribute\Post;
+
+#[Post('/api/', name: 'unused.class.name')]
+#[Get('v1/')]
+final class VersionedOrdersHandler
+{
+    #[Get('/orders', name: 'orders.list')]
+    public function index(ServerRequestInterface $request): ResponseInterface
+    {
+        return new JsonResponse(['orders' => []]);
+    }
+}
+```
+
+Register this class as a container service and a route class with `handlers.mode=callable`. The result is one `GET /api/v1/orders` route named `orders.list`. Class-level HTTP methods and names are ignored when those attributes are prefixes; the method attribute supplies the route's methods and name (or Mezzio generates a name when it is omitted).
+
+Surrounding whitespace is trimmed from paths and an empty path is invalid. A class prefix of exactly `/` is skipped. Prefix boundaries lose leading/trailing slashes, and leading slashes on the method path are removed when joining a non-empty prefix. A method path `/` under `/api/` becomes `/api/`; a method path `orders/` becomes `/api/orders/` and retains its trailing slash. If all prefixes are `/`, the method path is retained after whitespace trimming. Without a non-empty prefix, no leading slash is added; internal duplicate slashes are not normalized.
+
+For a method route, incoming middleware runs in this order:
+
+1. Middleware from all class route attributes, in declaration order.
+2. Middleware from the method's route attribute.
+3. Middleware from class modifier attributes.
+4. Middleware from method modifier attributes.
+5. The handler method.
+
+Order within each middleware array is preserved. Method defaults override class defaults with the same key; later modifiers at the same level override earlier defaults. Duplicate middleware entries remain separate pipeline entries.
+
+Inherited attributed methods remain routable on a concrete subclass and use that subclass's service ID. An override replaces the inherited method, so repeat its route/modifier attributes if it should remain routable. Class-level route and modifier attributes are read from the selected class, not inherited from its parent; inherited method modifiers are still read from the inherited method.
 
 ## Middleware Specifications
 
@@ -362,20 +440,24 @@ rehydrate specifications through `__set_state()`. See
 [`sirix/mezzio-routing-contracts`](https://github.com/sirix777/mezzio-routing-contracts) for the
 complete contract API.
 
+The `getMiddleware()` fragment above belongs inside a modifier attribute. `ProfileMiddleware` and its factory are application classes: import their actual namespaces and register the factory service in the container. The specification's middleware class is constructed by that factory and does not also need a service registration unless the factory chooses to fetch it from the container.
+
 ### Route Defaults and Placeholders
 
-The `getDefaults()` method allows you to provide default values for route placeholders. This is useful when you have optional parameters in your route paths.
+The `getDefaults()` method supplies Mezzio route options. Whether these options become placeholder defaults depends on the selected router adapter; this package does not inject them into request attributes.
 
-Example with optional parameter:
+Example with an optional parameter using `sirix/mezzio-radixrouter`:
+
+Configure the Radix adapter as your application's `Mezzio\Router\RouterInterface`, register `ExportHandler::class` in the container and route class list, and set `routing_attributes.handlers.mode=callable`. This example uses `Laminas\Diactoros\Response\JsonResponse` (install `laminas/laminas-diactoros` if your application uses another response implementation).
 
 ```php
-use Attribute;
+use Laminas\Diactoros\Response\JsonResponse;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Sirix\Mezzio\Routing\Attributes\Attribute\Get;
 use Sirix\Mezzio\Routing\Contracts\RouteAttributeModifierInterface;
 
-#[Attribute]
+#[\Attribute]
 final readonly class DefaultFormat implements RouteAttributeModifierInterface
 {
     public function __construct(private string $format = 'html') {}
@@ -397,7 +479,10 @@ final class ExportHandler
     #[DefaultFormat('json')]
     public function __invoke(ServerRequestInterface $request): ResponseInterface
     {
-        // $request->getAttribute('format') will be 'json' if not provided in URL
+        // With sirix/mezzio-radixrouter, apply a fallback explicitly:
+        $format = $request->getAttribute('format') ?? 'json';
+
+        return new JsonResponse(['format' => $format]);
     }
 }
 ```
@@ -407,8 +492,13 @@ Notes:
 - class-level and method-level modifiers are merged for method routes;
 - method-level defaults override class-level defaults on the same key;
 - middleware from modifiers is appended after middleware declared in `Route`/`Get` attributes.
-- defaults are passed to the Mezzio `Route::setOptions()` and can be used by the underlying router (like FastRoute) to fill missing optional placeholders.
+- defaults are passed unchanged to Mezzio `Route::setOptions()`; consult your adapter for their meaning.
+- integration tests use `sirix/mezzio-radixrouter`: its parameter syntax is `:id` and `:id?` (for example, `/export/:format?`). Missing optional parameters remain `null`; neither plain options nor a nested `defaults` option populate request attributes or URI-generation substitutions. Supply request fallbacks or URI substitutions explicitly. Here `/export` returns `{"format":"json"}` and `/export/csv` returns `{"format":"csv"}`. Other router adapters have their own placeholder syntax and option handling; this is not a cross-adapter guarantee.
 - when compiled cache is enabled, defaults are limited to cache-compatible values described in [Compiled Cache Behavior](#compiled-cache-behavior).
+
+Integration tests exercise real `ServiceManager`, `RouteCollector`, routing and dispatch middleware with the Radix adapter in both uncached and prewarmed modes. Registration and warmup do not instantiate route services. On the first request, each lazy middleware wrapper resolves its service or specification factory result once and reuses it on subsequent requests; ServiceManager sharing also applies to service instances. Middleware must keep request-specific state in the request or local variables. Each pipeline invocation receives the current downstream handler, including when middleware invokes it more than once.
+
+Routes with the same handler service, handler method, and middleware stack can share one pipeline, even when their paths differ. Resolved instances live as long as their lazy wrappers, including across requests in long-running workers; container non-sharing settings do not cause an already-resolved wrapper to fetch a fresh instance. Keep handlers and middleware free of stored per-request state, including tenant identity, authorization decisions, and request/response objects.
 
 ## Benchmarks
 

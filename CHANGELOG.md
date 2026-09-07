@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) for the documented `1.x` public API.
 
+## [Unreleased]
+
+### Documentation
+
+- Corrected custom modifier imports and callable handler examples, including container registration requirements and complete response examples.
+- Documented sequential class prefixes, middleware/default precedence, inherited methods, and abstract-class discovery.
+- Clarified adapter-specific defaults and optional placeholders using HTTP-tested Radix behavior, lazy pipeline lifetime, and warmup limitations.
+- Added route-list JSON, sorting, filter, alias, and override examples. ANY routes retain an empty `methods` string for compatibility with existing JSON consumers; public runtime behavior is unchanged.
+
 ## [1.3.1] - 2026-09-06
 
 ### Fixed

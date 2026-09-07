@@ -36,6 +36,7 @@
         "laminas/laminas-servicemanager": "^3.23",
         "phpunit/phpunit": "^11.5",
         "psr/log": "^1.1 || ^2.0 || ^3.0",
+        "sirix/mezzio-radixrouter": "^3.2.2",
         "symfony/console": "^6.4 || ^7.0"
     },
     "suggest": {

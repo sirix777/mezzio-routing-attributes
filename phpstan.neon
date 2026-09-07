@@ -4,4 +4,5 @@ parameters:
 		- src
 		- test
 	scanFiles:
+		- test/Compatibility/OptionalProviders.stub
 		- test/TestAsset/Mezzio/Middleware/LazyLoadingMiddleware.php

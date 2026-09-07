@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace SirixTest\Mezzio\Routing\Attributes\Integration;
 
+use Laminas\Diactoros\ServerRequest;
 use Mezzio\Router\Exception\DuplicateRouteException;
 use Mezzio\Router\RouteCollector;
-use Mezzio\Router\RouterInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
+use Sirix\Mezzio\Router\RadixRouter;
 use Sirix\Mezzio\Routing\Attributes\AttributeRouteProvider;
 use Sirix\Mezzio\Routing\Attributes\Config\RoutingAttributesConfig;
 use Sirix\Mezzio\Routing\Attributes\Discovery\NullDiscoveredClassesResolver;
@@ -33,6 +34,29 @@ use function unlink;
 
 final class EffectiveRouteNameTest extends TestCase
 {
+    /** @param 'ignore'|'throw' $strategy */
+    #[TestWith([false, 'ignore'])]
+    #[TestWith([true, 'ignore'])]
+    #[TestWith([false, 'throw'])]
+    #[TestWith([true, 'throw'])]
+    public function testOverlappingPathsWithDistinctNames(bool $warm, string $strategy): void
+    {
+        $router    = new RadixRouter();
+        $collector = new RouteCollector($router);
+        $routes    = [
+            new RouteDefinition('/overlap', ['GET', 'POST'], TestMiddleware::class, 'process', [], 'first'),
+            new RouteDefinition('/overlap', ['POST'], TestMiddleware::class, 'process', [], 'second'),
+        ];
+        if ('throw' === $strategy) {
+            $this->expectException(DuplicateRouteDefinitionException::class);
+        }
+        $this->register($routes, $strategy, $warm, $collector);
+        self::assertCount(1, $collector->getRoutes());
+        $match = $router->match(new ServerRequest(uri: '/overlap', method: 'POST'));
+        self::assertTrue($match->isSuccess());
+        self::assertSame('first', $match->getMatchedRouteName());
+    }
+
     /**
      * @param null|list<non-empty-string> $methods
      * @param non-empty-string            $name
@@ -91,7 +115,7 @@ final class EffectiveRouteNameTest extends TestCase
     #[TestWith([true])]
     public function testClassicRouteStillUsesMezzioDuplicatePolicy(bool $warm): void
     {
-        $collector = new RouteCollector($this->createMock(RouterInterface::class));
+        $collector = new RouteCollector(new RadixRouter());
         $collector->get('/classic', new TestMiddleware(), '/a^GET');
 
         $this->expectException(DuplicateRouteException::class);
@@ -157,7 +181,7 @@ final class EffectiveRouteNameTest extends TestCase
                 new MiddlewarePipelineFactory(new InMemoryContainer([]), new ServiceMiddlewareResolver()),
                 $cache
             );
-            $collector ??= new RouteCollector($this->createMock(RouterInterface::class));
+            $collector ??= new RouteCollector(new RadixRouter());
             $provider->registerRoutes($collector);
 
             return $collector;

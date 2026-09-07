@@ -1,0 +1,19 @@
+<?php
+
+// Static-analysis signatures only. Never require/autoload this file at runtime:
+// the compatibility processes load the real providers from their isolated vendor.
+namespace Mezzio {
+    final class ConfigProvider
+    {
+        /** @return array<string, mixed> */
+        public function __invoke(): array {}
+    }
+}
+
+namespace Mezzio\Tooling {
+    final class ConfigProvider
+    {
+        /** @return array<string, mixed> */
+        public function __invoke(): array {}
+    }
+}

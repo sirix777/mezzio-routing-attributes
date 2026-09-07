@@ -325,6 +325,37 @@ final class RouteListServicesTest extends TestCase
         ], $rows);
     }
 
+    public function testListRoutesCommandPreservesAnyMethodsJsonWithCombinedFilters(): void
+    {
+        $middleware = $this->createMiddleware();
+        $route      = new Route('/api/orders', $middleware, null, 'api.orders');
+        $route->setOptions([
+            RouteMiddlewareDisplayResolver::ROUTE_OPTION_MIDDLEWARE_DISPLAY => 'App\OrdersHandler::handle',
+        ]);
+        $tester = new CommandTester($this->createListRoutesCommand([
+            new Route('/api/other', $middleware, null, 'other'),
+            new Route('/other', $middleware, null, 'api.other'),
+            $route,
+        ]));
+
+        self::assertSame(0, $tester->execute([
+            '--format'          => 'json',
+            '--has-name'        => 'api.',
+            '--has-path'        => '/api/',
+            '--has-middleware'  => 'ordershandler',
+            '--supports-method' => 'patch',
+        ]));
+
+        self::assertSame([
+            [
+                'name'       => 'api.orders',
+                'path'       => '/api/orders',
+                'methods'    => '',
+                'middleware' => 'App\OrdersHandler::handle',
+            ],
+        ], json_decode($tester->getDisplay(), true, 512, JSON_THROW_ON_ERROR));
+    }
+
     public function testListRoutesCommandRendersTableRows(): void
     {
         $middleware = $this->createMiddleware();

@@ -21,134 +21,138 @@ use Symfony\Component\Console\Tester\CommandTester;
 use function chdir;
 use function file_put_contents;
 use function getcwd;
+use function is_dir;
+use function is_file;
 use function mkdir;
+use function rmdir;
 use function sys_get_temp_dir;
 use function uniqid;
+use function unlink;
 
 final class ListRoutesCommandFactoryTest extends TestCase
 {
     #[RunInSeparateProcess]
     public function testFallsBackToConfigRoutesFileWhenToolingLoaderIsUnavailable(): void
     {
-        $workingDirectory = sys_get_temp_dir() . '/routing-attributes-' . uniqid();
-        mkdir($workingDirectory . '/config', 0o777, true);
-        file_put_contents(
-            $workingDirectory . '/config/routes.php',
-            <<<'PHP'
-                <?php
-
-                return static function ($app): void {
-                    $app->get('/classic', new class implements \Psr\Http\Server\MiddlewareInterface {
-                        public function process(
-                            \Psr\Http\Message\ServerRequestInterface $request,
-                            \Psr\Http\Server\RequestHandlerInterface $handler
-                        ): \Psr\Http\Message\ResponseInterface {
-                            return $handler->handle($request);
-                        }
-                    }, 'classic.route');
-                };
-                PHP
-        );
-
-        $collector = new class implements RouteCollectorInterface {
-            /** @var list<Route> */
-            private array $routes = [];
-
-            public function route(string $path, MiddlewareInterface $middleware, ?array $methods = null, ?string $name = null): Route
-            {
-                $route          = new Route($path, $middleware, $methods, $name);
-                $this->routes[] = $route;
-
-                return $route;
-            }
-
-            public function get(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['GET'], $name);
-            }
-
-            public function post(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['POST'], $name);
-            }
-
-            public function put(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['PUT'], $name);
-            }
-
-            public function patch(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['PATCH'], $name);
-            }
-
-            public function delete(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, ['DELETE'], $name);
-            }
-
-            public function any(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->route($path, $middleware, null, $name);
-            }
-
-            /** @return list<Route> */
-            public function getRoutes(): array
-            {
-                return $this->routes;
-            }
-        };
-
-        $application = new class($collector) {
-            public function __construct(private readonly RouteCollectorInterface $collector) {}
-
-            /**
-             * @param non-empty-string      $path
-             * @param null|non-empty-string $name
-             */
-            public function get(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
-            {
-                return $this->collector->get($path, $middleware, $name);
-            }
-        };
-
-        $container = new class($collector, $application) implements ContainerInterface {
-            public function __construct(private readonly object $collector, private readonly object $application) {}
-
-            public function get(string $id): mixed
-            {
-                return match ($id) {
-                    RouteCollector::class                 => $this->collector,
-                    RouteMiddlewareDisplayResolver::class => new RouteMiddlewareDisplayResolver('resolved'),
-                    'Mezzio\Application'                  => $this->application,
-                    'Mezzio\MiddlewareFactory'            => new stdClass(),
-                    'config'                              => [
-                        'routing_attributes' => [
-                            'classes' => [],
-                        ],
-                    ],
-                    default                               => throw new RuntimeException('Unknown service: ' . $id),
-                };
-            }
-
-            public function has(string $id): bool
-            {
-                return match ($id) {
-                    RouteCollector::class,
-                    RouteMiddlewareDisplayResolver::class,
-                    'Mezzio\Application',
-                    'Mezzio\MiddlewareFactory',
-                    'config' => true,
-                    default  => false,
-                };
-            }
-        };
-
         $previousDirectory = getcwd();
         self::assertIsString($previousDirectory);
-        chdir($workingDirectory);
+        $workingDirectory = sys_get_temp_dir() . '/routing-attributes-' . uniqid();
 
         try {
+            self::assertTrue(mkdir($workingDirectory . '/config', 0o700, true));
+            file_put_contents(
+                $workingDirectory . '/config/routes.php',
+                <<<'PHP'
+                    <?php
+
+                    return static function ($app): void {
+                        $app->get('/classic', new class implements \Psr\Http\Server\MiddlewareInterface {
+                            public function process(
+                                \Psr\Http\Message\ServerRequestInterface $request,
+                                \Psr\Http\Server\RequestHandlerInterface $handler
+                            ): \Psr\Http\Message\ResponseInterface {
+                                return $handler->handle($request);
+                            }
+                        }, 'classic.route');
+                    };
+                    PHP
+            );
+
+            $collector = new class implements RouteCollectorInterface {
+                /** @var list<Route> */
+                private array $routes = [];
+
+                public function route(string $path, MiddlewareInterface $middleware, ?array $methods = null, ?string $name = null): Route
+                {
+                    $route          = new Route($path, $middleware, $methods, $name);
+                    $this->routes[] = $route;
+
+                    return $route;
+                }
+
+                public function get(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
+                {
+                    return $this->route($path, $middleware, ['GET'], $name);
+                }
+
+                public function post(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
+                {
+                    return $this->route($path, $middleware, ['POST'], $name);
+                }
+
+                public function put(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
+                {
+                    return $this->route($path, $middleware, ['PUT'], $name);
+                }
+
+                public function patch(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
+                {
+                    return $this->route($path, $middleware, ['PATCH'], $name);
+                }
+
+                public function delete(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
+                {
+                    return $this->route($path, $middleware, ['DELETE'], $name);
+                }
+
+                public function any(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
+                {
+                    return $this->route($path, $middleware, null, $name);
+                }
+
+                /** @return list<Route> */
+                public function getRoutes(): array
+                {
+                    return $this->routes;
+                }
+            };
+
+            $application = new class($collector) {
+                public function __construct(private readonly RouteCollectorInterface $collector) {}
+
+                /**
+                 * @param non-empty-string      $path
+                 * @param null|non-empty-string $name
+                 */
+                public function get(string $path, MiddlewareInterface $middleware, ?string $name = null): Route
+                {
+                    return $this->collector->get($path, $middleware, $name);
+                }
+            };
+
+            $container = new class($collector, $application) implements ContainerInterface {
+                public function __construct(private readonly object $collector, private readonly object $application) {}
+
+                public function get(string $id): mixed
+                {
+                    return match ($id) {
+                        RouteCollector::class                 => $this->collector,
+                        RouteMiddlewareDisplayResolver::class => new RouteMiddlewareDisplayResolver('resolved'),
+                        'Mezzio\Application'                  => $this->application,
+                        'Mezzio\MiddlewareFactory'            => new stdClass(),
+                        'config'                              => [
+                            'routing_attributes' => [
+                                'classes' => [],
+                            ],
+                        ],
+                        default                               => throw new RuntimeException('Unknown service: ' . $id),
+                    };
+                }
+
+                public function has(string $id): bool
+                {
+                    return match ($id) {
+                        RouteCollector::class,
+                        RouteMiddlewareDisplayResolver::class,
+                        'Mezzio\Application',
+                        'Mezzio\MiddlewareFactory',
+                        'config' => true,
+                        default  => false,
+                    };
+                }
+            };
+
+            self::assertTrue(chdir($workingDirectory));
             $command = (new ListRoutesCommandFactory())($container);
             self::assertInstanceOf(ListRoutesCommand::class, $command);
 
@@ -160,6 +164,17 @@ final class ListRoutesCommandFactoryTest extends TestCase
             self::assertStringContainsString('/classic', $tester->getDisplay());
         } finally {
             chdir($previousDirectory);
+            if (is_file($workingDirectory . '/config/routes.php')) {
+                unlink($workingDirectory . '/config/routes.php');
+            }
+
+            if (is_dir($workingDirectory . '/config')) {
+                rmdir($workingDirectory . '/config');
+            }
+
+            if (is_dir($workingDirectory)) {
+                rmdir($workingDirectory);
+            }
         }
     }
 }

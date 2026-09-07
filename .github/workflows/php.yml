@@ -13,6 +13,71 @@ env:
     FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
+    compatibility:
+        runs-on: ubuntu-latest
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - mode: tooling
+                      php-version: "8.4"
+                    - mode: without-tooling
+                      php-version: "8.4"
+                    - mode: runtime-lowest
+                      php-version: "8.2"
+                    - mode: dev-lowest
+                      php-version: "8.2"
+        steps:
+            - uses: actions/checkout@v5
+
+            - name: Setup PHP
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: ${{ matrix.php-version }}
+                  coverage: none
+
+            - name: Prepare isolated dependencies
+              env:
+                  COMPATIBILITY_MODE: ${{ matrix.mode }}
+              run: |
+                  compatibility_dir=$(mktemp -d)
+                  echo "COMPATIBILITY_DIR=$compatibility_dir" >> "$GITHUB_ENV"
+                  php test/Compatibility/prepare.php "$COMPATIBILITY_MODE" "$compatibility_dir"
+
+            - name: Resolve and check dependencies
+              env:
+                  COMPATIBILITY_MODE: ${{ matrix.mode }}
+              run: |
+                  flags=()
+                  if [[ "$COMPATIBILITY_MODE" == *-lowest ]]; then
+                      flags+=(--prefer-lowest --prefer-stable)
+                  fi
+                  composer update --working-dir="$COMPATIBILITY_DIR" --no-plugins --no-scripts --prefer-dist --no-progress --no-interaction "${flags[@]}"
+                  composer check-platform-reqs --working-dir="$COMPATIBILITY_DIR"
+
+            - name: Verify compatibility
+              env:
+                  COMPATIBILITY_MODE: ${{ matrix.mode }}
+              run: |
+                  case "$COMPATIBILITY_MODE" in
+                      tooling|without-tooling)
+                          php test/Compatibility/console.php "$COMPATIBILITY_DIR/vendor/autoload.php" "$COMPATIBILITY_MODE"
+                          ;;
+                      runtime-lowest)
+                          php test/Compatibility/runtime.php "$COMPATIBILITY_DIR/vendor/autoload.php"
+                          ;;
+                      dev-lowest)
+                          php "$COMPATIBILITY_DIR/vendor/bin/phpunit" --configuration phpunit.xml.dist --bootstrap "$COMPATIBILITY_DIR/vendor/autoload.php" --testsuite unit
+                          ;;
+                  esac
+
+            - name: Record resolved compatibility versions
+              if: always()
+              uses: actions/upload-artifact@v6
+              with:
+                  name: compatibility-${{ matrix.mode }}-php${{ matrix.php-version }}
+                  path: ${{ env.COMPATIBILITY_DIR }}/composer.lock
+
     qa:
         runs-on: ubuntu-latest
         strategy:
