@@ -5,7 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) for the documented `1.x` public API.
 
-## [Unreleased]
+
+## [1.3.3] - 2026-09-08
+
+### Documentation
+
+- Updated route defaults and optional-placeholder examples for `sirix/mezzio-radixrouter` 3.2.3+. Defaults are now merged into matched route parameters, so missing optional parameters become request attributes; path-captured values still take precedence.
+
+### Tests
+
+- Updated integration test expectations for optional placeholder defaults to match `sirix/mezzio-radixrouter` 3.2.3+ behavior.
 
 ## [1.3.2] - 2026-09-07
 

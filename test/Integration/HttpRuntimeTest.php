@@ -146,7 +146,7 @@ final class HttpRuntimeTest extends TestCase
         ], $optional->getOptions()['defaults']);
         self::assertSame('option-only', $optional->getOptions()['plain']);
         foreach ([
-            '/optional'     => null,
+            '/optional'     => 'default-id',
             '/optional/123' => '123',
         ] as $path => $id) {
             $response = $this->dispatch($router, new ServerRequest(uri: $path, method: 'GET'), $this->downstream('not-found'));

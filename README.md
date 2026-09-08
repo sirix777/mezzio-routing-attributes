@@ -444,9 +444,9 @@ The `getMiddleware()` fragment above belongs inside a modifier attribute. `Profi
 
 ### Route Defaults and Placeholders
 
-The `getDefaults()` method supplies Mezzio route options. Whether these options become placeholder defaults depends on the selected router adapter; this package does not inject them into request attributes.
+The `getDefaults()` method supplies Mezzio route options. Whether these options become placeholder defaults or request attributes depends on the selected router adapter; this package only passes them through to Mezzio `Route::setOptions()`.
 
-Example with an optional parameter using `sirix/mezzio-radixrouter`:
+Example with an optional parameter using `sirix/mezzio-radixrouter` 3.2.3+:
 
 Configure the Radix adapter as your application's `Mezzio\Router\RouterInterface`, register `ExportHandler::class` in the container and route class list, and set `routing_attributes.handlers.mode=callable`. This example uses `Laminas\Diactoros\Response\JsonResponse` (install `laminas/laminas-diactoros` if your application uses another response implementation).
 
@@ -479,8 +479,7 @@ final class ExportHandler
     #[DefaultFormat('json')]
     public function __invoke(ServerRequestInterface $request): ResponseInterface
     {
-        // With sirix/mezzio-radixrouter, apply a fallback explicitly:
-        $format = $request->getAttribute('format') ?? 'json';
+        $format = $request->getAttribute('format');
 
         return new JsonResponse(['format' => $format]);
     }
@@ -493,7 +492,7 @@ Notes:
 - method-level defaults override class-level defaults on the same key;
 - middleware from modifiers is appended after middleware declared in `Route`/`Get` attributes.
 - defaults are passed unchanged to Mezzio `Route::setOptions()`; consult your adapter for their meaning.
-- integration tests use `sirix/mezzio-radixrouter`: its parameter syntax is `:id` and `:id?` (for example, `/export/:format?`). Missing optional parameters remain `null`; neither plain options nor a nested `defaults` option populate request attributes or URI-generation substitutions. Supply request fallbacks or URI substitutions explicitly. Here `/export` returns `{"format":"json"}` and `/export/csv` returns `{"format":"csv"}`. Other router adapters have their own placeholder syntax and option handling; this is not a cross-adapter guarantee.
+- integration tests use `sirix/mezzio-radixrouter` 3.2.3+: its parameter syntax is `:id` and `:id?` (for example, `/export/:format?`). Starting with 3.2.3, route defaults are merged into matched route parameters, so a missing optional parameter receives the default value as a request attribute. Path-captured values take precedence over defaults. Other router adapters have their own placeholder syntax and option handling; this is not a cross-adapter guarantee. Here `/export` returns `{"format":"json"}` and `/export/csv` returns `{"format":"csv"}`.
 - when compiled cache is enabled, defaults are limited to cache-compatible values described in [Compiled Cache Behavior](#compiled-cache-behavior).
 
 Integration tests exercise real `ServiceManager`, `RouteCollector`, routing and dispatch middleware with the Radix adapter in both uncached and prewarmed modes. Registration and warmup do not instantiate route services. On the first request, each lazy middleware wrapper resolves its service or specification factory result once and reuses it on subsequent requests; ServiceManager sharing also applies to service instances. Middleware must keep request-specific state in the request or local variables. Each pipeline invocation receives the current downstream handler, including when middleware invokes it more than once.
