@@ -48,6 +48,8 @@ Each iteration creates a fresh container with all required services, builds an `
 | `warm_cache_hit_discovery_token` | Cache hit with token discovery configuration. Discovery is skipped on a valid hit. | Empty class list, discovery enabled (token strategy), cache enabled |
 | `warm_cache_hit_discovery_psr4` | Cache hit with PSR-4 discovery configuration. Discovery is skipped on a valid hit. | Empty class list, discovery enabled (PSR-4 strategy), cache enabled |
 
+Both discovery scenarios use an isolated five-class fixture corpus that registers four routes. The benchmark fails if either strategy registers a different route count, keeping negative extractor fixtures out of the measurement without silently shrinking its discovery scope.
+
 ### How It Works
 
 1. **Container setup:** Each iteration creates a `BenchmarkContainer` with all required services. Core infrastructure services are built through the same factories registered by `ConfigProvider`:
@@ -56,11 +58,11 @@ Each iteration creates a fresh container with all required services, builds an `
    - `DuplicateRouteResolver` — built by `DuplicateRouteResolverFactory`
    - `MiddlewarePipelineFactory` — built by `MiddlewarePipelineFactoryFactory`
    - `DiscoveredClassesResolverInterface` — built by `DiscoveryClassMapResolverFactory`
-   - Handler/middleware services: `PingHandler`, `PingRequestHandler`, `StackedHandler`, `StackFirstMiddleware`, `StackSecondMiddleware`
+   - Handler/middleware services: `PingHandler`, `PingRequestHandler`, `StackedHandler`, `StackFirstMiddleware`, `StackSecondMiddleware`, plus an isolated five-class discovery corpus with the same four routes
 
 2. **Warmup:** Before measuring, the benchmark runs one warm-up iteration to populate the cache file.
 
-3. **Measurement:** 20 iterations per scenario by default. Each cache-hit, no-cache, and cold-rebuild iteration runs in a fresh PHP process. Every iteration:
+3. **Measurement:** 100 iterations per scenario by default. Each cache-hit, no-cache, and cold-rebuild iteration runs in a fresh PHP process. Every iteration:
    - Calls `gc_collect_cycles()` to minimize GC interference
    - Records `memory_get_usage()` before
    - Resets peak memory tracking

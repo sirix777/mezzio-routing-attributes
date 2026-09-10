@@ -24,6 +24,11 @@ use Sirix\Mezzio\Routing\Attributes\Factory\DuplicateRouteResolverFactory;
 use Sirix\Mezzio\Routing\Attributes\Factory\MiddlewarePipelineFactoryFactory;
 use Sirix\Mezzio\Routing\Attributes\MiddlewarePipelineFactory;
 use Sirix\Mezzio\Routing\Attributes\ServiceMiddlewareResolver;
+use SirixTest\Mezzio\Routing\Attributes\Benchmark\Fixture\PingHandler as DiscoveredPingHandler;
+use SirixTest\Mezzio\Routing\Attributes\Benchmark\Fixture\PingRequestHandler as DiscoveredPingRequestHandler;
+use SirixTest\Mezzio\Routing\Attributes\Benchmark\Fixture\StackedHandler as DiscoveredStackedHandler;
+use SirixTest\Mezzio\Routing\Attributes\Benchmark\Fixture\StackFirstMiddleware as DiscoveredStackFirstMiddleware;
+use SirixTest\Mezzio\Routing\Attributes\Benchmark\Fixture\StackSecondMiddleware as DiscoveredStackSecondMiddleware;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\PingHandler;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\PingRequestHandler;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\StackFirstMiddleware;
@@ -225,6 +230,11 @@ function runProvider(array $config): array
         RoutingAttributesConfig::class => RoutingAttributesConfig::fromRootConfig($config),
         AttributeRouteExtractorInterface::class => $extractor,
         ServiceMiddlewareResolver::class => new ServiceMiddlewareResolver(),
+        DiscoveredPingHandler::class => new DiscoveredPingHandler(),
+        DiscoveredPingRequestHandler::class => new DiscoveredPingRequestHandler(),
+        DiscoveredStackedHandler::class => new DiscoveredStackedHandler(),
+        DiscoveredStackFirstMiddleware::class => new DiscoveredStackFirstMiddleware(),
+        DiscoveredStackSecondMiddleware::class => new DiscoveredStackSecondMiddleware(),
         PingHandler::class => new PingHandler(),
         PingRequestHandler::class => new PingRequestHandler(),
         StackedHandler::class => new StackedHandler(),
@@ -304,7 +314,7 @@ $tempPrefix = $temporaryDirectory . '/routes';
 $manualRouteCacheFile = $tempPrefix . '-manual-routes.php';
 $discoveryTokenRouteCacheFile = $tempPrefix . '-discovery-token-routes.php';
 $discoveryPsr4RouteCacheFile = $tempPrefix . '-discovery-psr4-routes.php';
-$discoveryPath = dirname(__DIR__) . '/test/Extractor/Fixture';
+$discoveryPath = dirname(__DIR__) . '/test/Benchmark/Fixture';
 
 $manualConfig = [
     'routing_attributes' => [
@@ -371,7 +381,7 @@ $discoveryPsr4Config['routing_attributes']['cache']['file'] = $discoveryPsr4Rout
 $discoveryPsr4Config['routing_attributes']['discovery']['strategy'] = 'psr4';
 $discoveryPsr4Config['routing_attributes']['discovery']['psr4'] = [
     'mappings' => [
-        $discoveryPath => 'SirixTest\\Mezzio\\Routing\\Attributes\\Extractor\\Fixture\\',
+        $discoveryPath => 'SirixTest\\Mezzio\\Routing\\Attributes\\Benchmark\\Fixture\\',
     ],
     'fallback_to_token' => true,
 ];
@@ -381,6 +391,21 @@ if (file_exists($discoveryPsr4RouteCacheFile)) {
 }
 runProvider($discoveryPsr4Config);
 $warmDiscoveryPsr4 = runScenario(static fn (): array => runProviderInFreshProcess($discoveryPsr4Config), $iterations);
+
+$expectedDiscoveryRouteCalls = 4.0;
+foreach ([
+    'token' => $warmDiscoveryToken,
+    'psr4' => $warmDiscoveryPsr4,
+] as $strategy => $summary) {
+    if ($expectedDiscoveryRouteCalls !== $summary['avg_route_calls']) {
+        throw new RuntimeException(sprintf(
+            'Discovery benchmark (%s) registered %.2f routes; expected %.2f.',
+            $strategy,
+            $summary['avg_route_calls'],
+            $expectedDiscoveryRouteCalls
+        ));
+    }
+}
 
 if (file_exists($manualRouteCacheFile)) {
     unlink($manualRouteCacheFile);
@@ -416,6 +441,7 @@ $report = [
     ],
     'budget' => [
         'cache_hit_regression_max_percent' => 5.0,
+        'expected_discovery_route_calls' => $expectedDiscoveryRouteCalls,
     ],
 ];
 
