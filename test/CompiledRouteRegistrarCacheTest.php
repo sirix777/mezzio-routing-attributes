@@ -10,6 +10,7 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
+use RuntimeException;
 use Sirix\Mezzio\Routing\Attributes\Cache\RouteCacheGenerator;
 use Sirix\Mezzio\Routing\Attributes\Cache\RouteCacheLoader;
 use Sirix\Mezzio\Routing\Attributes\Cache\RouteCacheStorage;
@@ -22,6 +23,7 @@ use Sirix\Mezzio\Routing\Attributes\RouteRegistrar;
 use Sirix\Mezzio\Routing\Attributes\ServiceMiddlewareResolver;
 use Sirix\Mezzio\Routing\Contracts\MiddlewareFactoryInterface;
 use Sirix\Mezzio\Routing\Contracts\MiddlewareSpecification;
+use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\AggregatingModifierHandler;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\SpecificationMiddlewareFactory;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\SpecificationModifierHandler;
 use SirixTest\Mezzio\Routing\Attributes\TestAsset\AttributeRouteExtractorBuilder;
@@ -35,6 +37,7 @@ use function fclose;
 use function file_get_contents;
 use function file_put_contents;
 use function fopen;
+use function in_array;
 use function is_dir;
 use function is_file;
 use function mkdir;
@@ -349,6 +352,43 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
         self::assertSame(2, SpecificationMiddlewareFactory::$createCalls);
     }
 
+    public function testAggregatingModifierUsesEquivalentLazySingleMiddlewarePipelineForColdAndCompiledRoutes(): void
+    {
+        $routes = AttributeRouteExtractorBuilder::create()->extract([AggregatingModifierHandler::class]);
+
+        self::assertSame([
+            'class.middleware',
+            'mapper.middleware',
+            'method.middleware',
+        ], $routes[0]->middlewareServices);
+        self::assertSame([
+            'mappings' => ['query', 'body'],
+        ], $routes[0]->defaults);
+
+        $response                                    = $this->createMock(ResponseInterface::class);
+        [$coldContainer, $coldMapper, $coldPipeline] = $this->aggregatingPipeline($response);
+        $coldCollector                               = new RecordingRouteCollector();
+        (new RouteRegistrar())->register($coldCollector, $routes, $coldPipeline);
+
+        self::assertSame(0, $coldContainer->getCalls);
+        self::assertSame(['query', 'body'], $coldCollector->routes[0]->getOptions()['mappings']);
+        $this->processRouteMiddleware($coldCollector);
+        self::assertSame(1, $coldMapper->processCalls);
+
+        $cacheFile = $this->createCacheFilePath();
+        $cache     = $this->createCache($cacheFile);
+        self::assertTrue($cache->save($routes));
+        [$cachedContainer, $cachedMapper, $cachedPipeline] = $this->aggregatingPipeline($response);
+        $cachedCollector                                   = new RecordingRouteCollector();
+        self::assertTrue($cache->registerRoutes($cachedCollector, $cachedPipeline));
+
+        self::assertSame(0, $cachedContainer->getCalls);
+        self::assertSame($coldCollector->routes[0]->getOptions(), $cachedCollector->routes[0]->getOptions());
+        $this->processRouteMiddleware($cachedCollector);
+        self::assertSame(1, $cachedMapper->processCalls);
+        self::assertSame($coldContainer->getCalls, $cachedContainer->getCalls);
+    }
+
     public function testTreatsMalformedPayloadAsCacheMiss(): void
     {
         $cacheFile          = $this->createCacheFilePath();
@@ -569,6 +609,70 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
             ]),
             new ServiceMiddlewareResolver()
         );
+    }
+
+    /**
+     * @return array{object{getCalls: int}, MiddlewareInterface&object{processCalls: int}, MiddlewarePipelineFactory}
+     */
+    private function aggregatingPipeline(ResponseInterface $response): array
+    {
+        $passThroughMiddleware = new class implements MiddlewareInterface {
+            public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
+            {
+                return $handler->handle($request);
+            }
+        };
+        $mapperMiddleware      = new class implements MiddlewareInterface {
+            public int $processCalls = 0;
+
+            public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
+            {
+                ++$this->processCalls;
+
+                return $handler->handle($request);
+            }
+        };
+        $handlerService        = new class($response) {
+            public function __construct(private readonly ResponseInterface $response) {}
+
+            public function index(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
+            {
+                return $this->response;
+            }
+        };
+        $container             = new class($passThroughMiddleware, $mapperMiddleware, $handlerService) implements ContainerInterface {
+            public int $getCalls = 0;
+
+            public function __construct(
+                private readonly MiddlewareInterface $passThroughMiddleware,
+                private readonly MiddlewareInterface $mapperMiddleware,
+                private readonly object $handlerService
+            ) {}
+
+            public function get(string $id): mixed
+            {
+                ++$this->getCalls;
+
+                return match ($id) {
+                    'class.middleware', 'method.middleware'     => $this->passThroughMiddleware,
+                    'mapper.middleware'                         => $this->mapperMiddleware,
+                    AggregatingModifierHandler::class           => $this->handlerService,
+                    default                                     => throw new RuntimeException('Unexpected service: ' . $id),
+                };
+            }
+
+            public function has(string $id): bool
+            {
+                return in_array($id, [
+                    'class.middleware',
+                    'method.middleware',
+                    'mapper.middleware',
+                    AggregatingModifierHandler::class,
+                ], true);
+            }
+        };
+
+        return [$container, $mapperMiddleware, new MiddlewarePipelineFactory($container, new ServiceMiddlewareResolver())];
     }
 
     private function createCacheFilePath(): string

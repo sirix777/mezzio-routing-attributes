@@ -8,6 +8,9 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Sirix\Mezzio\Routing\Attributes\Exception\InvalidMiddlewareClassException;
 use Sirix\Mezzio\Routing\Attributes\Exception\InvalidRouteDefinitionException;
+use Sirix\Mezzio\Routing\Contracts\MiddlewareSpecification;
+use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\AggregatingModifierHandler;
+use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\AmbiguousSpecificationSignatureHandler;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\CallableActionController;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\CallableActionInvalidHandlerParameter;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\CallableActionInvalidIntersectionParameter;
@@ -19,9 +22,15 @@ use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\CallableActionPrivateM
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\CallableActionUnionHandlerParameter;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\CallableActionVariadicHandlerParameter;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\CallableActionWithTrailingOptionalParameter;
+use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\ConflictingSpecificationUniqueMiddlewareHandler;
+use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\ConflictingStringUniqueMiddlewareHandler;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\CountingAttributeModifier;
+use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\DuplicateOrdinaryModifierHandler;
+use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\DuplicateSpecificationUniqueMiddlewareHandler;
+use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\LegacyDefaultsAggregatingModifierHandler;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\MethodRouteWithClassModifierHandler;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\MultiMethodRouteWithClassModifierHandler;
+use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\MultipleAggregatingModifierHandler;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\NotMiddleware;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\PingHandler;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\PingRequestHandler;
@@ -149,6 +158,91 @@ final class AttributeRouteExtractorTest extends TestCase
         self::assertSame([
             'counting' => true,
         ], $routes[1]->defaults);
+    }
+
+    public function testAggregatesClassAndMethodModifierDefaultsAndDeduplicatesKeyedMiddleware(): void
+    {
+        $routes = AttributeRouteExtractorBuilder::create()->extract([AggregatingModifierHandler::class]);
+
+        self::assertCount(1, $routes);
+        self::assertSame([
+            'class.middleware',
+            'mapper.middleware',
+            'method.middleware',
+        ], $routes[0]->middlewareServices);
+        self::assertSame([
+            'mappings' => ['query', 'body'],
+        ], $routes[0]->defaults);
+    }
+
+    public function testDoesNotDeduplicateMiddlewareFromOrdinaryModifiers(): void
+    {
+        $routes = AttributeRouteExtractorBuilder::create()->extract([DuplicateOrdinaryModifierHandler::class]);
+
+        self::assertCount(1, $routes);
+        self::assertSame([
+            'ordinary.duplicate',
+            'ordinary.duplicate',
+        ], $routes[0]->middlewareServices);
+    }
+
+    public function testPreservesClassAndMethodOrderForMultipleAggregatingModifiers(): void
+    {
+        $routes = AttributeRouteExtractorBuilder::create()->extract([MultipleAggregatingModifierHandler::class]);
+
+        self::assertCount(1, $routes);
+        self::assertSame([
+            'mapper.middleware',
+            'validator.middleware',
+        ], $routes[0]->middlewareServices);
+        self::assertSame([
+            'mappings' => ['query', 'body', 'headers'],
+        ], $routes[0]->defaults);
+    }
+
+    public function testAggregatingModifierIgnoresLegacyDefaultsBeforeMerging(): void
+    {
+        $routes = AttributeRouteExtractorBuilder::create()->extract([LegacyDefaultsAggregatingModifierHandler::class]);
+
+        self::assertSame([
+            'mappings' => ['query', 'body'],
+        ], $routes[0]->defaults);
+    }
+
+    public function testRejectsConflictingStringUniqueMiddleware(): void
+    {
+        $this->expectException(InvalidRouteDefinitionException::class);
+        $this->expectExceptionMessage('conflicting middleware services');
+
+        AttributeRouteExtractorBuilder::create()->extract([ConflictingStringUniqueMiddlewareHandler::class]);
+    }
+
+    public function testDeduplicatesEquivalentUniqueMiddlewareSpecifications(): void
+    {
+        $routes = AttributeRouteExtractorBuilder::create()->extract([DuplicateSpecificationUniqueMiddlewareHandler::class]);
+
+        self::assertCount(1, $routes[0]->middlewareServices);
+        self::assertInstanceOf(MiddlewareSpecification::class, $routes[0]->middlewareServices[0]);
+        self::assertSame('mapper.factory', $routes[0]->middlewareServices[0]->factory);
+        self::assertSame([
+            'mode' => 'strict',
+        ], $routes[0]->middlewareServices[0]->arguments);
+    }
+
+    public function testRejectsSpecificationsWithAnAmbiguousMatchingSignature(): void
+    {
+        $this->expectException(InvalidRouteDefinitionException::class);
+        $this->expectExceptionMessage('conflicting middleware services');
+
+        AttributeRouteExtractorBuilder::create()->extract([AmbiguousSpecificationSignatureHandler::class]);
+    }
+
+    public function testRejectsConflictingSpecificationUniqueMiddleware(): void
+    {
+        $this->expectException(InvalidRouteDefinitionException::class);
+        $this->expectExceptionMessage('conflicting middleware services');
+
+        AttributeRouteExtractorBuilder::create()->extract([ConflictingSpecificationUniqueMiddlewareHandler::class]);
     }
 
     public function testAllowsCallableActionClassInCallableMode(): void

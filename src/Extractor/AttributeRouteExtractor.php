@@ -51,7 +51,7 @@ final readonly class AttributeRouteExtractor implements AttributeRouteExtractorI
 
             $this->classEligibilityValidator->assertMiddlewareClass($className, [] !== $methodsWithRouteAttributes);
             $classModifiers = [] !== $methodsWithRouteAttributes
-                ? $this->routeDefinitionBuilder->collectClassModifiers($reflection, $className)
+                ? $this->routeDefinitionBuilder->collectClassModifierCollection($reflection, $className)
                 : null;
 
             foreach ($methodsWithRouteAttributes as $entry) {

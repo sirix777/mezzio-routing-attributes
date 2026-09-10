@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) for the documented `1.x` public API.
 
+## [1.4.0] - 2026-09-10
+
+### Fixed
+
+- Added support for the opt-in `AggregatingRouteAttributeModifierInterface`: aggregating modifiers can merge accumulated defaults and supply keyed middleware that appears only once in a route pipeline. Conflicting middleware for the same key now fails route extraction instead of silently selecting one.
+- Normal modifiers retain shallow default merging and repeatable middleware entries.
+
+### Documentation
+
+- Documented the `sirix/mezzio-routing-contracts ^1.2` requirement for aggregating modifiers and automatic multi-`MapRequest` support through `sirix/mezzio-valinor-request-mapper ^3.0`.
 
 ## [1.3.3] - 2026-09-08
 

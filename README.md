@@ -359,6 +359,19 @@ return [
 
 `RequireTenantMiddleware` is application-provided: the attribute only adds middleware and options, and does not itself validate a tenant or grant authorization. The method modifier's `tenant_header` option overrides the class modifier's value; propagation of options to a request depends on the router as described below.
 
+### Repeatable Aggregating Modifiers
+
+`Sirix\Mezzio\Routing\Contracts\AggregatingRouteAttributeModifierInterface` is an opt-in extension for a repeatable modifier whose defaults must accumulate and whose middleware must run once. It extends `RouteAttributeModifierInterface` and adds:
+
+- `mergeDefaults(array $defaults): array`, which receives defaults accumulated by earlier modifiers and returns the next defaults value;
+- `getUniqueMiddleware(): array`, a map from a non-empty stable identity key to a middleware service ID or `MiddlewareSpecification`.
+
+For an aggregating modifier, put its route-option accumulation in `mergeDefaults()`; its legacy `getDefaults()` result is not shallow-merged. Class modifiers are processed before method modifiers, and declaration order is retained within each target. A repeated identity key with the same normalized service or the same specification service/factory/arguments tuple adds one middleware entry. A repeated key that identifies different middleware fails route extraction, rather than choosing one silently. Service IDs and `MiddlewareSpecification` values are different identities even if their textual values resemble each other.
+
+This behavior is deliberately opt-in: existing `RouteAttributeModifierInterface` implementations keep their shallow default merge and may still add duplicate middleware entries. Middleware remains lazy; extraction, registration, and cache warmup do not resolve middleware or handler services.
+
+This package requires `sirix/mezzio-routing-contracts ^1.2`, which exposes this interface. Automatic multi-`MapRequest` integration is available with `sirix/mezzio-valinor-request-mapper ^3.0`.
+
 ### Combining Class and Method Attributes
 
 If any method routes exist, class-level route attributes supply shared prefixes and middleware; they do not create standalone routes. Multiple class prefixes are concatenated in declaration order, not expanded into alternative routes:

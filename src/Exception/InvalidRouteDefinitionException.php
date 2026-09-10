@@ -44,6 +44,23 @@ final class InvalidRouteDefinitionException extends InvalidConfigurationExceptio
         ));
     }
 
+    public static function invalidUniqueMiddlewareKey(string $className): self
+    {
+        return new self(sprintf(
+            'Unique middleware keys for route class "%s" must be non-empty strings.',
+            $className
+        ));
+    }
+
+    public static function conflictingUniqueMiddleware(string $className, string $key): self
+    {
+        return new self(sprintf(
+            'Unique middleware key "%s" for route class "%s" identifies conflicting middleware services.',
+            $key,
+            $className
+        ));
+    }
+
     public static function nonPublicMethod(string $className, string $methodName): self
     {
         return new self(sprintf(
