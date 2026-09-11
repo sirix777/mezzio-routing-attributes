@@ -16,7 +16,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Configure downstream mapper verification for the scanner checkout across PHP 8.2–8.5, router 3.15/4.1, and lowest/current dependency sets, plus lowest released scanner 1.4.0 checks on PHP 8.2 with both router versions.
 - Pin all GitHub Actions to full commit SHAs and disable persisted checkout credentials.
 
 ## [1.4.1] - 2026-09-10
