@@ -366,11 +366,11 @@ return [
 - `mergeDefaults(array $defaults): array`, which receives defaults accumulated by earlier modifiers and returns the next defaults value;
 - `getUniqueMiddleware(): array`, a map from a non-empty stable identity key to a middleware service ID or `MiddlewareSpecification`.
 
-For an aggregating modifier, put its route-option accumulation in `mergeDefaults()`; its legacy `getDefaults()` result is not shallow-merged. Class modifiers are processed before method modifiers, and declaration order is retained within each target. A repeated identity key with the same normalized service or the same specification service/factory/arguments tuple adds one middleware entry. A repeated key that identifies different middleware fails route extraction, rather than choosing one silently. Service IDs and `MiddlewareSpecification` values are different identities even if their textual values resemble each other.
+For an aggregating modifier, put its route-option accumulation in `mergeDefaults()`; its legacy `getDefaults()` result is not shallow-merged. Class modifiers are processed before method modifiers, and declaration order is retained within each target. A repeated identity key with the same normalized service or `MiddlewareSpecification::signature()` adds one middleware entry. `signature()` is the canonical, collision-free identity of a specification's service, factory, and arguments. A repeated key that identifies different middleware fails route extraction, rather than choosing one silently. Service IDs and `MiddlewareSpecification` values are different identities even if their textual values resemble each other.
 
 This behavior is deliberately opt-in: existing `RouteAttributeModifierInterface` implementations keep their shallow default merge and may still add duplicate middleware entries. Middleware remains lazy; extraction, registration, and cache warmup do not resolve middleware or handler services.
 
-This package requires `sirix/mezzio-routing-contracts ^1.2`, which exposes this interface. Automatic multi-`MapRequest` integration is available with `sirix/mezzio-valinor-request-mapper ^3.0`.
+This package requires `sirix/mezzio-routing-contracts ^1.2.1`, which exposes this interface and the canonical specification identity. Automatic multi-`MapRequest` integration requires a compatible `sirix/mezzio-valinor-request-mapper ^3.0`; mapper 3.0 has not yet been released.
 
 ### Combining Class and Method Attributes
 

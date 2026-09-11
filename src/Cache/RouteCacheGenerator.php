@@ -15,6 +15,8 @@ use function array_key_exists;
 use function count;
 use function get_debug_type;
 use function implode;
+use function ini_get;
+use function ini_set;
 use function is_array;
 use function is_scalar;
 use function var_export;
@@ -28,26 +30,35 @@ final readonly class RouteCacheGenerator
      */
     public function generate(array $routes, string $configFingerprint = ''): string
     {
-        $this->assertCacheCompatibleDefaults($routes);
+        $previousSerializePrecision = ini_get('serialize_precision');
+        ini_set('serialize_precision', '-1');
 
-        $routesCode = $this->buildPreparedRoutesCode($routes);
+        try {
+            $this->assertCacheCompatibleDefaults($routes);
 
-        return <<<PHP
-            <?php
+            $routesCode = $this->buildPreparedRoutesCode($routes);
 
-            declare(strict_types=1);
+            return <<<PHP
+                <?php
 
-            use Mezzio\\Router\\RouteCollectorInterface;
-            use Sirix\\Mezzio\\Routing\\Attributes\\MiddlewarePipelineFactory;
-            use Sirix\\Mezzio\\Routing\\Attributes\\RouteRegistrar;
+                declare(strict_types=1);
 
-            return [
-                'format_version' => {$this->formatVersionCode()},
-                'config_fingerprint' => {$this->configFingerprintCode($configFingerprint)},
-                'register' => static function(RouteCollectorInterface \$collector, MiddlewarePipelineFactory \$pipelineFactory): void {
-            {$routesCode}    },
-            ];
-            PHP;
+                use Mezzio\\Router\\RouteCollectorInterface;
+                use Sirix\\Mezzio\\Routing\\Attributes\\MiddlewarePipelineFactory;
+                use Sirix\\Mezzio\\Routing\\Attributes\\RouteRegistrar;
+
+                return [
+                    'format_version' => {$this->formatVersionCode()},
+                    'config_fingerprint' => {$this->configFingerprintCode($configFingerprint)},
+                    'register' => static function(RouteCollectorInterface \$collector, MiddlewarePipelineFactory \$pipelineFactory): void {
+                {$routesCode}    },
+                ];
+                PHP;
+        } finally {
+            if (false !== $previousSerializePrecision) {
+                ini_set('serialize_precision', $previousSerializePrecision);
+            }
+        }
     }
 
     private function formatVersionCode(): string

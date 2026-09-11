@@ -15,7 +15,6 @@ use Sirix\Mezzio\Routing\Contracts\MiddlewareSpecification;
 use Sirix\Mezzio\Routing\Contracts\RouteAttributeModifierInterface;
 
 use function is_string;
-use function serialize;
 use function trim;
 
 final readonly class RouteDefinitionBuilder
@@ -76,27 +75,26 @@ final readonly class RouteDefinitionBuilder
      * @param non-empty-string        $className
      *
      * @return array{list<MiddlewareSpecification|non-empty-string>, array<string, mixed>}
+     *
+     * @deprecated The returned tuple is supported only by a subsequent call to
+     *     buildForMethodWithAttributes() on this builder instance. Use
+     *     collectClassModifierCollection() instead.
      */
     public function collectClassModifiers(ReflectionClass $classReflection, string $className): array
     {
         $collection = $this->collectClassModifierCollection($classReflection, $className);
+        $this->modifierCollectionRegistry->remember($classReflection, $className, $collection);
 
         return [$collection->middlewareServices, $collection->defaults];
     }
 
     /**
-     * Retains unique middleware identity keys so a method-level modifier can
-     * deduplicate against a class-level modifier.
-     *
      * @param ReflectionClass<object> $classReflection
      * @param non-empty-string        $className
      */
     public function collectClassModifierCollection(ReflectionClass $classReflection, string $className): ModifierCollection
     {
-        $collection = $this->collectModifiers($classReflection, $className);
-        $this->modifierCollectionRegistry->remember($classReflection, $className, $collection);
-
-        return $collection;
+        return $this->collectModifiers($classReflection, $className);
     }
 
     /**
@@ -201,7 +199,7 @@ final readonly class RouteDefinitionBuilder
                 $key     = $this->normalizeUniqueMiddlewareKey($className, $key);
                 $service = $this->normalizeUniqueMiddlewareService($className, $service);
                 if (isset($uniqueMiddlewareServices[$key])) {
-                    if ($this->middlewareIdentity($uniqueMiddlewareServices[$key]) !== $this->middlewareIdentity($service)) {
+                    if (! $this->middlewareServicesAreEquivalent($uniqueMiddlewareServices[$key], $service)) {
                         throw InvalidRouteDefinitionException::conflictingUniqueMiddleware($className, $key);
                     }
 
@@ -267,11 +265,15 @@ final readonly class RouteDefinitionBuilder
         return $this->routeDataNormalizer->normalizeMiddlewareServices($className, [$service])[0];
     }
 
-    /** @param MiddlewareSpecification|non-empty-string $service */
-    private function middlewareIdentity(MiddlewareSpecification|string $service): string
+    /** @param MiddlewareSpecification|non-empty-string $first
+     * @param MiddlewareSpecification|non-empty-string $second
+     */
+    private function middlewareServicesAreEquivalent(MiddlewareSpecification|string $first, MiddlewareSpecification|string $second): bool
     {
-        return serialize($service instanceof MiddlewareSpecification
-            ? ['specification', [$service->service, $service->factory, $service->arguments]]
-            : ['service', $service]);
+        if ($first instanceof MiddlewareSpecification && $second instanceof MiddlewareSpecification) {
+            return $first->signature() === $second->signature();
+        }
+
+        return is_string($first) && is_string($second) && $first === $second;
     }
 }

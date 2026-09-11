@@ -23,6 +23,7 @@ use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\CallableActionUnionHan
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\CallableActionVariadicHandlerParameter;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\CallableActionWithTrailingOptionalParameter;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\ConflictingSpecificationUniqueMiddlewareHandler;
+use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\ConflictingStringAndSpecificationUniqueMiddlewareHandler;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\ConflictingStringUniqueMiddlewareHandler;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\CountingAttributeModifier;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\DuplicateOrdinaryModifierHandler;
@@ -215,6 +216,14 @@ final class AttributeRouteExtractorTest extends TestCase
         $this->expectExceptionMessage('conflicting middleware services');
 
         AttributeRouteExtractorBuilder::create()->extract([ConflictingStringUniqueMiddlewareHandler::class]);
+    }
+
+    public function testRejectsStringAndSpecificationForTheSameUniqueMiddlewareKey(): void
+    {
+        $this->expectException(InvalidRouteDefinitionException::class);
+        $this->expectExceptionMessage('conflicting middleware services');
+
+        AttributeRouteExtractorBuilder::create()->extract([ConflictingStringAndSpecificationUniqueMiddlewareHandler::class]);
     }
 
     public function testDeduplicatesEquivalentUniqueMiddlewareSpecifications(): void

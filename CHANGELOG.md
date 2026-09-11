@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) for the documented `1.x` public API.
 
+## [Unreleased]
+
+### Fixed
+
+- Use the collision-free `MiddlewareSpecification::signature()` from `sirix/mezzio-routing-contracts ^1.2.1` as the canonical identity for aggregating middleware and compiled middleware signatures.
+- Keep the normal attribute extractor stateless; the deprecated `collectClassModifiers()` two-element tuple is now the only compatibility bridge that retains hidden unique-middleware keys on the same builder instance. A value-equivalent reconstructed specification restores those keys through its canonical signature; a divergent tuple does not and therefore loses its hidden unique keys.
+- Generate compiled route-cache defaults with `serialize_precision=-1` and restore the previous PHP setting, including when generation fails.
+- Reject a service-id string and a `MiddlewareSpecification` under the same aggregating middleware key as conflicting identities.
+
+### Added
+
+- Configure downstream mapper verification for the scanner checkout across PHP 8.2–8.5, router 3.15/4.1, and lowest/current dependency sets, plus lowest released scanner 1.4.0 checks on PHP 8.2 with both router versions.
+- Pin all GitHub Actions to full commit SHAs and disable persisted checkout credentials.
+
 ## [1.4.1] - 2026-09-10
 
 ### Fixed

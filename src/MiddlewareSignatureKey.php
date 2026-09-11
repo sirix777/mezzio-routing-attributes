@@ -24,9 +24,7 @@ final class MiddlewareSignatureKey
                 static fn (MiddlewareSpecification|string $middleware): array => $middleware instanceof MiddlewareSpecification
                     ? [
                         'specification',
-                        $middleware->service,
-                        $middleware->factory,
-                        $middleware->arguments,
+                        $middleware->signature(),
                     ]
                     : ['service', $middleware],
                 $middlewareServices

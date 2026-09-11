@@ -38,6 +38,8 @@ use function file_get_contents;
 use function file_put_contents;
 use function fopen;
 use function in_array;
+use function ini_get;
+use function ini_set;
 use function is_dir;
 use function is_file;
 use function mkdir;
@@ -546,6 +548,55 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
         ]);
 
         self::assertStringContainsString('shared.alias.route', $generated);
+    }
+
+    public function testGeneratesFloatDefaultsWithCanonicalPrecisionAndRestoresThePreviousSetting(): void
+    {
+        $previousSerializePrecision = ini_get('serialize_precision');
+        ini_set('serialize_precision', '2');
+
+        try {
+            $generated = (new RouteCacheGenerator())->generate([
+                new RouteDefinition('/float-default', ['GET'], 'handler.service', 'process', [], 'float.default.route', [
+                    'finite'       => 1.2345678901234567,
+                    'not_a_number' => NAN,
+                    'positive'     => INF,
+                    'negative'     => -INF,
+                ]),
+            ]);
+
+            self::assertStringContainsString('1.2345678901234567', $generated);
+            self::assertStringContainsString('NAN', $generated);
+            self::assertStringContainsString('INF', $generated);
+            self::assertSame('2', ini_get('serialize_precision'));
+        } finally {
+            if (false !== $previousSerializePrecision) {
+                ini_set('serialize_precision', $previousSerializePrecision);
+            }
+        }
+    }
+
+    public function testRestoresSerializePrecisionWhenGenerationThrows(): void
+    {
+        $previousSerializePrecision = ini_get('serialize_precision');
+        ini_set('serialize_precision', '2');
+
+        try {
+            try {
+                (new RouteCacheGenerator())->generate([
+                    new RouteDefinition('/invalid-default', ['GET'], 'handler.service', 'process', [], 'invalid.default.route', [
+                        'value' => new stdClass(),
+                    ]),
+                ]);
+                self::fail('Expected invalid default to be rejected.');
+            } catch (InvalidConfigurationException) {
+                self::assertSame('2', ini_get('serialize_precision'));
+            }
+        } finally {
+            if (false !== $previousSerializePrecision) {
+                ini_set('serialize_precision', $previousSerializePrecision);
+            }
+        }
     }
 
     private function createCache(string $cacheFile, string $configFingerprint = ''): CompiledRouteRegistrarCache
