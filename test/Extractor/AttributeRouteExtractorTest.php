@@ -35,6 +35,7 @@ use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\MultipleAggregatingMod
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\NotMiddleware;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\PingHandler;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\PingRequestHandler;
+use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\RepeatableMethodRouteWithDirtyClassMiddlewareHandler;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\StackedHandler;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\StackFirstMiddleware;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\StackSecondMiddleware;
@@ -62,6 +63,27 @@ final class AttributeRouteExtractorTest extends TestCase
         self::assertSame(PingHandler::class, $routes[1]->handlerService);
         self::assertSame('process', $routes[1]->handlerMethod);
         self::assertSame([], $routes[1]->middlewareServices);
+    }
+
+    public function testRepeatableMethodRoutesReceiveSameNormalizedClassMiddleware(): void
+    {
+        $routes = AttributeRouteExtractorBuilder::create()->extract([
+            RepeatableMethodRouteWithDirtyClassMiddlewareHandler::class,
+        ]);
+
+        self::assertCount(2, $routes);
+
+        self::assertSame('/base/extra/one', $routes[0]->path);
+        self::assertSame(
+            ['class.middleware', 'second.class.middleware', 'method.one'],
+            $routes[0]->middlewareServices
+        );
+
+        self::assertSame('/base/extra/two', $routes[1]->path);
+        self::assertSame(
+            ['class.middleware', 'second.class.middleware', 'method.two'],
+            $routes[1]->middlewareServices
+        );
     }
 
     public function testThrowsForNonExistentClass(): void

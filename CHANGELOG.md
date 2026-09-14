@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) for the documented `1.x` public API.
 
+## [1.4.3] - 2026-09-14
+
+### Fixed
+
+- Route discovery filter now reuses a single `ReflectionClass` instance per candidate class instead of re-instantiating reflection, and checks PSR-15 interfaces through reflection.
+- The compiled route-cache container factory now honors `cacheEnabled=false` even when an application injects an inconsistent configuration object with a non-null cache file.
+- Route defaults can no longer override the reserved package-owned route option `sirix_routing_attributes.middleware_display`; all other default precedence is unchanged.
+
+### Changed
+
+- Route definition extraction normalizes class-level route middleware once per builder call instead of once per repeatable route attribute; extraction results and ordering are unchanged.
+
 ## [1.4.2] - 2026-09-11
 
 ### Fixed

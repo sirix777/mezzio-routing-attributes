@@ -119,6 +119,14 @@ final readonly class RouteDefinitionBuilder
             $this->methodSignatureValidator->validate($reflection, $className);
         }
 
+        $classMiddleware = [];
+        if ([] !== $attributes) {
+            $classMiddleware = $this->routeDataNormalizer->normalizeMiddlewareServices(
+                $className,
+                $this->routeDataNormalizer->collectClassMiddleware($classRoutes)
+            );
+        }
+
         if ($reflection instanceof ReflectionMethod) {
             $classModifiers = $this->normalizeClassModifiers(
                 $preloadedClassModifiers,
@@ -140,11 +148,10 @@ final readonly class RouteDefinitionBuilder
                 $path = $this->routeDataNormalizer->prependClassPrefixes($className, $path, $classRoutes);
             }
 
-            $routeMiddleware = $this->routeDataNormalizer->mergeMiddlewareServices(
-                $className,
-                $this->routeDataNormalizer->collectClassMiddleware($classRoutes),
-                $this->routeDataNormalizer->normalizeMiddlewareServices($className, $route->middleware)
-            );
+            $routeMiddleware = [
+                ...$classMiddleware,
+                ...$this->routeDataNormalizer->normalizeMiddlewareServices($className, $route->middleware),
+            ];
 
             $routes[] = new RouteDefinition(
                 $path,
