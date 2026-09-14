@@ -8,8 +8,10 @@ use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use Sirix\Mezzio\Routing\Attributes\Cache\NullRouteRegistrarCache;
 use Sirix\Mezzio\Routing\Attributes\CompiledRouteRegistrarCache;
+use Sirix\Mezzio\Routing\Attributes\Config\RoutingAttributesConfig;
 use Sirix\Mezzio\Routing\Attributes\Factory\CompiledRouteRegistrarCacheFactory;
 use SirixTest\Mezzio\Routing\Attributes\TestAsset\InMemoryContainer;
+use SirixTest\Mezzio\Routing\Attributes\TestAsset\LoggerResolutionSpyContainer;
 
 use function mkdir;
 use function rmdir;
@@ -59,6 +61,37 @@ final class CompiledRouteRegistrarCacheFactoryTest extends TestCase
         $cache = (new CompiledRouteRegistrarCacheFactory())($container);
 
         self::assertInstanceOf(NullRouteRegistrarCache::class, $cache);
+    }
+
+    public function testInvokeUsesNullCacheWhenCacheIsDisabledWithNonNullCacheFile(): void
+    {
+        $config = new RoutingAttributesConfig(
+            classes: [],
+            duplicateStrategy: 'ignore',
+            handlersMode: 'callable',
+            overrideMezzioRoutesListCommand: false,
+            classicRoutesMiddlewareDisplay: 'resolved',
+            cacheEnabled: false,
+            cacheFile: 'data/cache/routes.php',
+            cacheRelease: null,
+            discoveryEnabled: false,
+            discoveryPaths: [],
+            discoveryStrategy: 'token',
+            discoveryPsr4Mappings: [],
+            discoveryPsr4FallbackToToken: true,
+        );
+        $container = new LoggerResolutionSpyContainer([
+            RoutingAttributesConfig::class => $config,
+        ]);
+
+        $cache = (new CompiledRouteRegistrarCacheFactory())($container);
+
+        self::assertInstanceOf(NullRouteRegistrarCache::class, $cache);
+        self::assertContains('get:' . RoutingAttributesConfig::class, $container->resolutions);
+
+        foreach ($container->resolutions as $resolution) {
+            self::assertStringNotContainsString('LoggerInterface', $resolution);
+        }
     }
 
     public function testInvokeForwardsWriteFailureToOptionalContainerLogger(): void

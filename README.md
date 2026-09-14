@@ -504,7 +504,8 @@ Notes:
 - class-level and method-level modifiers are merged for method routes;
 - method-level defaults override class-level defaults on the same key;
 - middleware from modifiers is appended after middleware declared in `Route`/`Get` attributes.
-- defaults are passed unchanged to Mezzio `Route::setOptions()`; consult your adapter for their meaning.
+- defaults are passed unchanged to Mezzio `Route::setOptions()`; consult your adapter for the meaning.
+- the route option key `sirix_routing_attributes.middleware_display` is package-owned: it holds generated middleware display metadata for route-list commands and is always overwritten by the package, so modifier defaults cannot override it. This key is not a supported customization API.
 - integration tests use `sirix/mezzio-radixrouter` 3.2.3+: its parameter syntax is `:id` and `:id?` (for example, `/export/:format?`). Starting with 3.2.3, route defaults are merged into matched route parameters, so a missing optional parameter receives the default value as a request attribute. Path-captured values take precedence over defaults. Other router adapters have their own placeholder syntax and option handling; this is not a cross-adapter guarantee. Here `/export` returns `{"format":"json"}` and `/export/csv` returns `{"format":"csv"}`.
 - when compiled cache is enabled, defaults are limited to cache-compatible values described in [Compiled Cache Behavior](#compiled-cache-behavior).
 

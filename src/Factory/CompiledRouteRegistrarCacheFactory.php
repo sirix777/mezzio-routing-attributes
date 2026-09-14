@@ -27,6 +27,10 @@ final class CompiledRouteRegistrarCacheFactory
     {
         $config = $container->get(RoutingAttributesConfig::class);
 
+        if (! $config->cacheEnabled) {
+            return new NullRouteRegistrarCache();
+        }
+
         return $this->createFromCacheFile(
             $config->cacheFile,
             $config->cacheFingerprint(),

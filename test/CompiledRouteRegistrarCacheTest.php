@@ -464,11 +464,27 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
         $coldCollector = new RecordingRouteCollector($configureRoute);
         (new RouteRegistrar())->register($coldCollector, [$route], $this->pipelineFactory());
 
+        $displayKey    = 'sirix_routing_attributes.middleware_display';
+        $coldOptions   = $coldCollector->routes[0]->getOptions();
+        $expectedValue = 'mw.service -> handler.service::process';
+        self::assertSame($expectedValue, $coldOptions[$displayKey]);
+        self::assertSame('overridden', $coldOptions['existing']);
+        self::assertSame([
+            'values' => ['first', 'second'],
+        ], $coldOptions['nested']);
+
         $cacheFile          = $this->createCacheFilePath();
         $cache              = $this->createCache($cacheFile);
         self::assertTrue($cache->save([$route]));
         $cachedCollector = new RecordingRouteCollector($configureRoute);
         self::assertTrue($cache->registerRoutes($cachedCollector, $this->pipelineFactory()));
+
+        $cachedOptions = $cachedCollector->routes[0]->getOptions();
+        self::assertSame($expectedValue, $cachedOptions[$displayKey]);
+        self::assertSame('overridden', $cachedOptions['existing']);
+        self::assertSame([
+            'values' => ['first', 'second'],
+        ], $cachedOptions['nested']);
 
         self::assertSame($coldCollector->lastName, $cachedCollector->lastName);
         self::assertSame($coldCollector->routes[0]->getPath(), $cachedCollector->routes[0]->getPath());

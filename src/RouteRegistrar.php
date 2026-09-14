@@ -98,12 +98,12 @@ final readonly class RouteRegistrar
         array $defaults,
         string $middlewareDisplay
     ): void {
-        $registeredRoute                                                          = $collector->route($path, $middleware, $methods, $name);
-        $options                                                                  = $registeredRoute->getOptions();
-        $options[RouteMiddlewareDisplay::ROUTE_OPTION_MIDDLEWARE_DISPLAY]         = $middlewareDisplay;
+        $registeredRoute = $collector->route($path, $middleware, $methods, $name);
+        $options         = $registeredRoute->getOptions();
         if ([] !== $defaults) {
             $options = [...$options, ...$defaults];
         }
+        $options[RouteMiddlewareDisplay::ROUTE_OPTION_MIDDLEWARE_DISPLAY] = $middlewareDisplay;
         $registeredRoute->setOptions($options);
     }
 }

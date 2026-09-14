@@ -11,7 +11,6 @@ use ReflectionClass;
 use Sirix\Mezzio\Routing\Attributes\Attribute\Route;
 
 use function class_exists;
-use function is_subclass_of;
 
 final readonly class RoutableClassFilter
 {
@@ -26,17 +25,22 @@ final readonly class RoutableClassFilter
     {
         $result = [];
         foreach ($classes as $className) {
-            if (! class_exists($className) || (new ReflectionClass($className))->isAbstract()) {
+            if (! class_exists($className)) {
                 continue;
             }
 
-            if ($this->isPsr15Class($className)) {
+            $reflection = new ReflectionClass($className);
+            if ($reflection->isAbstract()) {
+                continue;
+            }
+
+            if ($this->isPsr15Class($reflection)) {
                 $result[] = $className;
 
                 continue;
             }
 
-            if ($this->allowMethodRouteClasses && $this->hasMethodRouteAttribute($className)) {
+            if ($this->allowMethodRouteClasses && $this->hasMethodRouteAttribute($reflection)) {
                 $result[] = $className;
             }
         }
@@ -44,19 +48,20 @@ final readonly class RoutableClassFilter
         return $result;
     }
 
-    private function isPsr15Class(string $className): bool
+    /**
+     * @param ReflectionClass<object> $reflection
+     */
+    private function isPsr15Class(ReflectionClass $reflection): bool
     {
-        return is_subclass_of($className, MiddlewareInterface::class)
-            || is_subclass_of($className, RequestHandlerInterface::class);
+        return $reflection->implementsInterface(MiddlewareInterface::class)
+            || $reflection->implementsInterface(RequestHandlerInterface::class);
     }
 
-    private function hasMethodRouteAttribute(string $className): bool
+    /**
+     * @param ReflectionClass<object> $reflection
+     */
+    private function hasMethodRouteAttribute(ReflectionClass $reflection): bool
     {
-        if (! class_exists($className)) {
-            return false;
-        }
-
-        $reflection = new ReflectionClass($className);
         foreach ($reflection->getMethods() as $method) {
             if ([] !== $method->getAttributes(Route::class, ReflectionAttribute::IS_INSTANCEOF)) {
                 return true;
