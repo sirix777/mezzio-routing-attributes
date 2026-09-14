@@ -23,7 +23,6 @@ use Symfony\Component\Console\Command\Command;
 
 use function bin2hex;
 use function class_exists;
-use function dirname;
 use function interface_exists;
 use function is_file;
 use function mkdir;
@@ -34,7 +33,7 @@ use function unlink;
 
 require $argv[1] ?? throw new RuntimeException('Pass the isolated vendor/autoload.php');
 
-require_once dirname(__DIR__) . '/TestAsset/RecordingRouteCollector.php';
+require_once __DIR__ . '/../TestAsset/RecordingRouteCollector.php';
 
 function verify(bool $condition, string $message): void
 {
