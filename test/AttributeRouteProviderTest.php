@@ -137,7 +137,7 @@ final class AttributeRouteProviderTest extends TestCase
 
     public function testPreservesExistingRouteOptionsWhenSettingMiddlewareDisplay(): void
     {
-        $container       = $this->createMock(ContainerInterface::class);
+        $container       = $this->createStub(ContainerInterface::class);
         $extractor       = $this->createMock(AttributeRouteExtractorInterface::class);
         $collector       = $this->createMock(RouteCollectorInterface::class);
         $registeredRoute = null;
@@ -185,16 +185,16 @@ final class AttributeRouteProviderTest extends TestCase
         $container    = $this->createMock(ContainerInterface::class);
         $extractor    = $this->createMock(AttributeRouteExtractorInterface::class);
         $collector    = $this->createMock(RouteCollectorInterface::class);
-        $response     = $this->createMock(ResponseInterface::class);
-        $finalHandler = new class($response) implements RequestHandlerInterface {
-            public function __construct(private readonly ResponseInterface $response) {}
+        $response     = $this->createStub(ResponseInterface::class);
+        $finalHandler = new readonly class($response) implements RequestHandlerInterface {
+            public function __construct(private ResponseInterface $response) {}
 
             public function handle(ServerRequestInterface $request): ResponseInterface
             {
                 return $this->response;
             }
         };
-        $request = $this->createMock(ServerRequestInterface::class);
+        $request = $this->createStub(ServerRequestInterface::class);
         $first   = new class implements MiddlewareInterface {
             public bool $called = false;
 
@@ -269,18 +269,18 @@ final class AttributeRouteProviderTest extends TestCase
     {
         $extractor       = $this->createMock(AttributeRouteExtractorInterface::class);
         $collector       = $this->createMock(RouteCollectorInterface::class);
-        $request         = $this->createMock(ServerRequestInterface::class);
-        $response        = $this->createMock(ResponseInterface::class);
-        $fallbackHandler = new class($response) implements RequestHandlerInterface {
-            public function __construct(private readonly ResponseInterface $response) {}
+        $request         = $this->createStub(ServerRequestInterface::class);
+        $response        = $this->createStub(ResponseInterface::class);
+        $fallbackHandler = new readonly class($response) implements RequestHandlerInterface {
+            public function __construct(private ResponseInterface $response) {}
 
             public function handle(ServerRequestInterface $request): ResponseInterface
             {
                 return $this->response;
             }
         };
-        $service = new class($response) implements MiddlewareInterface {
-            public function __construct(private readonly ResponseInterface $response) {}
+        $service = new readonly class($response) implements MiddlewareInterface {
+            public function __construct(private ResponseInterface $response) {}
 
             public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
             {
@@ -343,7 +343,7 @@ final class AttributeRouteProviderTest extends TestCase
 
     public function testThrowsWhenDuplicateRouteNamesDetected(): void
     {
-        $container = $this->createMock(ContainerInterface::class);
+        $container = $this->createStub(ContainerInterface::class);
         $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
         $collector = $this->createMock(RouteCollectorInterface::class);
 
@@ -459,8 +459,8 @@ final class AttributeRouteProviderTest extends TestCase
         self::assertInstanceOf(MiddlewareInterface::class, $registeredMiddleware);
         $this->expectException(InvalidServiceDefinitionException::class);
         $registeredMiddleware->process(
-            $this->createMock(ServerRequestInterface::class),
-            $this->createMock(RequestHandlerInterface::class)
+            $this->createStub(ServerRequestInterface::class),
+            $this->createStub(RequestHandlerInterface::class)
         );
     }
 
@@ -514,8 +514,8 @@ final class AttributeRouteProviderTest extends TestCase
         self::assertInstanceOf(MiddlewareInterface::class, $registeredMiddleware);
         $this->expectException(InvalidServiceDefinitionException::class);
         $registeredMiddleware->process(
-            $this->createMock(ServerRequestInterface::class),
-            $this->createMock(RequestHandlerInterface::class)
+            $this->createStub(ServerRequestInterface::class),
+            $this->createStub(RequestHandlerInterface::class)
         );
     }
 
@@ -524,7 +524,7 @@ final class AttributeRouteProviderTest extends TestCase
         $container       = $this->createMock(ContainerInterface::class);
         $extractor       = $this->createMock(AttributeRouteExtractorInterface::class);
         $collector       = $this->createMock(RouteCollectorInterface::class);
-        $request         = $this->createMock(ServerRequestInterface::class);
+        $request         = $this->createStub(ServerRequestInterface::class);
         $fallbackHandler = new class implements RequestHandlerInterface {
             public function handle(ServerRequestInterface $request): ResponseInterface
             {
@@ -580,16 +580,16 @@ final class AttributeRouteProviderTest extends TestCase
         $container       = $this->createMock(ContainerInterface::class);
         $extractor       = $this->createMock(AttributeRouteExtractorInterface::class);
         $collector       = $this->createMock(RouteCollectorInterface::class);
-        $request         = $this->createMock(ServerRequestInterface::class);
-        $response        = $this->createMock(ResponseInterface::class);
+        $request         = $this->createStub(ServerRequestInterface::class);
+        $response        = $this->createStub(ResponseInterface::class);
         $fallbackHandler = new class implements RequestHandlerInterface {
             public function handle(ServerRequestInterface $request): ResponseInterface
             {
                 throw new RuntimeException('Pipeline should not delegate in this test.');
             }
         };
-        $service = new class($response) {
-            public function __construct(private readonly ResponseInterface $response) {}
+        $service = new readonly class($response) {
+            public function __construct(private ResponseInterface $response) {}
 
             public function index(ServerRequestInterface $request): ResponseInterface
             {
@@ -634,7 +634,7 @@ final class AttributeRouteProviderTest extends TestCase
 
     public function testAppliesRouteDefaultsToRouteOptions(): void
     {
-        $container       = $this->createMock(ContainerInterface::class);
+        $container       = $this->createStub(ContainerInterface::class);
         $extractor       = $this->createMock(AttributeRouteExtractorInterface::class);
         $collector       = $this->createMock(RouteCollectorInterface::class);
         $registeredRoute = null;
@@ -782,12 +782,12 @@ final class AttributeRouteProviderTest extends TestCase
         $provider->registerRoutes($collector);
 
         self::assertNull($collector->lastName);
-        self::assertSame('keep-me', $collector->lastRoute?->getOptions()['existing_option'] ?? null);
-        self::assertSame('from-defaults', $collector->lastRoute?->getOptions()['configured_option'] ?? null);
-        self::assertSame(
-            'mw.service -> handler.service::process',
-            $collector->lastRoute?->getOptions()['sirix_routing_attributes.middleware_display'] ?? null
-        );
+        $route = $collector->lastRoute;
+        self::assertNotNull($route);
+        $options = $route->getOptions();
+        self::assertSame('keep-me', $options['existing_option'] ?? null);
+        self::assertSame('from-defaults', $options['configured_option'] ?? null);
+        self::assertSame('mw.service -> handler.service::process', $options['sirix_routing_attributes.middleware_display'] ?? null);
     }
 
     public function testDiscoversClassesOnlyAfterCacheMiss(): void

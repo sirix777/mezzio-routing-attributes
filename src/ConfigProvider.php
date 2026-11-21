@@ -29,7 +29,7 @@ use Sirix\Mezzio\Routing\Attributes\Factory\MiddlewarePipelineFactoryFactory;
 
 final readonly class ConfigProvider
 {
-    private const TOOLING_LIST_ROUTES_COMMAND = \Mezzio\Tooling\Routes\ListRoutesCommand::class;
+    private const string TOOLING_LIST_ROUTES_COMMAND = \Mezzio\Tooling\Routes\ListRoutesCommand::class;
 
     public function __construct(private ?ConsoleRegistrationPolicy $consoleRegistrationPolicy = null) {}
 

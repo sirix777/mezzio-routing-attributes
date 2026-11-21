@@ -14,8 +14,8 @@ use function interface_exists;
 
 final readonly class ConsoleRegistrationPolicy
 {
-    private const TOOLING_CONFIG_LOADER_INTERFACE = ConfigLoaderInterface::class;
-    private const TOOLING_LIST_ROUTES_COMMAND     = ListRoutesCommand::class;
+    private const string TOOLING_CONFIG_LOADER_INTERFACE = ConfigLoaderInterface::class;
+    private const string TOOLING_LIST_ROUTES_COMMAND     = ListRoutesCommand::class;
 
     public function __construct(private bool $laminasCliAvailable, private bool $toolingOverrideAvailable) {}
 

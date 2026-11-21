@@ -183,4 +183,46 @@ final class PhpClassNameParserTest extends TestCase
             'RootHandler',
         ], $result);
     }
+
+    public function testSkipsCommentsAroundClassKeyword(): void
+    {
+        $file = $this->tempDir . '/Comments.php';
+        file_put_contents($file, <<<'PHP'
+            <?php
+            declare(strict_types=1);
+
+            namespace App\Handler;
+
+            $anonymous = new /* comment */ class {};
+            $documented = new /** doc */ class {};
+            $commented = new // line comment
+                class {};
+            $name = PingHandler:: /* comment */ class;
+            $documentedName = PingHandler:: /** doc */ class;
+            $names = [PingHandler:: /* comment */ class, OtherHandler:: /** doc */ class];
+
+            final class /* comment */ CommentedHandler {}
+
+            final class /** doc */ DocumentedHandler {}
+
+            final class // line comment
+                LineCommentedHandler {}
+            PHP);
+
+        $result = (new PhpClassNameParser())->parse($file);
+
+        self::assertSame([
+            'App\Handler\CommentedHandler',
+            'App\Handler\DocumentedHandler',
+            'App\Handler\LineCommentedHandler',
+        ], $result);
+    }
+
+    public function testIgnoresClassKeywordAtEndOfFile(): void
+    {
+        $file = $this->tempDir . '/Truncated.php';
+        file_put_contents($file, '<?php class');
+
+        self::assertSame([], (new PhpClassNameParser())->parse($file));
+    }
 }

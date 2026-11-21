@@ -74,7 +74,7 @@ final class AbstractClassDiscoveryTest extends TestCase
         self::assertCount(1, $collector->routes);
         $response = $collector->routes[0]->getMiddleware()->process(
             new ServerRequest(),
-            $this->createMock(RequestHandlerInterface::class)
+            $this->createStub(RequestHandlerInterface::class)
         );
         self::assertSame($concreteClass, $response->getHeaderLine('X-Handler'));
     }
@@ -114,7 +114,7 @@ final class AbstractClassDiscoveryTest extends TestCase
             );
             $response = $pipeline->createFromSignature($routes[0]->handlerService, $routes[0]->handlerMethod, [])->process(
                 new ServerRequest(),
-                $this->createMock(RequestHandlerInterface::class)
+                $this->createStub(RequestHandlerInterface::class)
             );
             self::assertSame($concreteClass, $response->getHeaderLine('X-Handler'));
         }

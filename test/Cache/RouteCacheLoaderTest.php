@@ -208,6 +208,7 @@ final class RouteCacheLoaderTest extends TestCase
         $loader = new RouteCacheLoader();
 
         $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage('Top-level value must be an array.');
 
         $loader->load($cacheFile);
     }
@@ -232,6 +233,7 @@ final class RouteCacheLoaderTest extends TestCase
         $loader = new RouteCacheLoader();
 
         $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage('must contain callable key "register".');
 
         $loader->load($cacheFile);
     }
@@ -252,6 +254,7 @@ final class RouteCacheLoaderTest extends TestCase
         $loader = new RouteCacheLoader();
 
         $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage('Failed to load compiled cache payload: Broken artifact.');
 
         $loader->load($cacheFile);
     }

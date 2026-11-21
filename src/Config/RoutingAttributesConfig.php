@@ -13,14 +13,14 @@ use function serialize;
 
 final readonly class RoutingAttributesConfig
 {
-    public const DUPLICATE_STRATEGY_THROW                   = 'throw';
-    public const DUPLICATE_STRATEGY_IGNORE                  = 'ignore';
-    public const HANDLERS_MODE_PSR15                        = 'psr15';
-    public const HANDLERS_MODE_CALLABLE                     = 'callable';
-    public const CLASSIC_ROUTES_MIDDLEWARE_DISPLAY_UPSTREAM = 'upstream';
-    public const CLASSIC_ROUTES_MIDDLEWARE_DISPLAY_RESOLVED = 'resolved';
-    public const DISCOVERY_STRATEGY_TOKEN                   = 'token';
-    public const DISCOVERY_STRATEGY_PSR4                    = 'psr4';
+    public const string DUPLICATE_STRATEGY_THROW                   = 'throw';
+    public const string DUPLICATE_STRATEGY_IGNORE                  = 'ignore';
+    public const string HANDLERS_MODE_PSR15                        = 'psr15';
+    public const string HANDLERS_MODE_CALLABLE                     = 'callable';
+    public const string CLASSIC_ROUTES_MIDDLEWARE_DISPLAY_UPSTREAM = 'upstream';
+    public const string CLASSIC_ROUTES_MIDDLEWARE_DISPLAY_RESOLVED = 'resolved';
+    public const string DISCOVERY_STRATEGY_TOKEN                   = 'token';
+    public const string DISCOVERY_STRATEGY_PSR4                    = 'psr4';
 
     /**
      * @param list<non-empty-string>                    $classes

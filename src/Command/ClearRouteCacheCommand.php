@@ -15,7 +15,7 @@ use function unlink;
 
 final class ClearRouteCacheCommand extends Command
 {
-    private const HELP = <<<'EOT'
+    private const string HELP = <<<'EOT'
         Deletes compiled route cache artifact.
 
         By default uses routing_attributes.cache.file from config.

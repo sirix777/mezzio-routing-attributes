@@ -23,7 +23,7 @@ use function var_export;
 
 final readonly class RouteCacheGenerator
 {
-    public const FORMAT_VERSION = 2;
+    public const int FORMAT_VERSION = 2;
 
     /**
      * @param list<RouteDefinition> $routes

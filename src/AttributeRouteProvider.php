@@ -12,8 +12,8 @@ use Sirix\Mezzio\Routing\Attributes\Extractor\AttributeRouteExtractorInterface;
 
 final readonly class AttributeRouteProvider
 {
-    public const DUPLICATE_STRATEGY_THROW  = DuplicateRouteResolver::STRATEGY_THROW;
-    public const DUPLICATE_STRATEGY_IGNORE = DuplicateRouteResolver::STRATEGY_IGNORE;
+    public const string DUPLICATE_STRATEGY_THROW  = DuplicateRouteResolver::STRATEGY_THROW;
+    public const string DUPLICATE_STRATEGY_IGNORE = DuplicateRouteResolver::STRATEGY_IGNORE;
 
     private RouteDefinitionResolver $routeDefinitionResolver;
 

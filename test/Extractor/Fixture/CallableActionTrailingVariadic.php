@@ -110,4 +110,58 @@ final class CallableActionTrailingVariadic
 
         throw new RuntimeException('Invalid fixture must not execute.');
     }
+
+    /**
+     * @param ServerRequestInterface  $request
+     * @param RequestHandlerInterface $handler
+     *
+     * @return ResponseInterface
+     */
+    public function untyped($request, $handler)
+    {
+        return $handler->handle($request);
+    }
+
+    public function mixedAndObject(mixed $request, object $handler): object
+    {
+        assert($request instanceof ServerRequestInterface);
+        assert($handler instanceof RequestHandlerInterface);
+
+        return $handler->handle($request);
+    }
+
+    public function mixedResponse(ServerRequestInterface $request, RequestHandlerInterface $handler): mixed
+    {
+        return $handler->handle($request);
+    }
+
+    public function nullableResponse(ServerRequestInterface $request, RequestHandlerInterface $handler): ?ResponseInterface
+    {
+        unset($request, $handler);
+
+        throw new RuntimeException('Invalid fixture must not execute.');
+    }
+
+    public function nullableUnionResponse(
+        ServerRequestInterface $request,
+        RequestHandlerInterface $handler
+    ): Response|ResponseInterface|null {
+        unset($request, $handler);
+
+        throw new RuntimeException('Invalid fixture must not execute.');
+    }
+
+    public function scalarUnionRequest(int|string $request, RequestHandlerInterface $handler): ResponseInterface
+    {
+        unset($request, $handler);
+
+        throw new RuntimeException('Invalid fixture must not execute.');
+    }
+
+    public function scalarResponse(ServerRequestInterface $request, RequestHandlerInterface $handler): string
+    {
+        unset($request, $handler);
+
+        throw new RuntimeException('Invalid fixture must not execute.');
+    }
 }

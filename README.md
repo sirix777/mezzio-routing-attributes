@@ -16,6 +16,8 @@ Stable `1.0` releases follow semantic versioning for the public API documented b
 composer require sirix/mezzio-routing-attributes
 ```
 
+Requires PHP 8.3–8.6. On PHP 8.6, `mezzio/mezzio-router` 4.3 or newer is required: 3.x and 4.0–4.2 do not allow PHP 8.6.
+
 Optional CLI command registration requires console packages:
 
 ```bash

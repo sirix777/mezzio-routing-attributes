@@ -15,11 +15,11 @@ use function interface_exists;
 final class ListRoutesCommandFactory
 {
     /** @noRector StringClassNameToClassConstantRector */
-    private const APPLICATION_SERVICE = 'Mezzio\Application';
+    private const string APPLICATION_SERVICE = 'Mezzio\Application';
 
     /** @noRector StringClassNameToClassConstantRector */
-    private const MIDDLEWARE_FACTORY_SERVICE = 'Mezzio\MiddlewareFactory';
-    private const DEFAULT_ROUTES_FILE        = 'config/routes.php';
+    private const string MIDDLEWARE_FACTORY_SERVICE = 'Mezzio\MiddlewareFactory';
+    private const string DEFAULT_ROUTES_FILE        = 'config/routes.php';
 
     public function __invoke(ContainerInterface $container): ListRoutesCommand
     {

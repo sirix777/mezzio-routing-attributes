@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace SirixTest\Mezzio\Routing\Attributes;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Container\ContainerInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -275,9 +276,9 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
         self::assertTrue($cache->registerRoutes($collector, $this->pipelineFactory([
             $factory::class => $factory,
         ])));
-        $response = $this->createMock(ResponseInterface::class);
-        $terminal = new class($response) implements RequestHandlerInterface {
-            public function __construct(private readonly ResponseInterface $response) {}
+        $response = $this->createStub(ResponseInterface::class);
+        $terminal = new readonly class($response) implements RequestHandlerInterface {
+            public function __construct(private ResponseInterface $response) {}
 
             public function handle(ServerRequestInterface $request): ResponseInterface
             {
@@ -286,7 +287,7 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
         };
 
         self::assertSame($response, $collector->routes[0]->getMiddleware()->process(
-            $this->createMock(ServerRequestInterface::class),
+            $this->createStub(ServerRequestInterface::class),
             $terminal
         ));
         self::assertSame(1, $factory->createCalls);
@@ -367,7 +368,7 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
             'mappings' => ['query', 'body'],
         ], $routes[0]->defaults);
 
-        $response                                    = $this->createMock(ResponseInterface::class);
+        $response                                    = $this->createStub(ResponseInterface::class);
         [$coldContainer, $coldMapper, $coldPipeline] = $this->aggregatingPipeline($response);
         $coldCollector                               = new RecordingRouteCollector();
         (new RouteRegistrar())->register($coldCollector, $routes, $coldPipeline);
@@ -410,6 +411,32 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
         $cache = $this->createCache($cacheFile);
 
         self::assertFalse($cache->registerRoutes(new RecordingRouteCollector(), $this->pipelineFactory()));
+    }
+
+    #[DataProvider('corruptCacheFiles')]
+    public function testTreatsCorruptCacheFileAsCacheMiss(string $content): void
+    {
+        $cacheFile = $this->createCacheFilePath();
+        file_put_contents($cacheFile, $content);
+
+        $collector = new RecordingRouteCollector();
+
+        self::assertFalse($this->createCache($cacheFile)->registerRoutes($collector, $this->pipelineFactory()));
+        self::assertSame([], $collector->routes);
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function corruptCacheFiles(): iterable
+    {
+        yield 'non-array payload' => ['<?php return "broken";'];
+
+        yield 'throwing payload' => ['<?php throw new RuntimeException("broken cache");'];
+
+        yield 'syntax error' => ['<?php return [;'];
+
+        yield 'current format without register callable' => [
+            '<?php return ["format_version" => ' . RouteCacheGenerator::FORMAT_VERSION . ', "config_fingerprint" => "", "register" => "missing"];',
+        ];
     }
 
     public function testIgnoresCompiledCacheWriteFailure(): void
@@ -636,9 +663,9 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
 
     private function processRouteMiddleware(RecordingRouteCollector $collector): void
     {
-        $response = $this->createMock(ResponseInterface::class);
-        $handler  = new class($response) implements RequestHandlerInterface {
-            public function __construct(private readonly ResponseInterface $response) {}
+        $response = $this->createStub(ResponseInterface::class);
+        $handler  = new readonly class($response) implements RequestHandlerInterface {
+            public function __construct(private ResponseInterface $response) {}
 
             public function handle(ServerRequestInterface $request): ResponseInterface
             {
@@ -647,17 +674,17 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
         };
 
         $collector->routes[0]->getMiddleware()->process(
-            $this->createMock(ServerRequestInterface::class),
+            $this->createStub(ServerRequestInterface::class),
             $handler
         );
     }
 
     private function routeHandlerService(): RequestHandlerInterface
     {
-        $response = $this->createMock(ResponseInterface::class);
+        $response = $this->createStub(ResponseInterface::class);
 
-        return new class($response) implements RequestHandlerInterface {
-            public function __construct(private readonly ResponseInterface $response) {}
+        return new readonly class($response) implements RequestHandlerInterface {
+            public function __construct(private ResponseInterface $response) {}
 
             public function handle(ServerRequestInterface $request): ResponseInterface
             {
@@ -699,8 +726,8 @@ final class CompiledRouteRegistrarCacheTest extends TestCase
                 return $handler->handle($request);
             }
         };
-        $handlerService        = new class($response) {
-            public function __construct(private readonly ResponseInterface $response) {}
+        $handlerService        = new readonly class($response) {
+            public function __construct(private ResponseInterface $response) {}
 
             public function index(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
             {

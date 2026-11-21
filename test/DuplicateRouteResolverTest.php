@@ -116,7 +116,7 @@ final class DuplicateRouteResolverTest extends TestCase
             new RouteDefinition('/same', ['POST'], 'service.b', 'handle', [], 'route.b'),
         ]);
 
-        $router     = $this->createMock(RouterInterface::class);
+        $router     = $this->createStub(RouterInterface::class);
         $collector  = new RouteCollector($router);
         $middleware = new class implements MiddlewareInterface {
             public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface

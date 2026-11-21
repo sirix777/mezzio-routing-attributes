@@ -65,6 +65,10 @@ final class MethodSignatureValidatorTest extends TestCase
         yield 'union parameters and response' => ['union'];
 
         yield 'intersection parameter and response' => ['intersection'];
+
+        yield 'untyped parameters and response' => ['untyped'];
+
+        yield 'mixed and object parameters with object response' => ['mixedAndObject'];
     }
 
     #[DataProvider('incompatibleMethods')]
@@ -88,6 +92,16 @@ final class MethodSignatureValidatorTest extends TestCase
         yield 'incompatible variadic capturing handler' => ['incompatibleHandlerVariadic'];
 
         yield 'request-only variadic cannot capture handler' => ['incompatibleAllVariadic'];
+
+        yield 'mixed response may be null' => ['mixedResponse'];
+
+        yield 'nullable response' => ['nullableResponse'];
+
+        yield 'nullable union response' => ['nullableUnionResponse'];
+
+        yield 'scalar union request' => ['scalarUnionRequest'];
+
+        yield 'scalar response' => ['scalarResponse'];
     }
 
     private function assertInvokesMethod(string $method): void

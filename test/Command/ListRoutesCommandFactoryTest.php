@@ -107,8 +107,8 @@ final class ListRoutesCommandFactoryTest extends TestCase
                 }
             };
 
-            $application = new class($collector) {
-                public function __construct(private readonly RouteCollectorInterface $collector) {}
+            $application = new readonly class($collector) {
+                public function __construct(private RouteCollectorInterface $collector) {}
 
                 /**
                  * @param non-empty-string      $path
@@ -120,8 +120,8 @@ final class ListRoutesCommandFactoryTest extends TestCase
                 }
             };
 
-            $container = new class($collector, $application) implements ContainerInterface {
-                public function __construct(private readonly object $collector, private readonly object $application) {}
+            $container = new readonly class($collector, $application) implements ContainerInterface {
+                public function __construct(private object $collector, private object $application) {}
 
                 public function get(string $id): mixed
                 {

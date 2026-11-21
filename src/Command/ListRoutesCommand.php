@@ -17,7 +17,7 @@ use function strtolower;
 
 final class ListRoutesCommand extends Command
 {
-    private const HELP = <<<'EOT'
+    private const string HELP = <<<'EOT'
         Prints the application's routing table.
 
         For routes registered by mezzio-routing-attributes, the middleware column

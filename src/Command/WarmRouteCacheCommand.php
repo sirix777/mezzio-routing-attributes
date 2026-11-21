@@ -12,7 +12,7 @@ use Throwable;
 
 final class WarmRouteCacheCommand extends Command
 {
-    private const HELP = <<<'EOT'
+    private const string HELP = <<<'EOT'
         Intentionally builds the configured compiled route cache artifact.
 
         Run this command during deployment after application configuration and code are in place.

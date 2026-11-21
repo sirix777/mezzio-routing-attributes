@@ -20,8 +20,8 @@ final readonly class HttpSpecificationFactory implements MiddlewareFactoryInterf
     {
         $this->trace->created['specification-result'] = ($this->trace->created['specification-result'] ?? 0) + 1;
 
-        return new class($this->trace, $specification) implements MiddlewareInterface {
-            public function __construct(private readonly HttpTrace $trace, private readonly MiddlewareSpecification $specification) {}
+        return new readonly class($this->trace, $specification) implements MiddlewareInterface {
+            public function __construct(private HttpTrace $trace, private MiddlewareSpecification $specification) {}
 
             public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
             {
