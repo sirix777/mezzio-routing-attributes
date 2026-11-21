@@ -44,4 +44,14 @@ final class Psr4ClassNameResolverTest extends TestCase
 
         self::assertSame(PingHandler::class, $resolved);
     }
+
+    public function testIgnoresNonPhpFiles(): void
+    {
+        $resolver = new Psr4ClassNameResolver([
+            __DIR__ . '/../Extractor/Fixture' => 'SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\\',
+        ]);
+
+        self::assertNull($resolver->resolve(__DIR__ . '/../Extractor/Fixture/PingHandler.txt'));
+        self::assertNull($resolver->resolve(''));
+    }
 }

@@ -96,11 +96,11 @@ final class MiddlewarePipelineFactory
      */
     private function createPipeline(array $middlewares): MiddlewareInterface
     {
-        return new class($middlewares) implements MiddlewareInterface {
+        return new readonly class($middlewares) implements MiddlewareInterface {
             /**
              * @param non-empty-list<MiddlewareInterface> $middlewares
              */
-            public function __construct(private readonly array $middlewares) {}
+            public function __construct(private array $middlewares) {}
 
             public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
             {

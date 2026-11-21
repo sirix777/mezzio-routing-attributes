@@ -22,8 +22,8 @@ use function interface_exists;
 
 final class ConfigProviderConsoleRegistrationTest extends TestCase
 {
-    private const TOOLING_CONFIG_LOADER_INTERFACE = ConfigLoaderInterface::class;
-    private const TOOLING_LIST_ROUTES_COMMAND     = \Mezzio\Tooling\Routes\ListRoutesCommand::class;
+    private const string TOOLING_CONFIG_LOADER_INTERFACE = ConfigLoaderInterface::class;
+    private const string TOOLING_LIST_ROUTES_COMMAND     = \Mezzio\Tooling\Routes\ListRoutesCommand::class;
 
     #[RunInSeparateProcess]
     public function testDoesNotRegisterConsoleCommandWhenToolingClassesMissing(): void

@@ -87,7 +87,7 @@ final class SpecificationWarmupTest extends TestCase
             self::assertFalse($resolved);
             self::assertSame(
                 $response,
-                $collector->routes[0]->getMiddleware()->process(new ServerRequest(), $this->createMock(RequestHandlerInterface::class))
+                $collector->routes[0]->getMiddleware()->process(new ServerRequest(), $this->createStub(RequestHandlerInterface::class))
             );
         } finally {
             FactoryModifier::$factory = null;

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace SirixTest\Mezzio\Routing\Attributes\Config;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Sirix\Mezzio\Routing\Attributes\Config\RoutingAttributesConfig;
 use Sirix\Mezzio\Routing\Attributes\Exception\InvalidConfigurationException;
@@ -476,5 +477,83 @@ final class RoutingAttributesConfigTest extends TestCase
                 ],
             ],
         ]);
+    }
+
+    #[DataProvider('invalidlyTypedConfigurations')]
+    public function testRejectsInvalidlyTypedConfigurationKeys(mixed $routingAttributes, string $message): void
+    {
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage($message);
+
+        RoutingAttributesConfig::fromRootConfig([
+            'routing_attributes' => $routingAttributes,
+        ]);
+    }
+
+    /** @return iterable<string, array{mixed, string}> */
+    public static function invalidlyTypedConfigurations(): iterable
+    {
+        yield 'routing_attributes' => ['invalid', '"routing_attributes" must be an array; received string.'];
+
+        yield 'classes' => [[
+            'classes' => 'App\Handler',
+        ], '"routing_attributes.classes" must be an array; received string.'];
+
+        yield 'class entry' => [[
+            'classes' => ['App\Handler', 42],
+        ], 'must contain non-empty strings; received int at index "1".'];
+
+        yield 'empty class entry' => [[
+            'classes' => [''],
+        ], 'must contain non-empty strings; received string at index "0".'];
+
+        yield 'handlers' => [[
+            'handlers' => 'psr15',
+        ], '"routing_attributes.handlers" must be an array; received string.'];
+
+        yield 'discovery enabled' => [
+            [
+                'discovery' => [
+                    'enabled' => 'yes',
+                ],
+            ],
+            '"routing_attributes.discovery.enabled" must be a boolean; received string.',
+        ];
+
+        yield 'discovery paths' => [
+            [
+                'discovery' => [
+                    'enabled' => true,
+                    'paths'   => '/app/src',
+                ],
+            ],
+            '"routing_attributes.discovery.paths" must be an array; received string.',
+        ];
+
+        yield 'discovery psr4' => [
+            [
+                'discovery' => [
+                    'enabled'  => true,
+                    'paths'    => [__DIR__],
+                    'strategy' => 'psr4',
+                    'psr4'     => 'App\\',
+                ],
+            ],
+            '"routing_attributes.discovery.psr4" must be an array; received string.',
+        ];
+
+        yield 'discovery psr4 mappings' => [
+            [
+                'discovery' => [
+                    'enabled'  => true,
+                    'paths'    => [__DIR__],
+                    'strategy' => 'psr4',
+                    'psr4'     => [
+                        'mappings' => 'App\\',
+                    ],
+                ],
+            ],
+            '"routing_attributes.discovery.psr4.mappings" must be an array; received string.',
+        ];
     }
 }

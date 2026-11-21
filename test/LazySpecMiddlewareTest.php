@@ -22,7 +22,7 @@ final class LazySpecMiddlewareTest extends TestCase
 {
     public function testResolvesFactoryOnceAndDelegatesWithOriginalContainerAndSpecification(): void
     {
-        $response    = $this->createMock(ResponseInterface::class);
+        $response    = $this->createStub(ResponseInterface::class);
         $middleware  = new class implements MiddlewareInterface {
             public int $processCalls = 0;
 
@@ -58,18 +58,21 @@ final class LazySpecMiddlewareTest extends TestCase
             'scope' => 'admin',
         ]);
         $lazy          = new LazySpecMiddleware($container, $factory::class, $specification);
-        $handler       = new class($response) implements RequestHandlerInterface {
-            public function __construct(private readonly ResponseInterface $response) {}
+        $handler       = new readonly class($response) implements RequestHandlerInterface {
+            public function __construct(private ResponseInterface $response) {}
 
             public function handle(ServerRequestInterface $request): ResponseInterface
             {
                 return $this->response;
             }
         };
-        $request = $this->createMock(ServerRequestInterface::class);
+        $request = $this->createStub(ServerRequestInterface::class);
 
-        self::assertSame($response, $lazy->process($request, $handler));
-        self::assertSame($response, $lazy->process($request, $handler));
+        $first  = $lazy->process($request, $handler);
+        $second = $lazy->process($request, $handler);
+
+        self::assertSame($response, $first);
+        self::assertSame($response, $second);
         self::assertSame(1, $factory->createCalls);
         self::assertSame(2, $middleware->processCalls);
         self::assertSame($container, $factory->receivedContainer);
@@ -97,8 +100,8 @@ final class LazySpecMiddlewareTest extends TestCase
         $this->expectExceptionMessage(MiddlewareFactoryInterface::class);
 
         $lazy->process(
-            $this->createMock(ServerRequestInterface::class),
-            $this->createMock(RequestHandlerInterface::class)
+            $this->createStub(ServerRequestInterface::class),
+            $this->createStub(RequestHandlerInterface::class)
         );
     }
 }

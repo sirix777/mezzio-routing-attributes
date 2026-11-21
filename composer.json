@@ -20,7 +20,7 @@
         }
     ],
     "require": {
-        "php": "~8.2.0 || ~8.3.0 || ~8.4.0 || ~8.5.0",
+        "php": "~8.3.0 || ~8.4.0 || ~8.5.0 || ~8.6.0",
         "ext-tokenizer": "*",
         "mezzio/mezzio-router": "^3.15 || ^4.1",
         "psr/container": "^1.0 || ^2.0",
@@ -34,9 +34,9 @@
         "laminas/laminas-cli": "^1.15",
         "laminas/laminas-diactoros": "^3.8",
         "laminas/laminas-servicemanager": "^3.23",
-        "phpunit/phpunit": "^11.5",
+        "phpunit/phpunit": "^12.5",
         "psr/log": "^1.1 || ^2.0 || ^3.0",
-        "sirix/mezzio-radixrouter": "^3.2.3",
+        "sirix/mezzio-radixrouter": "^3.2.3 || ^4.1",
         "symfony/console": "^6.4 || ^7.0"
     },
     "suggest": {

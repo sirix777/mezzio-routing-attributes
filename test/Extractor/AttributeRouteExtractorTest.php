@@ -11,6 +11,7 @@ use Sirix\Mezzio\Routing\Attributes\Exception\InvalidRouteDefinitionException;
 use Sirix\Mezzio\Routing\Contracts\MiddlewareSpecification;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\AggregatingModifierHandler;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\AmbiguousSpecificationSignatureHandler;
+use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\BlankUniqueMiddlewareKeyHandler;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\CallableActionController;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\CallableActionInvalidHandlerParameter;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\CallableActionInvalidIntersectionParameter;
@@ -33,6 +34,7 @@ use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\MethodRouteWithClassMo
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\MultiMethodRouteWithClassModifierHandler;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\MultipleAggregatingModifierHandler;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\NotMiddleware;
+use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\NumericUniqueMiddlewareKeyHandler;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\PingHandler;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\PingRequestHandler;
 use SirixTest\Mezzio\Routing\Attributes\Extractor\Fixture\RepeatableMethodRouteWithDirtyClassMiddlewareHandler;
@@ -238,6 +240,25 @@ final class AttributeRouteExtractorTest extends TestCase
         $this->expectExceptionMessage('conflicting middleware services');
 
         AttributeRouteExtractorBuilder::create()->extract([ConflictingStringUniqueMiddlewareHandler::class]);
+    }
+
+    /** @param class-string $handler */
+    #[DataProvider('invalidUniqueMiddlewareKeyHandlers')]
+    public function testRejectsInvalidUniqueMiddlewareKey(string $handler): void
+    {
+        $this->expectException(InvalidRouteDefinitionException::class);
+        $this->expectExceptionMessage('Unique middleware keys for route class "' . $handler . '" must be non-empty strings.');
+
+        AttributeRouteExtractorBuilder::create()->extract([$handler]);
+    }
+
+    /** @return iterable<string, array{class-string}> */
+    public static function invalidUniqueMiddlewareKeyHandlers(): iterable
+    {
+        yield 'blank key' => [BlankUniqueMiddlewareKeyHandler::class];
+
+        // PHP turns the numeric string key into an int.
+        yield 'numeric key' => [NumericUniqueMiddlewareKeyHandler::class];
     }
 
     public function testRejectsStringAndSpecificationForTheSameUniqueMiddlewareKey(): void

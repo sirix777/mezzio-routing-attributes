@@ -258,8 +258,8 @@ final class RouteListServicesTest extends TestCase
         $middlewareName = 'App\Handler\PrivateClassicHandler';
         $route          = new Route(
             '/classic-private',
-            new class($middlewareName) implements MiddlewareInterface {
-                public function __construct(private readonly string $middlewareName) {}
+            new readonly class($middlewareName) implements MiddlewareInterface {
+                public function __construct(private string $middlewareName) {}
 
                 public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
                 {
@@ -391,7 +391,7 @@ final class RouteListServicesTest extends TestCase
      */
     private function createListRoutesCommand(array $routes): ListRoutesCommand
     {
-        $collector = $this->createMock(RouteCollectorInterface::class);
+        $collector = $this->createStub(RouteCollectorInterface::class);
         $collector
             ->method('getRoutes')
             ->willReturn($routes)

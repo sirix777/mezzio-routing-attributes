@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) for the documented `1.x` public API.
 
+## [1.5.0] - 2026-11-21
+
+### Changed
+
+- Supported PHP window is now 8.3–8.6 (8.6 added, 8.2 dropped).
+- On PHP 8.6, `mezzio/mezzio-router` 4.3+ is required: 3.x and 4.0–4.2 do not allow PHP 8.6. The CI matrix skips PHP 8.6 with `mezzio-router` `^3.15`; on PHP 8.6 Composer installs `sirix/mezzio-routing-contracts` 1.3.0, the first release that allows it.
+- Class constants are now typed (Rector `UP_TO_PHP_83`); all affected classes are `final`, so values and usage are unchanged.
+- Development tooling: PHPUnit `^12.5`, `sirix/mezzio-radixrouter` `^3.2.3 || ^4.1`, Rector `UP_TO_PHP_83` (without the obsolete `EARLY_RETURN` set), PHP CS Fixer `@PHP8x3Migration`; CI covers PHP 8.3–8.6, the lowest-dependency and Windows jobs run on PHP 8.3.
+
+### Added
+
+- Tests for previously untested failure paths: blank route paths, names, methods and middleware lists; blank and numeric unique-middleware keys; invalidly typed configuration keys; corrupt compiled route-cache files (treated as a cache miss); nullable and scalar handler return types; comments around the `class` keyword during token discovery; non-PHP files in PSR-4 discovery.
+
 ## [1.4.3] - 2026-09-14
 
 ### Fixed

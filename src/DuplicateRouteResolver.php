@@ -13,8 +13,8 @@ use function strtoupper;
 
 final readonly class DuplicateRouteResolver
 {
-    public const STRATEGY_THROW  = 'throw';
-    public const STRATEGY_IGNORE = 'ignore';
+    public const string STRATEGY_THROW  = 'throw';
+    public const string STRATEGY_IGNORE = 'ignore';
 
     /**
      * @param self::STRATEGY_IGNORE|self::STRATEGY_THROW $strategy

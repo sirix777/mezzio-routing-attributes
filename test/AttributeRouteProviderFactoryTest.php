@@ -53,7 +53,7 @@ final class AttributeRouteProviderFactoryTest extends TestCase
 
     public function testCreatesProviderFromValidConfiguration(): void
     {
-        $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
+        $extractor = $this->createStub(AttributeRouteExtractorInterface::class);
         $container = $this->createContainerWithMiddlewarePipeline([
             'config'                                => [
                 'routing_attributes' => [
@@ -72,7 +72,7 @@ final class AttributeRouteProviderFactoryTest extends TestCase
 
     public function testCreatesProviderWhenConfigMissing(): void
     {
-        $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
+        $extractor = $this->createStub(AttributeRouteExtractorInterface::class);
         $container = $this->createContainerWithMiddlewarePipeline([
             'config'                                => [],
             AttributeRouteExtractorInterface::class => $extractor,
@@ -85,7 +85,7 @@ final class AttributeRouteProviderFactoryTest extends TestCase
 
     public function testThrowsForInvalidClassesConfig(): void
     {
-        $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
+        $extractor = $this->createStub(AttributeRouteExtractorInterface::class);
         $container = new InMemoryContainer([
             'config'                                => [
                 'routing_attributes' => [
@@ -102,7 +102,7 @@ final class AttributeRouteProviderFactoryTest extends TestCase
 
     public function testAllowsDuplicateStrategyIgnore(): void
     {
-        $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
+        $extractor = $this->createStub(AttributeRouteExtractorInterface::class);
         $container = $this->createContainerWithMiddlewarePipeline([
             'config'                                => [
                 'routing_attributes' => [
@@ -122,7 +122,7 @@ final class AttributeRouteProviderFactoryTest extends TestCase
 
     public function testThrowsForInvalidDuplicateStrategy(): void
     {
-        $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
+        $extractor = $this->createStub(AttributeRouteExtractorInterface::class);
         $container = new InMemoryContainer([
             'config'                                => [
                 'routing_attributes' => [
@@ -142,7 +142,7 @@ final class AttributeRouteProviderFactoryTest extends TestCase
 
     public function testThrowsWhenRemovedLazyServiceResolutionOptionIsUsed(): void
     {
-        $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
+        $extractor = $this->createStub(AttributeRouteExtractorInterface::class);
         $container = new InMemoryContainer([
             'config'                                => [
                 'routing_attributes' => [
@@ -162,7 +162,7 @@ final class AttributeRouteProviderFactoryTest extends TestCase
 
     public function testAllowsCacheConfigurationWhenEnabled(): void
     {
-        $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
+        $extractor = $this->createStub(AttributeRouteExtractorInterface::class);
         $container = $this->createContainerWithMiddlewarePipeline([
             'config'                                => [
                 'routing_attributes' => [
@@ -185,7 +185,7 @@ final class AttributeRouteProviderFactoryTest extends TestCase
 
     public function testThrowsWhenRemovedCacheBackendOptionUsed(): void
     {
-        $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
+        $extractor = $this->createStub(AttributeRouteExtractorInterface::class);
         $container = new InMemoryContainer([
             'config'                                => [
                 'routing_attributes' => [
@@ -209,7 +209,7 @@ final class AttributeRouteProviderFactoryTest extends TestCase
 
     public function testThrowsWhenRemovedCacheModeOptionUsed(): void
     {
-        $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
+        $extractor = $this->createStub(AttributeRouteExtractorInterface::class);
         $container = new InMemoryContainer([
             'config'                                => [
                 'routing_attributes' => [
@@ -233,7 +233,7 @@ final class AttributeRouteProviderFactoryTest extends TestCase
 
     public function testThrowsForInvalidCacheType(): void
     {
-        $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
+        $extractor = $this->createStub(AttributeRouteExtractorInterface::class);
         $container = new InMemoryContainer([
             'config'                                => [
                 'routing_attributes' => [
@@ -253,7 +253,7 @@ final class AttributeRouteProviderFactoryTest extends TestCase
 
     public function testThrowsForInvalidCacheEnabledFlag(): void
     {
-        $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
+        $extractor = $this->createStub(AttributeRouteExtractorInterface::class);
         $container = new InMemoryContainer([
             'config'                                => [
                 'routing_attributes' => [
@@ -276,7 +276,7 @@ final class AttributeRouteProviderFactoryTest extends TestCase
 
     public function testThrowsWhenCacheEnabledWithoutValidFile(): void
     {
-        $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
+        $extractor = $this->createStub(AttributeRouteExtractorInterface::class);
         $container = new InMemoryContainer([
             'config'                                => [
                 'routing_attributes' => [
@@ -298,7 +298,7 @@ final class AttributeRouteProviderFactoryTest extends TestCase
 
     public function testThrowsWhenRemovedCacheStrictOptionIsUsed(): void
     {
-        $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
+        $extractor = $this->createStub(AttributeRouteExtractorInterface::class);
         $container = new InMemoryContainer([
             'config'                                => [
                 'routing_attributes' => [
@@ -322,7 +322,7 @@ final class AttributeRouteProviderFactoryTest extends TestCase
 
     public function testThrowsWhenRemovedCacheWriteFailStrategyOptionIsUsed(): void
     {
-        $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
+        $extractor = $this->createStub(AttributeRouteExtractorInterface::class);
         $container = new InMemoryContainer([
             'config'                                => [
                 'routing_attributes' => [
@@ -346,7 +346,7 @@ final class AttributeRouteProviderFactoryTest extends TestCase
 
     public function testThrowsWhenRemovedCacheBackendOptionUsesInvalidValue(): void
     {
-        $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
+        $extractor = $this->createStub(AttributeRouteExtractorInterface::class);
         $container = new InMemoryContainer([
             'config'                                => [
                 'routing_attributes' => [
@@ -370,7 +370,7 @@ final class AttributeRouteProviderFactoryTest extends TestCase
 
     public function testThrowsWhenRemovedCacheModeOptionUsesInvalidValue(): void
     {
-        $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
+        $extractor = $this->createStub(AttributeRouteExtractorInterface::class);
         $container = new InMemoryContainer([
             'config'                                => [
                 'routing_attributes' => [
@@ -394,7 +394,7 @@ final class AttributeRouteProviderFactoryTest extends TestCase
 
     public function testAllowsDiscoveryConfigurationWhenEnabled(): void
     {
-        $extractor             = $this->createMock(AttributeRouteExtractorInterface::class);
+        $extractor             = $this->createStub(AttributeRouteExtractorInterface::class);
         $resolverFromContainer = $this->createDiscoveryResolver();
         $container             = $this->createContainerWithMiddlewarePipeline([
             'config'                                  => [
@@ -430,7 +430,7 @@ final class AttributeRouteProviderFactoryTest extends TestCase
                 PHP
         );
 
-        $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
+        $extractor = $this->createStub(AttributeRouteExtractorInterface::class);
         $container = $this->createContainerWithMiddlewarePipeline([
             'config'                                => [
                 'routing_attributes' => [
@@ -456,7 +456,7 @@ final class AttributeRouteProviderFactoryTest extends TestCase
     public function testRunsDiscoveryResolutionWhenCompiledCacheFileIsMissing(): void
     {
         $cacheFile             = sys_get_temp_dir() . '/routing-attributes-discovery-run-' . uniqid('', true) . '.php';
-        $extractor             = $this->createMock(AttributeRouteExtractorInterface::class);
+        $extractor             = $this->createStub(AttributeRouteExtractorInterface::class);
         $resolverFromContainer = $this->createDiscoveryResolver();
 
         $container = $this->createContainerWithMiddlewarePipeline([
@@ -488,7 +488,7 @@ final class AttributeRouteProviderFactoryTest extends TestCase
         $this->filesToDelete[] = $cacheFile;
         file_put_contents($cacheFile, "<?php\n\ndeclare(strict_types=1);\n\nreturn ['broken' => true];\n");
 
-        $extractor             = $this->createMock(AttributeRouteExtractorInterface::class);
+        $extractor             = $this->createStub(AttributeRouteExtractorInterface::class);
         $resolverFromContainer = $this->createDiscoveryResolver();
 
         $container = $this->createContainerWithMiddlewarePipeline([
@@ -516,7 +516,7 @@ final class AttributeRouteProviderFactoryTest extends TestCase
 
     public function testThrowsForInvalidDiscoveryType(): void
     {
-        $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
+        $extractor = $this->createStub(AttributeRouteExtractorInterface::class);
         $container = new InMemoryContainer([
             'config'                                => [
                 'routing_attributes' => [
@@ -534,7 +534,7 @@ final class AttributeRouteProviderFactoryTest extends TestCase
 
     public function testThrowsForInvalidDiscoveryPathEntry(): void
     {
-        $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
+        $extractor = $this->createStub(AttributeRouteExtractorInterface::class);
         $container = new InMemoryContainer([
             'config'                                => [
                 'routing_attributes' => [
@@ -555,7 +555,7 @@ final class AttributeRouteProviderFactoryTest extends TestCase
 
     public function testThrowsWhenRemovedDiscoveryClassMapCacheOptionUsedWithValidate(): void
     {
-        $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
+        $extractor = $this->createStub(AttributeRouteExtractorInterface::class);
         $container = new InMemoryContainer([
             'config'                                => [
                 'routing_attributes' => [
@@ -579,7 +579,7 @@ final class AttributeRouteProviderFactoryTest extends TestCase
 
     public function testThrowsWhenRemovedDiscoveryClassMapCacheOptionUsedWithWriteFailStrategy(): void
     {
-        $extractor = $this->createMock(AttributeRouteExtractorInterface::class);
+        $extractor = $this->createStub(AttributeRouteExtractorInterface::class);
         $container = new InMemoryContainer([
             'config'                                => [
                 'routing_attributes' => [

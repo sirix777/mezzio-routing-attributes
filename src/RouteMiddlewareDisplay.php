@@ -12,7 +12,7 @@ use function implode;
 /** @internal */
 final class RouteMiddlewareDisplay
 {
-    public const ROUTE_OPTION_MIDDLEWARE_DISPLAY = 'sirix_routing_attributes.middleware_display';
+    public const string ROUTE_OPTION_MIDDLEWARE_DISPLAY = 'sirix_routing_attributes.middleware_display';
 
     /**
      * @param list<MiddlewareSpecification|non-empty-string> $middlewareServices

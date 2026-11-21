@@ -115,10 +115,10 @@ final class MiddlewarePipelineFactoryTest extends TestCase
 
         self::assertSame(0, $container->getCalls);
 
-        $request  = $this->createMock(ServerRequestInterface::class);
-        $response = $this->createMock(ResponseInterface::class);
-        $terminal = new class($response) implements RequestHandlerInterface {
-            public function __construct(private readonly ResponseInterface $response) {}
+        $request  = $this->createStub(ServerRequestInterface::class);
+        $response = $this->createStub(ResponseInterface::class);
+        $terminal = new readonly class($response) implements RequestHandlerInterface {
+            public function __construct(private ResponseInterface $response) {}
 
             public function handle(ServerRequestInterface $request): ResponseInterface
             {
@@ -135,9 +135,9 @@ final class MiddlewarePipelineFactoryTest extends TestCase
     public function testResolvesMixedStringAndSpecificationEntriesInOrder(): void
     {
         $events         = new ArrayObject();
-        $specMiddleware = new class($events) implements MiddlewareInterface {
+        $specMiddleware = new readonly class($events) implements MiddlewareInterface {
             /** @param ArrayObject<int, string> $events */
-            public function __construct(private readonly ArrayObject $events) {}
+            public function __construct(private ArrayObject $events) {}
 
             public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
             {
@@ -159,9 +159,9 @@ final class MiddlewarePipelineFactoryTest extends TestCase
             }
         };
         $container   = new InMemoryContainer([
-            'middleware.string' => new class($events) implements MiddlewareInterface {
+            'middleware.string' => new readonly class($events) implements MiddlewareInterface {
                 /** @param ArrayObject<int, string> $events */
-                public function __construct(private readonly ArrayObject $events) {}
+                public function __construct(private ArrayObject $events) {}
 
                 public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
                 {
@@ -171,9 +171,9 @@ final class MiddlewarePipelineFactoryTest extends TestCase
                 }
             },
             $specFactory::class => $specFactory,
-            'handler.service'   => new class($events) implements MiddlewareInterface {
+            'handler.service'   => new readonly class($events) implements MiddlewareInterface {
                 /** @param ArrayObject<int, string> $events */
-                public function __construct(private readonly ArrayObject $events) {}
+                public function __construct(private ArrayObject $events) {}
 
                 public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
                 {
@@ -189,9 +189,9 @@ final class MiddlewarePipelineFactoryTest extends TestCase
         ]);
         $pipeline      = $factory->createFromSignature('handler.service', 'process', ['middleware.string', $specification]);
         $samePipeline  = $factory->createFromSignature('handler.service', 'process', ['middleware.string', $specification]);
-        $response      = $this->createMock(ResponseInterface::class);
-        $terminal      = new class($response) implements RequestHandlerInterface {
-            public function __construct(private readonly ResponseInterface $response) {}
+        $response      = $this->createStub(ResponseInterface::class);
+        $terminal      = new readonly class($response) implements RequestHandlerInterface {
+            public function __construct(private ResponseInterface $response) {}
 
             public function handle(ServerRequestInterface $request): ResponseInterface
             {
@@ -200,17 +200,17 @@ final class MiddlewarePipelineFactoryTest extends TestCase
         };
 
         self::assertSame($pipeline, $samePipeline);
-        self::assertSame($response, $pipeline->process($this->createMock(ServerRequestInterface::class), $terminal));
+        self::assertSame($response, $pipeline->process($this->createStub(ServerRequestInterface::class), $terminal));
         self::assertSame(['string', 'spec', 'handler'], $events->getArrayCopy());
         self::assertSame(1, $specFactory->createCalls);
     }
 
     public function testNestedReentryPreservesEachInvocationDownstream(): void
     {
-        $outerRequest    = $this->createMock(ServerRequestInterface::class);
-        $nestedRequest   = $this->createMock(ServerRequestInterface::class);
-        $outerResponse   = $this->createMock(ResponseInterface::class);
-        $nestedResponse  = $this->createMock(ResponseInterface::class);
+        $outerRequest    = $this->createStub(ServerRequestInterface::class);
+        $nestedRequest   = $this->createStub(ServerRequestInterface::class);
+        $outerResponse   = $this->createStub(ResponseInterface::class);
+        $nestedResponse  = $this->createStub(ResponseInterface::class);
         $outerDownstream = $this->createMock(RequestHandlerInterface::class);
         $outerDownstream->expects(self::once())->method('handle')->with(self::identicalTo($outerRequest))->willReturn($outerResponse);
         $nestedDownstream = $this->createMock(RequestHandlerInterface::class);
@@ -246,10 +246,10 @@ final class MiddlewarePipelineFactoryTest extends TestCase
 
     public function testInterleavedFibersPreserveEachInvocationDownstream(): void
     {
-        $firstRequest    = $this->createMock(ServerRequestInterface::class);
-        $secondRequest   = $this->createMock(ServerRequestInterface::class);
-        $firstResponse   = $this->createMock(ResponseInterface::class);
-        $secondResponse  = $this->createMock(ResponseInterface::class);
+        $firstRequest    = $this->createStub(ServerRequestInterface::class);
+        $secondRequest   = $this->createStub(ServerRequestInterface::class);
+        $firstResponse   = $this->createStub(ResponseInterface::class);
+        $secondResponse  = $this->createStub(ResponseInterface::class);
         $firstDownstream = $this->createMock(RequestHandlerInterface::class);
         $firstDownstream->expects(self::once())->method('handle')->with(self::identicalTo($firstRequest))->willReturn($firstResponse);
         $secondDownstream = $this->createMock(RequestHandlerInterface::class);
